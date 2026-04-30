@@ -1,0 +1,13 @@
+# Supabase CLI configuration
+# Docs: https://supabase.com/docs/guides/cli/config
+
+project_id = "knkhauchlrfnjigrxljc"
+
+[db]
+# Port to use for the local database URL (supabase start)
+port = 54322
+major_version = 15
+
+[api]
+enabled = true
+port = 54321

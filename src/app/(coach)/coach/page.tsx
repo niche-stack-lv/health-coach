@@ -1,0 +1,136 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Users, Camera, UtensilsCrossed, IndianRupee } from "lucide-react";
+import { StatCard } from "@/components/ui/stat-card";
+import { Card } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useIsDemo } from "@/lib/use-demo";
+import { useAuth } from "@/lib/auth-context";
+import { getClients, getDietPlans, getCoachCheckIns } from "@/lib/db";
+import { formatDate } from "@/lib/utils";
+
+import { Suspense } from "react";
+
+export default function CoachDashboard() {
+  return <Suspense fallback={<div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>}><CoachDashboardInner /></Suspense>;
+}
+
+function CoachDashboardInner() {
+  const { user } = useAuth();
+  const isDemo = useIsDemo();
+  const [clients, setClients] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [checkIns, setCheckIns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isDemo) {
+      setClients([
+        { id: "d1", status: "active", goal: "Fat loss", profile: { name: "Alex Rivera", email: "alex@demo.com" } },
+        { id: "d2", status: "active", goal: "Body recomposition", profile: { name: "Jordan Smith", email: "jordan@demo.com" } },
+        { id: "d3", status: "active", goal: "Muscle gain", profile: { name: "Sam Patel", email: "sam@demo.com" } },
+        { id: "d4", status: "active", goal: "Contest prep", profile: { name: "Taylor Chen", email: "taylor@demo.com" } },
+      ]);
+      setCheckIns([
+        { id: "ci1", status: "pending", date: "2026-03-28", weight: 83.2, photos: [1, 2, 3], client: { name: "Alex Rivera" } },
+        { id: "ci2", status: "pending", date: "2026-03-28", weight: 71.5, photos: [1, 2], client: { name: "Jordan Smith" } },
+        { id: "ci3", status: "reviewed", date: "2026-03-21", weight: 84.5, photos: [1], client: { name: "Alex Rivera" }, coach_feedback: "Great progress!" },
+      ]);
+      setPlans([{ id: "p1", status: "active" }, { id: "p2", status: "active" }, { id: "p3", status: "active" }]);
+      setLoading(false);
+      return;
+    }
+    if (user) loadData();
+  }, [user, isDemo]);
+
+  async function loadData() {
+    if (!user) return;
+    const [c, p, ci] = await Promise.all([
+      getClients(user.id),
+      getDietPlans(user.id),
+      getCoachCheckIns(user.id),
+    ]);
+    setClients(c);
+    setPlans(p);
+    setCheckIns(ci);
+    setLoading(false);
+  }
+
+  const activeClients = clients.filter((c) => c.status === "active");
+  const pendingCheckIns = checkIns.filter((c) => c.status === "pending");
+  const activePlans = plans.filter((p) => p.status === "active");
+
+  if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl lg:text-2xl font-bold text-white">Welcome back 💪</h1>
+        <p className="text-zinc-500 mt-1 text-sm">Here&apos;s your business overview.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5 mb-6">
+        <StatCard title="Active Clients" value={activeClients.length} subtitle={`${clients.length} total`} icon={Users} />
+        <StatCard title="Active Plans" value={activePlans.length} icon={UtensilsCrossed} />
+        <StatCard title="Pending Check-ins" value={pendingCheckIns.length} subtitle="Awaiting review" icon={Camera} />
+        <StatCard title="Total Check-ins" value={checkIns.length} icon={IndianRupee} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="lg:col-span-2">
+          <Card>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm lg:text-base font-semibold text-white">Pending Check-in Reviews</h2>
+              {pendingCheckIns.length > 0 && <Badge variant="warning">{pendingCheckIns.length} pending</Badge>}
+            </div>
+            {pendingCheckIns.length === 0 ? (
+              <p className="text-sm text-zinc-500">All caught up! No pending check-ins.</p>
+            ) : (
+              <div className="space-y-3">
+                {pendingCheckIns.slice(0, 5).map((ci) => (
+                  <div key={ci.id} className="flex items-center justify-between rounded-xl border border-white/[0.06] p-3 hover:bg-white/[0.03] transition-colors">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={ci.client?.name || "?"} />
+                      <div>
+                        <p className="text-sm font-medium text-white">{ci.client?.name}</p>
+                        <p className="text-xs text-zinc-500">{formatDate(ci.date || ci.created_at)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {ci.weight && <span className="text-xs text-zinc-400">{ci.weight} kg</span>}
+                      {(ci.photos || []).length > 0 && <Badge variant="info">{ci.photos.length} photos</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div>
+          <Card>
+            <h2 className="text-sm lg:text-base font-semibold text-white mb-4">Active Clients</h2>
+            {activeClients.length === 0 ? (
+              <p className="text-sm text-zinc-500">No active clients yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {activeClients.map((client) => (
+                  <div key={client.id} className="flex items-center gap-3">
+                    <Avatar name={client.profile?.name || "?"} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{client.profile?.name}</p>
+                      <p className="text-xs text-zinc-500 truncate">{client.goal}</p>
+                    </div>
+                    <Badge variant="success">Active</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

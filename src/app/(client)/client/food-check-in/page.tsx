@@ -128,9 +128,10 @@ function FoodCheckInPageInner() {
       const existingSelections: Record<string, string> = {};
       const existingSkipped = new Set<string>();
       for (const item of checkIn.items || []) {
+        if (!item.componentId) continue;
         if (item.isSkipped) {
           existingSelections[item.componentId] = "skipped";
-          existingSkipped.add(item.slotId);
+          if (item.slotId) existingSkipped.add(item.slotId);
         } else if (item.dishId) {
           existingSelections[item.componentId] = item.dishId;
         }

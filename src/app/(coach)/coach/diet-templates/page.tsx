@@ -20,10 +20,10 @@ export default function DietTemplatesPage() {
 }
 
 const demoTemplates: DietTemplate[] = [
-  { id: "demo-veg", coachId: "demo", name: "Veg Plan", planType: "veg", days: [], createdAt: new Date().toISOString() },
-  { id: "demo-nonveg", coachId: "demo", name: "Nonveg Plan", planType: "nonveg", days: [], createdAt: new Date().toISOString() },
-  { id: "demo-lowcarb", coachId: "demo", name: "Low Carb Nonveg", planType: "low_carb_nonveg", days: [], createdAt: new Date().toISOString() },
-  { id: "demo-if", coachId: "demo", name: "Intermittent Fasting", planType: "intermittent_fasting", days: [], createdAt: new Date().toISOString() },
+  { id: "demo-veg", coachId: "demo", name: "Veg Plan", planType: "veg", mealSlots: [], createdAt: new Date().toISOString() },
+  { id: "demo-nonveg", coachId: "demo", name: "Nonveg Plan", planType: "nonveg", mealSlots: [], createdAt: new Date().toISOString() },
+  { id: "demo-lowcarb", coachId: "demo", name: "Low Carb Nonveg", planType: "low_carb_nonveg", mealSlots: [], createdAt: new Date().toISOString() },
+  { id: "demo-if", coachId: "demo", name: "Intermittent Fasting", planType: "intermittent_fasting", mealSlots: [], createdAt: new Date().toISOString() },
 ];
 
 const planTypeBadgeColors: Record<PlanType, string> = {

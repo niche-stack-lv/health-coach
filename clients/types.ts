@@ -16,8 +16,8 @@ export interface ClientConfig {
     signupSubtitle: string;
     /** Login page subtitle */
     loginSubtitle: string;
-    /** Optional tagline for landing page */
-    tagline?: string;
+    /** Allow additional client-specific brand fields */
+    [key: string]: string | undefined;
   };
 
   coach: {

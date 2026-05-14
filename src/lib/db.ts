@@ -1124,6 +1124,8 @@ function mapFoodCheckInItemRow(row: any): FoodCheckInItem {
     componentId: row.component_id,
     dishId: row.dish_id,
     isSkipped: row.is_skipped,
+    customName: row.custom_name,
+    customCalories: row.custom_calories,
   };
 }
 
@@ -1138,6 +1140,15 @@ function mapFoodCheckInRow(row: any): FoodCheckIn {
     totalCarbs: row.total_carbs,
     totalFat: row.total_fat,
     adherenceScore: row.adherence_score,
+    weight: row.weight,
+    waterLitres: row.water_litres,
+    steps: row.steps,
+    sleepHours: row.sleep_hours,
+    energyLevel: row.energy_level,
+    mood: row.mood,
+    notes: row.notes,
+    coachFeedback: row.coach_feedback,
+    status: row.status,
     items: (row.food_check_in_items || []).map(mapFoodCheckInItemRow),
     createdAt: row.created_at,
   };

@@ -20,10 +20,12 @@ import { cn } from "@/lib/utils";
 import { config, formatPrice } from "@/lib/config";
 
 const UPI_ID = config.contact.upiId;
+const pricingConfig = config.pricing as any;
+const programsConfig = config.programs as any[];
 
-const programs = config.programs.map((p) => ({ name: p.name, emoji: p.emoji }));
+const programs = (programsConfig || []).map((p: any) => ({ name: p.name, emoji: p.emoji }));
 
-const durations = config.pricing.durations;
+const durations = pricingConfig?.durations || [];
 
 const oneTimeSubs = [
   { id: "diet", label: "Diet Plan" },
@@ -32,10 +34,10 @@ const oneTimeSubs = [
   { id: "all", label: "All 3 — Best Value" },
 ];
 
-const oneTimeSinglePrice = config.pricing.oneTimeSingle;
-const oneTimeAllPrice = config.pricing.oneTimeAll;
-const goldPrice = config.pricing.gold;
-const platinumPrice = config.pricing.platinum;
+const oneTimeSinglePrice = pricingConfig?.oneTimeSingle || {};
+const oneTimeAllPrice = pricingConfig?.oneTimeAll || {};
+const goldPrice = pricingConfig?.gold || {};
+const platinumPrice = pricingConfig?.platinum || {};
 
 type PlanType = "one-time" | "gold" | "platinum" | null;
 type Duration = "4" | "8" | "12";

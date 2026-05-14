@@ -30,7 +30,7 @@ export default function PlansPage() {
     // The latest assignment per client is "active", older ones are "inactive"
     const latestPerClient = new Map<string, string>();
     for (const a of assignments) {
-      const clientId = a.clientId || a.client_id;
+      const clientId = a.clientId;
       if (!latestPerClient.has(clientId)) {
         latestPerClient.set(clientId, a.id);
       }

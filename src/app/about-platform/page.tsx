@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { config } from "@/lib/config";
 
+const aboutPlatform = config.aboutPlatform as any;
 const icons = [Utensils, ClipboardList, Camera, BarChart3, Target];
-const steps = config.aboutPlatform.features.map((f, i) => ({ ...f, icon: icons[i] }));
+const steps = aboutPlatform?.features?.map((f: any, i: number) => ({ ...f, icon: icons[i] })) || [];
 
 export default function AboutPlatform() {
   return (
@@ -41,10 +42,10 @@ export default function AboutPlatform() {
           <span className="block text-gradient-gold mt-2">Step by Step</span>
         </h1>
         <p className="mt-8 text-sm sm:text-base text-zinc-400 font-light max-w-2xl mx-auto leading-relaxed">
-          {config.aboutPlatform.heroSubtitle}
+          {aboutPlatform?.heroSubtitle}
         </p>
         <div className="mt-6 inline-block rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-2.5">
-          <p className="text-[10px] sm:text-xs text-amber-400/90 font-medium">⚠️ {config.aboutPlatform.disclaimer}</p>
+          <p className="text-[10px] sm:text-xs text-amber-400/90 font-medium">⚠️ {aboutPlatform?.disclaimer}</p>
         </div>
       </section>
 
@@ -114,7 +115,7 @@ export default function AboutPlatform() {
           </div>
 
           <div className="space-y-0">
-            {config.aboutPlatform.processSteps.map((item, i) => ({ num: String(i + 1), ...item })).map((item, i) => (
+            {(aboutPlatform?.processSteps || []).map((item: any, i: number) => ({ num: String(i + 1), ...item })).map((item: any, i: number) => (
               <div key={item.num} className="flex gap-6 py-8 border-b border-white/[0.04] last:border-0">
                 <div className="shrink-0">
                   <div className="h-10 w-10 rounded-full border border-gold/30 flex items-center justify-center">
@@ -139,7 +140,7 @@ export default function AboutPlatform() {
             Ready to <span className="text-gradient-gold">Start</span>?
           </h2>
           <p className="mt-4 text-sm text-zinc-500 font-light">
-            {config.aboutPlatform.ctaText}
+            {aboutPlatform?.ctaText}
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/enquiry"

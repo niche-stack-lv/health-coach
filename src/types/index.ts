@@ -160,13 +160,22 @@ export interface TemplateAssignment {
 export interface FoodCheckIn {
   id: string;
   clientId: string;
-  assignmentId: string;
+  assignmentId: string | null;
   date: string;
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
   adherenceScore: number;      // 0-100 percentage
+  weight?: number | null;
+  waterLitres?: number | null;
+  steps?: number | null;
+  sleepHours?: number | null;
+  energyLevel?: number | null;
+  mood?: string | null;
+  notes?: string | null;
+  coachFeedback?: string | null;
+  status?: string;
   items: FoodCheckInItem[];
   createdAt: string;
 }
@@ -175,10 +184,12 @@ export interface FoodCheckIn {
 export interface FoodCheckInItem {
   id: string;
   checkInId: string;
-  slotId: string;
-  componentId: string;
-  dishId: string | null;       // null = skipped
+  slotId: string | null;
+  componentId: string | null;
+  dishId: string | null;       // null = skipped or other
   isSkipped: boolean;
+  customName?: string | null;
+  customCalories?: number | null;
 }
 
 // Workout template system

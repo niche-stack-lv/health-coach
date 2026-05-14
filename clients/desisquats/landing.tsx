@@ -56,14 +56,24 @@ export default function DesisquatsLanding() {
               <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Limited spots available</span>
             </div>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold uppercase leading-[0.92] tracking-tight">
-              <span className="block text-[#f61]">TRAIN HARD.</span>
-              <span className="block text-[#f61]">EAT INDIAN.</span>
-              <span className="block text-white mt-1">LOOK YOUR BEST.</span>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold uppercase leading-[0.95] tracking-tight">
+              <span className="block text-white">YOU DON&apos;T NEED A</span>
+              <span className="block text-white">COACH FROM INDIA</span>
+              <span className="block text-[#f61] mt-2">GUESSING YOUR U.S. LIFE.</span>
             </h1>
 
-            <p className="mt-8 text-lg text-zinc-400 leading-relaxed max-w-md">
-              Premium 1:1 fitness coaching for Indian professionals in the U.S. Science-backed. NRI-focused. Results-guaranteed.
+            <p className="mt-8 text-base sm:text-lg text-zinc-400 leading-relaxed max-w-md">
+              Premium transformation coaching for Indian professionals in the U.S. who want to lose belly fat, rebuild energy, and stay consistent — without giving up Indian food.
+            </p>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              {["Long workdays", "Eating out", "Travel", "Family", "Stress", "Inconsistent routines"].map((tag) => (
+                <span key={tag} className="text-[11px] text-zinc-500 border border-white/[0.08] rounded-full px-3 py-1">{tag}</span>
+              ))}
+            </div>
+
+            <p className="mt-6 text-sm text-zinc-500 italic">
+              This is not a generic meal plan. It&apos;s a system designed for the life you actually live.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-4">
@@ -131,20 +141,20 @@ export default function DesisquatsLanding() {
             {[
               {
                 icon: <Target className="h-6 w-6" />,
-                title: "NO CRASH DIETS",
-                desc: "Sustainable nutrition plans designed for long-term health. We fix your metabolism, not just your weight.",
+                title: "YOUR LIFESTYLE CHANGED",
+                desc: "Long work hours. Late dinners. Eating out. Weekend events. Stress. Your fitness system never adapted to your U.S. life.",
                 gradient: "from-orange-500/20 to-transparent",
               },
               {
                 icon: <Trophy className="h-6 w-6" />,
-                title: "NO RANDOM WORKOUTS",
-                desc: "Scientifically backed training cycles tailored to your goals, equipment, and recovery capacity.",
+                title: "NOTHING STUCK",
+                desc: "You tried diets before. You tried workouts before. But nothing stuck because the plan was never built around your real lifestyle here.",
                 gradient: "from-amber-500/20 to-transparent",
               },
               {
                 icon: <Star className="h-6 w-6" />,
-                title: "NO GIVING UP INDIAN FOOD",
-                desc: "Dal, roti, biryani — we make it all work. Track and enjoy your favorite Desi meals every single day.",
+                title: "LIVED EXPERIENCE, NOT THEORY",
+                desc: "Most coaches understand Indian food. Very few understand Indian life in the U.S. I've been living it for 17 years.",
                 gradient: "from-red-500/20 to-transparent",
               },
             ].map((card) => (
@@ -170,17 +180,17 @@ export default function DesisquatsLanding() {
       <section className="py-24">
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
           <div className="text-center mb-16">
-            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">WHY WE&apos;RE DIFFERENT</p>
+            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">WHY THIS WORKS</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight">
-              BUILT FOR THE DESI LIFESTYLE
+              BUILT FOR REAL LIFE
             </h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { icon: <Star className="h-5 w-5" />, title: "INDIAN FOOD FRIENDLY", desc: "Meal plans with dal, roti, chicken curry. No bland food." },
-              { icon: <Users className="h-5 w-5" />, title: "US LIFESTYLE READY", desc: "Optimized for corporate schedules and US grocery stores." },
-              { icon: <Trophy className="h-5 w-5" />, title: "STRENGTH FIRST", desc: "Compound movements to build lean muscle and boost metabolism." },
-              { icon: <Target className="h-5 w-5" />, title: "WEEKLY ACCOUNTABILITY", desc: "Direct coach access, weekly check-ins, real-time adjustments." },
+              { icon: <Star className="h-5 w-5" />, title: "INDIAN FOOD STRUCTURED", desc: "Your favorite meals — dal, roti, biryani — structured properly for your goals." },
+              { icon: <Users className="h-5 w-5" />, title: "U.S. RESTAURANT GUIDANCE", desc: "Eating out strategies for Chipotle, Indian buffets, and corporate lunches." },
+              { icon: <Trophy className="h-5 w-5" />, title: "WORKDAY STRATEGIES", desc: "Meal timing and prep that works with long hours and unpredictable schedules." },
+              { icon: <Target className="h-5 w-5" />, title: "REAL ACCOUNTABILITY", desc: "Weekly check-ins, real-time coaching for Elite clients. No ghosting." },
             ].map((feature) => (
               <div
                 key={feature.title}
@@ -198,7 +208,71 @@ export default function DesisquatsLanding() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
-          PROGRAMS — Premium cards with unique images
+          DIFFERENTIATION — I understand your life
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="py-24 bg-[#080808]">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8">
+          <div className="text-center mb-12">
+            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">WHY ME</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white uppercase tracking-tight leading-tight">
+              MOST COACHES UNDERSTAND INDIAN FOOD.<br />
+              <span className="text-[#f61]">VERY FEW UNDERSTAND INDIAN LIFE IN THE U.S.</span>
+            </h2>
+            <p className="mt-4 text-sm text-zinc-500">I am living that currently.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            {[
+              "Long work hours",
+              "Late dinners",
+              "Eating out",
+              "Travel",
+              "Work stress",
+              "Family responsibilities",
+              "Trying to stay fit while balancing all of it",
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3 bg-[#111] border border-white/[0.06] rounded-xl px-4 py-3">
+                <Check className="h-4 w-4 text-[#f61] shrink-0" />
+                <span className="text-sm text-zinc-300">{item}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-center mt-8 text-sm text-zinc-500 italic">
+            This system was built from lived experience — not theory.
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          THE DESI METHOD™
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="py-24">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 text-center">
+          <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">THE SYSTEM</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight">
+            THE DESI METHOD™
+          </h2>
+          <p className="mt-4 text-sm text-zinc-500 max-w-lg mx-auto">
+            A transformation system built specifically for Indian professionals living in the U.S.
+          </p>
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[
+              { letter: "D", title: "DIAGNOSE", desc: "Your lifestyle" },
+              { letter: "E", title: "ELIMINATE", desc: "Bad patterns" },
+              { letter: "S", title: "STRUCTURE", desc: "Indian nutrition" },
+              { letter: "I", title: "IMPLEMENT", desc: "Accountability" },
+            ].map((step) => (
+              <div key={step.letter} className="bg-[#111] border border-white/[0.06] rounded-2xl p-6 hover:border-[#f61]/20 transition-colors">
+                <span className="text-4xl font-extrabold text-[#f61]">{step.letter}</span>
+                <h3 className="text-sm font-bold text-white mt-3 tracking-wide">{step.title}</h3>
+                <p className="text-xs text-zinc-500 mt-1">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          PROGRAMS — Basic + Elite pricing
           ═══════════════════════════════════════════════════════════════ */}
       <section id="programs" className="py-24 bg-[#080808]">
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
@@ -208,32 +282,53 @@ export default function DesisquatsLanding() {
               PROGRAMS
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[
-              { title: "FAT LOSS COACHING", desc: "Lean out while keeping muscle. Sustainable cuts that work with Indian food.", img: "/clients/desisquats/keerthana.webp" },
-              { title: "MUSCLE GAIN", desc: "Build muscle the smart way with progressive overload and proper nutrition.", img: "/clients/desisquats/anil.webp" },
-              { title: "DESI NUTRITION RESET", desc: "Fix your relationship with food. Eat Indian and still hit your goals.", img: "/clients/desisquats/indu.webp" },
-              { title: "FULL TRANSFORMATION", desc: "Complete 12-month overhaul of body, mind, and daily habits.", img: "/clients/desisquats/phanendra.webp" },
-            ].map((program) => (
-              <Link href="/enquiry" key={program.title} className="group">
-                <div className="bg-[#111] border border-white/[0.06] rounded-2xl overflow-hidden hover:border-[#f61]/30 transition-all duration-300 hover:-translate-y-1">
-                  <div className="aspect-[4/5] overflow-hidden">
-                    <img
-                      src={program.img}
-                      alt={program.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* BASIC */}
+            <div className="bg-[#111] border border-white/[0.08] rounded-2xl p-8 hover:border-[#f61]/30 transition-all">
+              <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 mb-4">
+                <span className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">BASIC COACHING</span>
+              </div>
+              <p className="text-3xl font-extrabold text-white">$300 <span className="text-base font-normal text-zinc-500">/ 3 months</span></p>
+              <p className="text-sm text-zinc-400 mt-3 mb-6">For self-driven clients who want structure and education.</p>
+              <div className="space-y-3">
+                {["Group onboarding", "Structured Indian diet plan", "Workout plan", "Weekly group check-ins", "E-book access", "FAQ video library"].map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-blue-400 shrink-0" />
+                    <span className="text-sm text-zinc-300">{item}</span>
                   </div>
-                  <div className="p-5">
-                    <h3 className="text-sm font-bold text-white mb-2 tracking-wide">{program.title}</h3>
-                    <p className="text-xs text-zinc-500 leading-relaxed mb-3">{program.desc}</p>
-                    <span className="inline-flex items-center gap-1 text-[#f61] text-xs font-bold uppercase tracking-wide group-hover:gap-2 transition-all">
-                      LEARN MORE <ArrowRight className="h-3 w-3" />
-                    </span>
-                  </div>
-                </div>
+                ))}
+              </div>
+              <Link href="/enquiry" className="block mt-8">
+                <button className="w-full bg-white/[0.06] border border-white/[0.1] text-white text-sm font-bold uppercase tracking-wider py-4 rounded-lg hover:bg-white/[0.1] transition-colors">
+                  APPLY NOW
+                </button>
               </Link>
-            ))}
+            </div>
+
+            {/* ELITE */}
+            <div className="bg-[#111] border-2 border-[#f61]/40 rounded-2xl p-8 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#f61] to-[#e55a00]" />
+              <div className="inline-flex items-center gap-2 bg-[#f61]/10 border border-[#f61]/20 rounded-full px-3 py-1 mb-4">
+                <span className="text-[11px] font-bold text-[#f61] uppercase tracking-wider">ELITE TRANSFORMATION</span>
+              </div>
+              <p className="text-3xl font-extrabold text-white">$1000 <span className="text-base font-normal text-zinc-500">/ 3 months</span></p>
+              <p className="text-xs text-zinc-500 mt-1">or $1800 / 6 months</p>
+              <p className="text-sm text-zinc-400 mt-3 mb-6">For professionals who want accountability, guidance, and real transformation.</p>
+              <div className="space-y-3">
+                {["1-on-1 onboarding", "Personalized lifestyle system", "Daily WhatsApp access", "Weekly 1-on-1 check-ins", "Real-time corrections", "Eating out & travel guidance"].map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-[#f61] shrink-0" />
+                    <span className="text-sm text-zinc-300">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-500 mt-4 italic">You don&apos;t just get a plan. You get direct coaching.</p>
+              <Link href="/enquiry" className="block mt-6">
+                <button className="w-full bg-gradient-to-r from-[#f61] to-[#e55a00] text-white text-sm font-bold uppercase tracking-wider py-4 rounded-lg shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)] transition-all">
+                  APPLY NOW
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -244,10 +339,11 @@ export default function DesisquatsLanding() {
       <section id="results" className="py-24">
         <div className="max-w-7xl mx-auto px-5 sm:px-8">
           <div className="text-center mb-16">
-            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">PROOF IN THE RESULTS</p>
+            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">REAL TRANSFORMATIONS</p>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight">
-              REAL PEOPLE. REAL RESULTS.
+              FROM INDIAN PROFESSIONALS IN THE U.S.
             </h2>
+            <p className="text-sm text-zinc-500 mt-4 max-w-lg mx-auto">No crash diets. No unrealistic meal prep. No giving up Indian food. Just structure, accountability, and consistency.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
@@ -274,9 +370,39 @@ export default function DesisquatsLanding() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
+          BIGGER THAN WEIGHT LOSS
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="py-24 bg-[#080808]">
+        <div className="max-w-4xl mx-auto px-5 sm:px-8 text-center">
+          <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">BIGGER THAN WEIGHT LOSS</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight">
+            THIS WAS NEVER JUST ABOUT<br /><span className="text-[#f61]">LOSING WEIGHT.</span>
+          </h2>
+          <p className="mt-6 text-sm text-zinc-400 leading-relaxed max-w-lg mx-auto">
+            Fitness made me a better husband, a better father, a better employee, and a more confident, disciplined person overall.
+          </p>
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              { label: "Energy improves", icon: "⚡" },
+              { label: "Confidence improves", icon: "💪" },
+              { label: "Discipline improves", icon: "🎯" },
+            ].map((item) => (
+              <div key={item.label} className="bg-[#111] border border-white/[0.06] rounded-2xl p-6">
+                <span className="text-2xl">{item.icon}</span>
+                <p className="text-sm font-bold text-white mt-3">{item.label}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 text-sm text-zinc-500 max-w-md mx-auto">
+            …every part of your life improves with it. DesiSquats is about building a healthier, stronger, more confident version of yourself.
+          </p>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
           ABOUT COACH — Premium split
           ═══════════════════════════════════════════════════════════════ */}
-      <section id="about" className="py-24 bg-[#080808]">
+      <section id="about" className="py-24">
         <div className="max-w-7xl mx-auto px-5 sm:px-8 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           {/* Left — Image */}
           <div className="relative">
@@ -297,15 +423,18 @@ export default function DesisquatsLanding() {
           {/* Right — Content */}
           <div>
             <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">YOUR COACH</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight leading-tight mb-8">
-              BUILT BY A COACH WHO GETS YOUR LIFESTYLE
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white uppercase tracking-tight leading-tight mb-6">
+              MEET COACH PRANEETH
             </h2>
+            <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+              I came to the U.S. in 2009 as a student, completed my PhD, and spent 10+ years working in corporate America while building DesiSquats.
+            </p>
             <div className="space-y-4 mb-8">
               {[
-                "PhD in Chemistry — science-backed approach to nutrition",
-                "10+ years corporate America — knows your schedule",
-                "Based in Portland, OR — understands the NRI lifestyle",
-                "Every plan personally designed for Indian professionals",
+                "Student life → corporate work stress → eating out constantly",
+                "Married life → parenthood → balancing it all",
+                "17 years of lived U.S. experience as an Indian professional",
+                "Every plan built from experience, not theory",
               ].map((bullet) => (
                 <div key={bullet} className="flex items-start gap-3">
                   <div className="h-5 w-5 rounded-full bg-[#f61]/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -365,10 +494,10 @@ export default function DesisquatsLanding() {
         </div>
         <div className="relative z-10 max-w-3xl mx-auto px-5 sm:px-8 text-center">
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white uppercase tracking-tight leading-[0.95]">
-            READY TO STOP<br /><span className="text-[#f61]">GUESSING?</span>
+            READY TO STOP<br /><span className="text-[#f61]">RESTARTING?</span>
           </h2>
-          <p className="mt-6 text-lg text-zinc-400 leading-relaxed max-w-lg mx-auto">
-            Limited spots available each month for high-touch coaching. Apply now and get a clear plan for your body, food, and schedule.
+          <p className="mt-6 text-base text-zinc-400 leading-relaxed max-w-lg mx-auto">
+            If you&apos;re tired of belly fat, low energy, inconsistency, and restarting every few months — this is your next step. A premium coaching system built from 17 years of U.S. lifestyle experience and hundreds of Indian client transformations.
           </p>
           <Link
             href="/enquiry"

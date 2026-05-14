@@ -19,13 +19,14 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { config, formatPrice } from "@/lib/config";
 
+type PlanType = "one-time" | "gold" | "platinum" | null;
+type Duration = "4" | "8" | "12";
+
 const UPI_ID = config.contact.upiId;
-const pricingConfig = config.pricing as any;
-const programsConfig = config.programs as any[];
 
-const programs = (programsConfig || []).map((p: any) => ({ name: p.name, emoji: p.emoji }));
+const programs = (config.programs || []).map((p) => ({ name: p.name, emoji: p.emoji }));
 
-const durations = pricingConfig?.durations || [];
+const durations: Duration[] = (config.pricing?.durations || ["4", "8", "12"]) as Duration[];
 
 const oneTimeSubs = [
   { id: "diet", label: "Diet Plan" },
@@ -34,13 +35,10 @@ const oneTimeSubs = [
   { id: "all", label: "All 3 — Best Value" },
 ];
 
-const oneTimeSinglePrice = pricingConfig?.oneTimeSingle || {};
-const oneTimeAllPrice = pricingConfig?.oneTimeAll || {};
-const goldPrice = pricingConfig?.gold || {};
-const platinumPrice = pricingConfig?.platinum || {};
-
-type PlanType = "one-time" | "gold" | "platinum" | null;
-type Duration = "4" | "8" | "12";
+const oneTimeSinglePrice: Record<string, number> = config.pricing?.oneTimeSingle || {};
+const oneTimeAllPrice: Record<string, number> = config.pricing?.oneTimeAll || {};
+const goldPrice: Record<string, number> = config.pricing?.gold || {};
+const platinumPrice: Record<string, number> = config.pricing?.platinum || {};
 
 const inputClass = "w-full rounded-2xl border border-white/[0.08] bg-white/[0.03] py-3.5 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/40 transition-all";
 

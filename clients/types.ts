@@ -84,6 +84,31 @@ export interface ClientConfig {
     twitterDescription: string;
   };
 
+  /** Pricing configuration (optional — only needed if client uses pricing page) */
+  pricing?: {
+    currency: string;
+    locale: string;
+    durations: string[];
+    oneTimeSingle: Record<string, number>;
+    oneTimeAll: Record<string, number>;
+    gold: Record<string, number>;
+    platinum: Record<string, number>;
+    callPrice: number;
+    callDuration: string;
+  };
+
+  /** Programs list (optional — used by pricing page) */
+  programs?: Array<{ name: string; emoji: string }>;
+
+  /** About platform page content (optional) */
+  aboutPlatform?: {
+    heroSubtitle: string;
+    disclaimer: string;
+    features: Array<{ step: string; title: string; desc: string; demoPath: string; color: string }>;
+    processSteps: Array<{ title: string; desc: string }>;
+    ctaText: string;
+  };
+
   /** Allow any additional client-specific fields */
   [key: string]: unknown;
 }

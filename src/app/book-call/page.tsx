@@ -9,7 +9,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { config, formatPrice } from "@/lib/config";
 
-const pricing = pricing as any;
 const UPI_ID = config.contact.upiId;
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
@@ -29,15 +28,15 @@ export default function BookCallPage() {
   const generateConfirmation = () => {
     generateConfirmationPDF({
       name, phone, email,
-      planLabel: `Phone Consultation (${pricing.callDuration})`,
-      price: formatPrice(pricing.callPrice),
+      planLabel: `Phone Consultation (${config.pricing?.callDuration})`,
+      price: formatPrice(config.pricing?.callPrice || 0),
       type: "call",
     }).catch(console.error);
   };
 
   const handleConfirm = async () => {
     setSubmitting(true);
-    await saveLead({ source: "book-call", name, phone, email, plan_label: `Phone Consultation (${pricing.callDuration})`, price: formatPrice(pricing.callPrice) });
+    await saveLead({ source: "book-call", name, phone, email, plan_label: `Phone Consultation (${config.pricing?.callDuration})`, price: formatPrice(config.pricing?.callPrice || 0) });
     await new Promise((r) => setTimeout(r, 1500));
     setSubmitting(false);
     setDone(true);
@@ -48,7 +47,7 @@ export default function BookCallPage() {
       `*Client:* ${name}`,
       `*Phone:* ${phone}`,
       `*Email:* ${email}`,
-      `*Service:* Phone Consultation (${formatPrice(pricing.callPrice)})`,
+      `*Service:* Phone Consultation (${formatPrice(config.pricing?.callPrice || 0)})`,
       ``,
       `Payment screenshot uploaded. Please schedule the call.`,
     ].join("\n");
@@ -83,7 +82,7 @@ export default function BookCallPage() {
           <Link href="/" className="p-1.5 -ml-1.5 hover:bg-white/[0.04] rounded-lg"><ArrowLeft className="h-5 w-5 text-zinc-400" /></Link>
           <div>
             <p className="text-sm font-bold text-white">Phone Consultation</p>
-            <p className="text-[10px] text-gold uppercase tracking-wider font-semibold">{pricing.callDuration} call with Coach {config.coach.firstName}</p>
+            <p className="text-[10px] text-gold uppercase tracking-wider font-semibold">{config.pricing?.callDuration} call with Coach {config.coach.firstName}</p>
           </div>
         </div>
       </div>
@@ -92,8 +91,8 @@ export default function BookCallPage() {
         <div className="rounded-xl border border-gold/20 bg-gold/5 p-5 text-center">
           <Phone className="h-8 w-8 text-gold mx-auto mb-3" />
           <h1 className="text-lg font-black uppercase tracking-wide">1-on-1 with Coach {config.coach.firstName}</h1>
-          <p className="text-sm text-zinc-400 mt-2 max-w-xs mx-auto">Get expert guidance on your goals, training, and nutrition in a personal {pricing.callDuration} telephonic call.</p>
-          <p className="text-4xl font-black text-gradient-gold mt-4">{formatPrice(pricing.callPrice)}</p>
+          <p className="text-sm text-zinc-400 mt-2 max-w-xs mx-auto">Get expert guidance on your goals, training, and nutrition in a personal {config.pricing?.callDuration} telephonic call.</p>
+          <p className="text-4xl font-black text-gradient-gold mt-4">{formatPrice(config.pricing?.callPrice || 0)}</p>
           <p className="text-[10px] text-zinc-600 mt-1 uppercase tracking-wider">One-time · No commitment</p>
         </div>
 

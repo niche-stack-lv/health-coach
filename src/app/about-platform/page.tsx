@@ -13,9 +13,9 @@ import {
 } from "lucide-react";
 import { config } from "@/lib/config";
 
-const aboutPlatform = config.aboutPlatform as any;
+const aboutPlatform = config.aboutPlatform;
 const icons = [Utensils, ClipboardList, Camera, BarChart3, Target];
-const steps = aboutPlatform?.features?.map((f: any, i: number) => ({ ...f, icon: icons[i] })) || [];
+const steps = aboutPlatform?.features?.map((f, i) => ({ ...f, icon: icons[i] })) || [];
 
 export default function AboutPlatform() {
   return (
@@ -115,7 +115,7 @@ export default function AboutPlatform() {
           </div>
 
           <div className="space-y-0">
-            {(aboutPlatform?.processSteps || []).map((item: any, i: number) => ({ num: String(i + 1), ...item })).map((item: any, i: number) => (
+            {(aboutPlatform?.processSteps || []).map((item, i) => ({ num: String(i + 1), ...item })).map((item, i) => (
               <div key={item.num} className="flex gap-6 py-8 border-b border-white/[0.04] last:border-0">
                 <div className="shrink-0">
                   <div className="h-10 w-10 rounded-full border border-gold/30 flex items-center justify-center">

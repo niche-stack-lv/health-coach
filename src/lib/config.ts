@@ -8,5 +8,7 @@ export const config = siteConfig;
 
 /** Format a price using the configured currency and locale */
 export function formatPrice(amount: number): string {
-  return `${config.pricing.currency}${amount.toLocaleString(config.pricing.locale)}`;
+  const currency = config.pricing?.currency || "₹";
+  const locale = config.pricing?.locale || "en-IN";
+  return `${currency}${amount.toLocaleString(locale)}`;
 }

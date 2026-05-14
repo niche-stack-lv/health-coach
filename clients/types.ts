@@ -16,6 +16,8 @@ export interface ClientConfig {
     signupSubtitle: string;
     /** Login page subtitle */
     loginSubtitle: string;
+    /** Optional tagline for landing page */
+    tagline?: string;
   };
 
   coach: {

@@ -1,354 +1,370 @@
 "use client";
 
-import { useState, useEffect } from "react";
+/**
+ * Workout Plan Creation Page (REWRITTEN)
+ *
+ * Same pattern as diet plan creation:
+ * - Step 1: Client selector + optional template selector (pre-fills from template)
+ * - Shows workout slots with exercises (same editor UI as template page)
+ * - "+ Add Exercise" to add more
+ * - "Create & Assign" button creates a new workout_template (is_template=false) and assigns to client
+ */
+
+import { useState, useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { exerciseDatabase, muscleGroups, type Exercise } from "@/lib/exercise-database";
-import { mockClients } from "@/lib/mock-data";
-import { useStore } from "@/lib/store";
+import { ExercisePicker } from "@/components/coach/exercise-picker";
+import { WorkoutSlotView } from "@/components/shared/workout-slot-view";
 import { useAuth } from "@/lib/auth-context";
-import { getClients, createWorkoutPlan } from "@/lib/db";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Check, X, Pencil } from "lucide-react";
-import Link from "next/link";
+import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
+import { getClients, getWorkoutTemplates, createWorkoutTemplate, assignWorkoutTemplate } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import type { WorkoutTemplate } from "@/types";
+import type { Exercise } from "@/lib/exercise-database";
 
-interface ExerciseEntry { exercise: Exercise; sets: number; reps: string; rest: string; notes: string; }
-interface DayData { label: string; name: string; exercises: ExerciseEntry[]; }
-
-const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
-
-function ExerciseSheet({ exercise, onAdd, onClose }: { exercise: Exercise; onAdd: (entry: ExerciseEntry) => void; onClose: () => void; }) {
-  const [sets, setSets] = useState("3");
-  const [reps, setReps] = useState("10-12");
-  const [rest, setRest] = useState("60s");
-  const [notes, setNotes] = useState("");
-
+export default function CreateWorkoutPlanPage() {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-lg bg-[#1a1a1a] rounded-t-3xl border-t border-white/[0.08] p-5 pb-8 safe-area-bottom" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{exercise.emoji}</span>
-            <div>
-              <p className="font-semibold text-white">{exercise.name}</p>
-              <p className="text-xs text-zinc-500">{exercise.equipment}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Sets</label>
-            <div className="flex gap-1.5">
-              {["3", "4", "5"].map((s) => (
-                <button key={s} onClick={() => setSets(s)}
-                  className={cn("flex-1 rounded-lg py-2 text-sm font-medium border transition-all",
-                    sets === s ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-400"
-                  )}>{s}</button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Reps</label>
-            <input type="text" value={reps} onChange={(e) => setReps(e.target.value)} className={inputClass} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Rest</label>
-            <input type="text" value={rest} onChange={(e) => setRest(e.target.value)} className={inputClass} />
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-xs text-zinc-400 mb-1">Notes (optional)</label>
-          <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Slow eccentric" className={inputClass} />
-        </div>
-
-        <Button variant="gold" className="w-full h-12 text-base rounded-2xl"
-          onClick={() => { onAdd({ exercise, sets: Number(sets), reps, rest, notes }); onClose(); }}>
-          <Plus className="h-5 w-5" /> Add Exercise
-        </Button>
-      </div>
-    </div>
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>}>
+      <CreateWorkoutPlanPageInner />
+    </Suspense>
   );
 }
 
-export default function CreateWorkoutPage() {
-  const [step, setStep] = useState(0); // 0=details, 1+=days, last=review
+// ---- Types ----
+
+interface LocalExercise {
+  localId: string;
+  exerciseId: string | null;
+  name: string;
+  emoji: string;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  notes: string;
+}
+
+interface LocalSlot {
+  localId: string;
+  name: string;
+  exercises: LocalExercise[];
+}
+
+// ---- Constants ----
+
+const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
+
+// ---- Helpers ----
+
+function createEmptySlot(name: string): LocalSlot {
+  return {
+    localId: crypto.randomUUID(),
+    name,
+    exercises: [],
+  };
+}
+
+function templateToLocalSlots(template: WorkoutTemplate): LocalSlot[] {
+  return template.slots
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((slot) => ({
+      localId: crypto.randomUUID(),
+      name: slot.name,
+      exercises: slot.exercises
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((ex) => ({
+          localId: crypto.randomUUID(),
+          exerciseId: ex.exerciseId,
+          name: ex.customName || "Exercise",
+          emoji: ex.customEmoji || "🏋️",
+          sets: ex.sets,
+          reps: ex.reps,
+          restSeconds: ex.restSeconds,
+          notes: ex.notes || "",
+        })),
+    }));
+}
+
+// ---- Main Component ----
+
+function CreateWorkoutPlanPageInner() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const isDemo = useIsDemo();
+  const demoSuffix = useDemoSuffix();
+
+  // Form state
   const [planName, setPlanName] = useState("");
   const [selectedClient, setSelectedClient] = useState("");
-  const [numDays, setNumDays] = useState(3);
-  const [saved, setSaved] = useState(false);
-  const [activeGroup, setActiveGroup] = useState(muscleGroups[0].key);
-  const [sheetExercise, setSheetExercise] = useState<Exercise | null>(null);
-  const [returnToReview, setReturnToReview] = useState(false);
-  const [days, setDays] = useState<DayData[]>([
-    { label: "Day 1", name: "Push", exercises: [] },
-    { label: "Day 2", name: "Pull", exercises: [] },
-    { label: "Day 3", name: "Legs", exercises: [] },
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [slots, setSlots] = useState<LocalSlot[]>([
+    createEmptySlot("Workout 1"),
+    createEmptySlot("Workout 2"),
+    createEmptySlot("Workout 3"),
   ]);
+  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
 
-  const { user } = useAuth();
+  // Picker state
+  const [pickerSlotIdx, setPickerSlotIdx] = useState<number | null>(null);
+
+  // Data
   const [dbClients, setDbClients] = useState<any[]>([]);
-  useEffect(() => { if (user) getClients(user.id).then(setDbClients); }, [user]);
-  const activeClients = dbClients.filter((c: any) => c.status === "active").map((c: any) => ({ id: c.id, name: c.profile?.name || "Unknown" }));
-  const totalSteps = numDays + 2;
-  const reviewStep = numDays + 1;
-  const isReview = step === reviewStep;
-  const currentDay = step >= 1 && step <= numDays ? days[step - 1] : null;
-  const isLastDay = step === numDays;
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const addExercise = (dayIndex: number, entry: ExerciseEntry) => {
-    setDays((prev) => prev.map((d, i) => i === dayIndex ? { ...d, exercises: [...d.exercises, entry] } : d));
-  };
-  const removeExercise = (dayIndex: number, exIndex: number) => {
-    setDays((prev) => prev.map((d, i) => i === dayIndex ? { ...d, exercises: d.exercises.filter((_, ei) => ei !== exIndex) } : d));
-  };
-  const updateDayName = (dayIndex: number, name: string) => {
-    setDays((prev) => prev.map((d, i) => i === dayIndex ? { ...d, name } : d));
-  };
-
-  const handleNumDaysChange = (n: number) => {
-    setNumDays(n);
-    setDays((prev) => {
-      if (n > prev.length) {
-        return [...prev, ...Array.from({ length: n - prev.length }, (_, i) => ({ label: `Day ${prev.length + i + 1}`, name: "", exercises: [] }))];
-      }
-      return prev.slice(0, n);
+  // Load data
+  useEffect(() => {
+    if (isDemo) {
+      setDbClients([{ id: "demo", status: "active", profile: { name: "Demo Client" } }]);
+      setLoading(false);
+      return;
+    }
+    if (!user) return;
+    Promise.all([
+      getClients(user.id),
+      getWorkoutTemplates(user.id),
+    ]).then(([clients, tmpls]) => {
+      setDbClients(clients);
+      setTemplates(tmpls);
+      setLoading(false);
     });
-  };
+  }, [user, isDemo]);
 
-  if (saved) {
+  // Expand all slots by default
+  useEffect(() => {
+    setExpandedSlots(new Set(slots.map((s) => s.localId)));
+  }, []);
+
+  const activeClients = dbClients
+    .filter((c: any) => c.status === "active")
+    .map((c: any) => ({ id: c.id, name: c.profile?.name || "Unknown" }));
+
+  // ---- Template pre-fill ----
+
+  function handleTemplateSelect(templateId: string) {
+    setSelectedTemplateId(templateId);
+    if (!templateId) {
+      const newSlots = [createEmptySlot("Workout 1"), createEmptySlot("Workout 2"), createEmptySlot("Workout 3")];
+      setSlots(newSlots);
+      setExpandedSlots(new Set(newSlots.map((s) => s.localId)));
+      return;
+    }
+    const tmpl = templates.find((t) => t.id === templateId);
+    if (!tmpl) return;
+    const newSlots = templateToLocalSlots(tmpl);
+    setSlots(newSlots);
+    setExpandedSlots(new Set(newSlots.map((s) => s.localId)));
+    if (!planName) setPlanName(tmpl.name + " — Custom");
+  }
+
+  // ---- Slot management ----
+
+  function toggleSlotExpanded(localId: string) {
+    setExpandedSlots((prev) => { const n = new Set(prev); if (n.has(localId)) n.delete(localId); else n.add(localId); return n; });
+  }
+  function addSlot() {
+    if (slots.length >= 7) return;
+    const s = createEmptySlot("Workout " + (slots.length + 1));
+    setSlots((p) => [...p, s]);
+    setExpandedSlots((p) => new Set([...p, s.localId]));
+  }
+  function removeSlot(i: number) { if (slots.length <= 1) return; setSlots((p) => p.filter((_, idx) => idx !== i)); }
+  function updateSlotName(i: number, v: string) { setSlots((p) => { const u = [...p]; u[i] = { ...u[i], name: v }; return u; }); }
+
+  // ---- Exercise management ----
+
+  function addExerciseToSlot(slotIdx: number, exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string) {
+    const isCustom = exercise.id.startsWith("custom-");
+    setSlots((prev) => {
+      const updated = [...prev];
+      const slot = { ...updated[slotIdx], exercises: [...updated[slotIdx].exercises] };
+      slot.exercises.push({
+        localId: crypto.randomUUID(),
+        exerciseId: isCustom ? null : (exercise.id.length === 36 ? exercise.id : null),
+        name: exercise.name,
+        emoji: exercise.emoji,
+        sets,
+        reps,
+        restSeconds,
+        notes,
+      });
+      updated[slotIdx] = slot;
+      return updated;
+    });
+    setPickerSlotIdx(null);
+  }
+
+  function removeExercise(slotIdx: number, exIdx: number) {
+    setSlots((prev) => {
+      const updated = [...prev];
+      const slot = { ...updated[slotIdx], exercises: updated[slotIdx].exercises.filter((_, i) => i !== exIdx) };
+      updated[slotIdx] = slot;
+      return updated;
+    });
+  }
+
+  // ---- Save: creates a new workout template (is_template=false) + assigns to client ----
+
+  async function handleSave() {
+    if (!user || !selectedClient || saving) return;
+    setSaving(true);
+
+    const { error: createErr, templateId } = await createWorkoutTemplate({
+      coachId: user.id,
+      name: planName.trim() || "Custom Workout Plan",
+      isTemplate: false,
+      slots: slots.map((slot, i) => ({
+        name: slot.name,
+        sortOrder: i,
+        exercises: slot.exercises.map((ex, exIdx) => ({
+          exerciseId: ex.exerciseId,
+          customName: ex.name,
+          customEmoji: ex.emoji,
+          sets: ex.sets,
+          reps: ex.reps,
+          restSeconds: ex.restSeconds,
+          notes: ex.notes || undefined,
+          sortOrder: exIdx,
+        })),
+      })),
+    });
+
+    if (createErr || !templateId) { setSaving(false); return; }
+
+    const { error: assignErr } = await assignWorkoutTemplate({
+      templateId,
+      clientId: selectedClient,
+      coachId: user.id,
+    });
+
+    if (assignErr) { setSaving(false); return; }
+    setDone(true);
+  }
+
+  // ---- Render ----
+
+  if (done) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center px-4">
         <div className="h-16 w-16 rounded-full bg-gold/10 flex items-center justify-center mb-4"><Check className="h-8 w-8 text-gold" /></div>
-        <h1 className="text-xl font-bold text-white">Workout Plan Created!</h1>
-        <p className="text-sm text-zinc-500 mt-2">The plan has been saved and assigned.</p>
+        <h1 className="text-xl font-bold text-white">Workout Plan Assigned!</h1>
+        <p className="text-sm text-zinc-500 mt-2">The plan has been created and assigned to the client.</p>
         <Link href="/coach/workouts"><Button variant="gold" className="mt-6">Back to Workouts</Button></Link>
       </div>
     );
   }
 
+  if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
+
   return (
-    <div className="pb-28">
+    <div className="max-w-3xl mx-auto pb-28">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        {step === 0 ? (
-          <Link href="/coach/workouts" className="p-2 -ml-2 rounded-xl hover:bg-white/[0.06]"><ArrowLeft className="h-5 w-5 text-zinc-400" /></Link>
-        ) : (
-          <button onClick={() => {
-            if (returnToReview) { setReturnToReview(false); setStep(reviewStep); }
-            else setStep(step - 1);
-          }} className="p-2 -ml-2 rounded-xl hover:bg-white/[0.06]"><ArrowLeft className="h-5 w-5 text-zinc-400" /></button>
-        )}
-        <div className="flex-1">
-          <h1 className="text-lg font-bold text-white">
-            {step === 0 ? "New Workout Plan" : isReview ? "Review Plan" : `${currentDay?.label}: ${currentDay?.name || "Unnamed"}`}
-          </h1>
-          <p className="text-xs text-zinc-500">Step {step + 1} of {totalSteps}</p>
-        </div>
+        <Link href={`/coach/workouts${demoSuffix}`} className="p-2 -ml-2 rounded-xl hover:bg-white/[0.06]">
+          <ArrowLeft className="h-5 w-5 text-zinc-400" />
+        </Link>
+        <h1 className="text-lg font-bold text-white">New Workout Plan</h1>
       </div>
 
-      {/* Progress bar */}
-      <div className="flex gap-1.5 mb-6">
-        {Array.from({ length: totalSteps }, (_, s) => (
-          <div key={s} className={cn("h-1 flex-1 rounded-full transition-all", s <= step ? "gradient-gold" : "bg-white/[0.06]")} />
-        ))}
-      </div>
-
-      {/* Step 0: Details */}
-      {step === 0 && (
+      {/* Plan details */}
+      <Card className="p-5 mb-4">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Plan Name</label>
+            <label className="block text-xs text-zinc-500 mb-1.5">Plan Name</label>
             <input type="text" value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="e.g. PPL Hypertrophy" className={inputClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Client</label>
+            <label className="block text-xs text-zinc-500 mb-1.5">Client</label>
             <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)} className={inputClass}>
               <option value="">Select client</option>
-              {activeClients.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+              {activeClients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Training Days</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[3, 4, 5, 6].map((n) => (
-                <button key={n} onClick={() => handleNumDaysChange(n)}
-                  className={cn("rounded-xl py-3 text-sm font-medium border transition-all",
-                    numDays === n ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-400"
-                  )}>{n} days</button>
-              ))}
-            </div>
+            <label className="block text-xs text-zinc-500 mb-1.5">Start from Template (optional)</label>
+            <select value={selectedTemplateId} onChange={(e) => handleTemplateSelect(e.target.value)} className={inputClass}>
+              <option value="">Start from scratch</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <p className="text-[10px] text-zinc-600 mt-1">Pre-fills workouts from template. Original template stays unchanged.</p>
           </div>
         </div>
-      )}
+      </Card>
 
-      {/* Day builder */}
-      {currentDay && (
-        <div>
-          {/* Day name input */}
-          <div className="mb-4">
-            <label className="block text-xs text-zinc-400 mb-1">Day Name</label>
-            <input type="text" value={currentDay.name} onChange={(e) => updateDayName(step - 1, e.target.value)} placeholder="e.g. Push, Pull, Legs" className={inputClass} />
-          </div>
+      {/* Workout Slots — same UI as template editor */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-xs text-zinc-500">Workout Slots</label>
+        </div>
 
-          {/* Added exercises */}
-          {currentDay.exercises.length > 0 && (
-            <div className="space-y-2 mb-5">
-              {currentDay.exercises.map((entry, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm">{entry.exercise.emoji}</span>
-                    <span className="text-sm font-medium text-white truncate">{entry.exercise.name}</span>
+        <div className="space-y-3">
+          {slots.map((slot, slotIdx) => {
+            const isExpanded = expandedSlots.has(slot.localId);
+            return (
+              <div key={slot.localId} className="rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                {/* Header */}
+                <div className="flex items-center gap-2 p-4 cursor-pointer" onClick={() => toggleSlotExpanded(slot.localId)}>
+                  <input type="text" value={slot.name} onChange={(e) => updateSlotName(slotIdx, e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Workout name" className="flex-1 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50" />
+                  <span className="text-xs text-zinc-500 shrink-0">{slot.exercises.length} ex</span>
+                  <button onClick={(e) => { e.stopPropagation(); removeSlot(slotIdx); }} disabled={slots.length <= 1} className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <div className="text-zinc-600">{isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</div>
+                </div>
+
+                {/* Collapsed summary */}
+                {!isExpanded && slot.exercises.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+                    {slot.exercises.slice(0, 4).map((ex) => (
+                      <span key={ex.localId} className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] text-zinc-300">
+                        {ex.emoji} {ex.name} <span className="text-zinc-500">{ex.sets}×{ex.reps}</span>
+                      </span>
+                    ))}
+                    {slot.exercises.length > 4 && (
+                      <span className="text-[11px] text-zinc-500 px-1 py-0.5">+{slot.exercises.length - 4} more</span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="gold">{entry.sets}×{entry.reps}</Badge>
-                    <button onClick={() => removeExercise(step - 1, i)} className="p-1 text-zinc-600 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
+                )}
+
+                {/* Expanded: exercises list */}
+                {isExpanded && (
+                  <div className="px-4 pb-4">
+                    <WorkoutSlotView
+                      slot={slot}
+                      mode="edit"
+                      onAddExercise={() => setPickerSlotIdx(slotIdx)}
+                      onRemoveExercise={(exIdx) => removeExercise(slotIdx, exIdx)}
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Muscle group tabs */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 mb-4">
-            {muscleGroups.map((g) => (
-              <button key={g.key} onClick={() => setActiveGroup(g.key)}
-                className={cn("shrink-0 flex items-center gap-1 rounded-lg px-3 py-2 text-xs font-semibold border transition-all",
-                  activeGroup === g.key ? "border-gold/30 bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500"
-                )}>{g.emoji} {g.label}</button>
-            ))}
-          </div>
-
-          {/* Exercise list */}
-          <div className="space-y-2">
-            {exerciseDatabase.filter((e) => e.category === activeGroup).map((ex) => (
-              <button key={ex.id} onClick={() => setSheetExercise(ex)}
-                className="w-full flex items-center gap-3 rounded-xl border border-white/[0.06] px-4 py-3 text-left hover:bg-white/[0.04] transition-all active:scale-[0.98]">
-                <span className="text-xl">{ex.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">{ex.name}</p>
-                  <p className="text-xs text-zinc-500">{ex.equipment}</p>
-                </div>
-                <Plus className="h-4 w-4 text-zinc-500 shrink-0" />
-              </button>
-            ))}
-            {/* Custom exercise */}
-            <button onClick={() => setSheetExercise({ id: "custom", name: "Custom Exercise", category: activeGroup, emoji: "✏️" })}
-              className="w-full flex items-center gap-3 rounded-xl border border-dashed border-gold/30 px-4 py-3 text-left hover:bg-gold/5 transition-all active:scale-[0.98]">
-              <span className="text-xl">✏️</span>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gold">Add Custom Exercise</p>
-                <p className="text-xs text-zinc-500">Not in the list? Add your own</p>
+                )}
               </div>
-              <Plus className="h-4 w-4 text-gold shrink-0" />
-            </button>
-          </div>
+            );
+          })}
         </div>
+
+        {slots.length < 7 && (
+          <button onClick={addSlot} className="mt-3 w-full rounded-xl border border-dashed border-white/[0.1] py-2.5 text-xs text-zinc-500 hover:text-zinc-300 hover:border-white/[0.2] transition-colors">
+            <Plus className="h-3.5 w-3.5 inline mr-1" /> Add Workout Slot ({slots.length}/7)
+          </button>
+        )}
+      </Card>
+
+      {/* Save */}
+      <Button variant="gold" className="w-full h-12 text-base rounded-2xl" disabled={!selectedClient || saving || isDemo} onClick={handleSave}>
+        {saving ? "Creating..." : <><Check className="h-5 w-5" /> Create & Assign Plan</>}
+      </Button>
+
+      {/* Exercise Picker */}
+      {pickerSlotIdx !== null && (
+        <ExercisePicker
+          onSelect={(exercise, sets, reps, restSeconds, notes) =>
+            addExerciseToSlot(pickerSlotIdx, exercise, sets, reps, restSeconds, notes)
+          }
+          onClose={() => setPickerSlotIdx(null)}
+        />
       )}
-
-      {/* Review */}
-      {isReview && (
-        <div className="space-y-4">
-          <Card>
-            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Plan</p>
-            <p className="text-white font-semibold">{planName}</p>
-            <p className="text-xs text-zinc-500 mt-1">{numDays} days · {activeClients.find((c) => c.id === selectedClient)?.name}</p>
-          </Card>
-
-          {days.map((day, dayIndex) => (
-            <Card key={dayIndex}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-zinc-500 font-mono">{day.label}</span>
-                  <p className="font-semibold text-white">{day.name || "Unnamed"}</p>
-                </div>
-                <button onClick={() => { setReturnToReview(true); setStep(dayIndex + 1); }}
-                  className="flex items-center gap-1 text-xs text-gold font-medium hover:text-gold-light transition-colors">
-                  <Pencil className="h-3 w-3" /> Edit
-                </button>
-              </div>
-              {day.exercises.length === 0 ? (
-                <p className="text-xs text-zinc-600">No exercises added</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {day.exercises.map((entry, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-300">{entry.exercise.emoji} {entry.exercise.name}</span>
-                      <span className="text-zinc-500">{entry.sets}×{entry.reps}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Exercise sheet */}
-      {sheetExercise && currentDay && (
-        <ExerciseSheet exercise={sheetExercise} onClose={() => setSheetExercise(null)}
-          onAdd={(entry) => addExercise(step - 1, entry)} />
-      )}
-
-      {/* Bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 glass-dark border-t border-white/[0.06] safe-area-bottom">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex gap-3">
-            {step > 0 && (
-              <Button variant="secondary" className="flex-1" onClick={() => {
-                if (returnToReview) { setReturnToReview(false); setStep(reviewStep); }
-                else setStep(step - 1);
-              }}><ArrowLeft className="h-4 w-4" /> Back</Button>
-            )}
-            {step === 0 && (
-              <Button variant="gold" className="flex-1 h-12 text-base rounded-2xl" disabled={!planName || !selectedClient} onClick={() => setStep(1)}>
-                Start Building <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-            {currentDay && !isLastDay && (
-              <Button variant="gold" className="flex-1" onClick={() => {
-                if (returnToReview) { setReturnToReview(false); setStep(reviewStep); }
-                else { setStep(step + 1); setActiveGroup(muscleGroups[0].key); }
-              }}>{returnToReview ? (<>Done <Check className="h-4 w-4" /></>) : (<>Next Day <ArrowRight className="h-4 w-4" /></>)}</Button>
-            )}
-            {isLastDay && (
-              <Button variant="gold" className="flex-1" onClick={() => setStep(reviewStep)}>
-                {returnToReview ? "Done" : "Review"} {returnToReview ? <Check className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-              </Button>
-            )}
-            {isReview && (
-              <Button variant="gold" className="flex-1 h-12 text-base rounded-2xl" onClick={async () => {
-                if (!user) return;
-                await createWorkoutPlan({
-                  coach_id: user.id,
-                  client_id: selectedClient,
-                  title: planName,
-                  days: days.map((d, i) => ({
-                    day_label: d.label,
-                    name: d.name,
-                    exercises: d.exercises.map((e) => ({
-                      name: e.exercise.name,
-                      emoji: e.exercise.emoji,
-                      sets: e.sets,
-                      reps: e.reps,
-                      rest: e.rest,
-                      notes: e.notes || undefined,
-                    })),
-                    sort_order: i,
-                  })),
-                });
-                setSaved(true);
-              }}>
-                <Check className="h-5 w-5" /> Save Workout Plan
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

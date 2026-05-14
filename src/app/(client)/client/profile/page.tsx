@@ -6,15 +6,17 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
-import { getProfile, getCheckIns, getMeasurements } from "@/lib/db";
+import { getProfile, getCheckIns, getMeasurements, getOnboarding } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
-import { TrendingDown, Camera, Calendar, LogOut } from "lucide-react";
+import { TrendingDown, Camera, Calendar, LogOut, Pencil } from "lucide-react";
+import Link from "next/link";
 
 export default function ClientProfilePage() {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [checkIns, setCheckIns] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
+  const [onboarding, setOnboarding] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,10 +25,11 @@ export default function ClientProfilePage() {
 
   async function loadData() {
     if (!user) return;
-    const [p, ci, m] = await Promise.all([getProfile(user.id), getCheckIns(user.id), getMeasurements(user.id)]);
+    const [p, ci, m, onb] = await Promise.all([getProfile(user.id), getCheckIns(user.id), getMeasurements(user.id), getOnboarding(user.id)]);
     setProfile(p);
     setCheckIns(ci);
     setMeasurements(m);
+    setOnboarding(onb);
     setLoading(false);
   }
 
@@ -78,6 +81,33 @@ export default function ClientProfilePage() {
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Onboarding info */}
+      {onboarding ? (
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-white">Your Profile</p>
+            <Link href="/client/onboarding" className="text-xs text-gold flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</Link>
+          </div>
+          <div className="space-y-1.5 text-sm">
+            {onboarding.primary_goal && <div className="flex justify-between"><span className="text-zinc-500">Goal</span><span className="text-white">{onboarding.primary_goal}</span></div>}
+            {onboarding.diet_type && <div className="flex justify-between"><span className="text-zinc-500">Diet</span><span className="text-white">{onboarding.diet_type}</span></div>}
+            {onboarding.work_type && <div className="flex justify-between"><span className="text-zinc-500">Work</span><span className="text-white">{onboarding.work_type}</span></div>}
+            {onboarding.cooking_comfort && <div className="flex justify-between"><span className="text-zinc-500">Cooking</span><span className="text-white">{onboarding.cooking_comfort}</span></div>}
+            {onboarding.daily_steps && <div className="flex justify-between"><span className="text-zinc-500">Steps</span><span className="text-white">{onboarding.daily_steps}</span></div>}
+            {onboarding.coaching_style && <div className="flex justify-between"><span className="text-zinc-500">Coaching</span><span className="text-white">{onboarding.coaching_style}</span></div>}
+          </div>
+        </Card>
+      ) : (
+        <Link href="/client/onboarding">
+          <Card className="border-gold/20 hover:border-gold/30 transition-colors">
+            <div className="text-center py-2">
+              <p className="text-sm font-semibold text-white">Complete Your Profile</p>
+              <p className="text-xs text-zinc-500 mt-0.5">Help your coach build the perfect plan for you</p>
+            </div>
+          </Card>
+        </Link>
       )}
 
       <Button variant="secondary" className="w-full" onClick={signOut}>

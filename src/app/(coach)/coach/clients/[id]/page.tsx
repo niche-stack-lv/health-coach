@@ -7,23 +7,28 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WeightChart } from "@/components/charts/weight-chart";
 import { MeasurementsChart } from "@/components/charts/measurements-chart";
-import { getClients, getCoachCheckIns, getDietPlans, getMeasurements, getHabits, addHabit, deleteHabit } from "@/lib/db";
+import { getClients, getCoachCheckIns, getDietPlans, getMeasurements, getHabits, addHabit, deleteHabit, getClientActiveAssignment, getClientActiveWorkoutAssignment, deactivateAssignment, removeWorkoutAssignment, getOnboarding } from "@/lib/db";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate, cn } from "@/lib/utils";
-import { ArrowLeft, TrendingDown, Camera, Calendar, Target, Plus, Trash2, Sparkles, X } from "lucide-react";
+import { ArrowLeft, TrendingDown, Camera, Calendar, Target, Plus, Trash2, Sparkles, X, UtensilsCrossed, Dumbbell } from "lucide-react";
 import Link from "next/link";
+import { MealSlotView } from "@/components/shared/meal-slot-view";
+import { WorkoutSlotView } from "@/components/shared/workout-slot-view";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const [tab, setTab] = useState<"overview" | "measurements" | "habits">("overview");
+  const [tab, setTab] = useState<"overview" | "diet" | "workout" | "measurements" | "habits" | "profile">("overview");
   const [client, setClient] = useState<any>(null);
   const [checkIns, setCheckIns] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [habits, setHabits] = useState<any[]>([]);
+  const [dietAssignment, setDietAssignment] = useState<any>(null);
+  const [workoutAssignment, setWorkoutAssignment] = useState<any>(null);
+  const [onboarding, setOnboarding] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Habit form state
@@ -39,12 +44,15 @@ export default function ClientDetailPage() {
 
   async function loadData() {
     if (!user) return;
-    const [clients, cis, pls, meas, habs] = await Promise.all([
+    const [clients, cis, pls, meas, habs, dietAsgn, workoutAsgn, onb] = await Promise.all([
       getClients(user.id),
       getCoachCheckIns(user.id),
       getDietPlans(user.id),
       getMeasurements(id as string),
       getHabits(id as string),
+      getClientActiveAssignment(id as string),
+      getClientActiveWorkoutAssignment(id as string),
+      getOnboarding(id as string),
     ]);
     const found = clients.find((c: any) => c.id === id);
     setClient(found || null);
@@ -52,6 +60,9 @@ export default function ClientDetailPage() {
     setPlans(pls.filter((p: any) => p.client_id === id));
     setMeasurements(meas);
     setHabits(habs);
+    setDietAssignment(dietAsgn);
+    setWorkoutAssignment(workoutAsgn);
+    setOnboarding(onb);
     setLoading(false);
   }
 
@@ -95,9 +106,9 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        {(["overview", "measurements", "habits"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("rounded-xl px-4 py-2 text-sm font-semibold border capitalize", tab === t ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500")}>{t}</button>
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {(["overview", "profile", "diet", "workout", "measurements", "habits"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={cn("rounded-xl px-4 py-2 text-sm font-semibold border capitalize whitespace-nowrap", tab === t ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500")}>{t === "diet" ? "Diet Plan" : t === "workout" ? "Workout" : t}</button>
         ))}
       </div>
 
@@ -137,6 +148,204 @@ export default function ClientDetailPage() {
               </div>
             )}
           </Card>
+        </div>
+      )}
+
+      {tab === "profile" && (
+        <div>
+          {onboarding ? (
+            <div className="space-y-4">
+              {/* Demographics */}
+              <Card className="!p-4">
+                <h3 className="text-xs font-semibold text-gold uppercase tracking-wide mb-3">Demographics</h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {onboarding.age && <div><span className="text-zinc-500">Age:</span> <span className="text-white">{onboarding.age}</span></div>}
+                  {onboarding.height && <div><span className="text-zinc-500">Height:</span> <span className="text-white">{onboarding.height}</span></div>}
+                  {onboarding.current_weight && <div><span className="text-zinc-500">Weight:</span> <span className="text-white">{onboarding.current_weight}</span></div>}
+                  {onboarding.city && <div><span className="text-zinc-500">City:</span> <span className="text-white">{onboarding.city}</span></div>}
+                </div>
+              </Card>
+
+              {/* Goals */}
+              <Card className="!p-4">
+                <h3 className="text-xs font-semibold text-gold uppercase tracking-wide mb-3">Fitness Goals</h3>
+                <div className="space-y-2 text-sm">
+                  {onboarding.primary_goal && <div><span className="text-zinc-500">Goal:</span> <span className="text-white">{onboarding.primary_goal}</span></div>}
+                  {onboarding.target_weight && <div><span className="text-zinc-500">Target weight:</span> <span className="text-white">{onboarding.target_weight}</span></div>}
+                  {onboarding.gym_access && <div><span className="text-zinc-500">Gym:</span> <span className="text-white">{onboarding.gym_access}</span></div>}
+                  {onboarding.work_type && <div><span className="text-zinc-500">Work:</span> <span className="text-white">{onboarding.work_type}</span></div>}
+                  {onboarding.medical_conditions && <div><span className="text-zinc-500">Medical:</span> <span className="text-white">{onboarding.medical_conditions}</span></div>}
+                </div>
+              </Card>
+
+              {/* Dietary */}
+              <Card className="!p-4">
+                <h3 className="text-xs font-semibold text-gold uppercase tracking-wide mb-3">Dietary Profile</h3>
+                <div className="space-y-2 text-sm">
+                  {onboarding.diet_type && <div><span className="text-zinc-500">Diet type:</span> <span className="text-white">{onboarding.diet_type}</span></div>}
+                  {onboarding.protein_preferences?.length > 0 && <div><span className="text-zinc-500">Proteins (non-veg):</span> <span className="text-white">{onboarding.protein_preferences.join(", ")}</span></div>}
+                  {onboarding.veg_proteins?.length > 0 && <div><span className="text-zinc-500">Proteins (veg):</span> <span className="text-white">{onboarding.veg_proteins.join(", ")}</span></div>}
+                  {onboarding.dals?.length > 0 && <div><span className="text-zinc-500">Dals:</span> <span className="text-white">{onboarding.dals.join(", ")}</span></div>}
+                  {onboarding.vegetables?.length > 0 && <div><span className="text-zinc-500">Vegetables:</span> <span className="text-white">{onboarding.vegetables.join(", ")}</span></div>}
+                  {onboarding.carb_sources?.length > 0 && <div><span className="text-zinc-500">Carbs:</span> <span className="text-white">{onboarding.carb_sources.join(", ")}</span></div>}
+                  {onboarding.fruits?.length > 0 && <div><span className="text-zinc-500">Fruits:</span> <span className="text-white">{onboarding.fruits.join(", ")}</span></div>}
+                  {onboarding.snack_preference && <div><span className="text-zinc-500">Snacks:</span> <span className="text-white">{onboarding.snack_preference}</span></div>}
+                  {onboarding.food_allergies && <div><span className="text-zinc-500">Allergies:</span> <span className="text-white">{onboarding.food_allergies}</span></div>}
+                  {onboarding.cravings?.length > 0 && <div><span className="text-zinc-500">Cravings:</span> <span className="text-white">{onboarding.cravings.join(", ")}</span></div>}
+                </div>
+              </Card>
+
+              {/* Habits */}
+              <Card className="!p-4">
+                <h3 className="text-xs font-semibold text-gold uppercase tracking-wide mb-3">Habits & Lifestyle</h3>
+                <div className="space-y-2 text-sm">
+                  {onboarding.chai_coffee && <div><span className="text-zinc-500">Chai/Coffee:</span> <span className="text-white">{onboarding.chai_coffee}</span></div>}
+                  {onboarding.alcohol && <div><span className="text-zinc-500">Alcohol:</span> <span className="text-white">{onboarding.alcohol}</span></div>}
+                  {onboarding.meals_out && <div><span className="text-zinc-500">Meals out/week:</span> <span className="text-white">{onboarding.meals_out}</span></div>}
+                  {onboarding.fast_food?.length > 0 && <div><span className="text-zinc-500">Fast food:</span> <span className="text-white">{onboarding.fast_food.join(", ")}</span></div>}
+                  {onboarding.breakfast_person && <div><span className="text-zinc-500">Breakfast:</span> <span className="text-white">{onboarding.breakfast_person}</span></div>}
+                  {onboarding.open_to_yogurt && <div><span className="text-zinc-500">Greek yogurt:</span> <span className="text-white">{onboarding.open_to_yogurt}</span></div>}
+                  {onboarding.open_to_shakes && <div><span className="text-zinc-500">Protein shakes:</span> <span className="text-white">{onboarding.open_to_shakes}</span></div>}
+                  {onboarding.open_to_bars && <div><span className="text-zinc-500">Protein bars:</span> <span className="text-white">{onboarding.open_to_bars}</span></div>}
+                  {onboarding.daily_steps && <div><span className="text-zinc-500">Daily steps:</span> <span className="text-white">{onboarding.daily_steps}</span></div>}
+                  {onboarding.cooking_comfort && <div><span className="text-zinc-500">Cooking:</span> <span className="text-white">{onboarding.cooking_comfort}</span></div>}
+                  {onboarding.energy_level && <div><span className="text-zinc-500">Energy:</span> <span className="text-white">{onboarding.energy_level}</span></div>}
+                  {onboarding.coaching_style && <div><span className="text-zinc-500">Coaching style:</span> <span className="text-white">{onboarding.coaching_style}</span></div>}
+                </div>
+              </Card>
+
+              {/* Open-ended */}
+              {(onboarding.day_structure || onboarding.weekend_routine || onboarding.weight_history || onboarding.biggest_struggle || onboarding.urgency || onboarding.vacation_plans || onboarding.notes) && (
+                <Card className="!p-4">
+                  <h3 className="text-xs font-semibold text-gold uppercase tracking-wide mb-3">In Their Words</h3>
+                  <div className="space-y-3 text-sm">
+                    {onboarding.day_structure && <div><p className="text-zinc-500 text-xs mb-0.5">Typical weekday:</p><p className="text-zinc-200">{onboarding.day_structure}</p></div>}
+                    {onboarding.weekend_routine && <div><p className="text-zinc-500 text-xs mb-0.5">Weekends:</p><p className="text-zinc-200">{onboarding.weekend_routine}</p></div>}
+                    {onboarding.last_meal_sleep && <div><p className="text-zinc-500 text-xs mb-0.5">Last meal & sleep:</p><p className="text-zinc-200">{onboarding.last_meal_sleep}</p></div>}
+                    {onboarding.weight_history && <div><p className="text-zinc-500 text-xs mb-0.5">Weight history:</p><p className="text-zinc-200">{onboarding.weight_history}</p></div>}
+                    {onboarding.biggest_struggle && <div><p className="text-zinc-500 text-xs mb-0.5">Biggest struggle:</p><p className="text-zinc-200">{onboarding.biggest_struggle}</p></div>}
+                    {onboarding.urgency && <div><p className="text-zinc-500 text-xs mb-0.5">Why now:</p><p className="text-zinc-200">{onboarding.urgency}</p></div>}
+                    {onboarding.vacation_plans && <div><p className="text-zinc-500 text-xs mb-0.5">Vacation plans:</p><p className="text-zinc-200">{onboarding.vacation_plans}</p></div>}
+                    {onboarding.notes && <div><p className="text-zinc-500 text-xs mb-0.5">Additional notes:</p><p className="text-zinc-200">{onboarding.notes}</p></div>}
+                  </div>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <Card className="!p-8 text-center">
+              <p className="text-zinc-400 text-sm">Client hasn&apos;t completed onboarding yet.</p>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab === "diet" && (
+        <div>
+          {dietAssignment?.template ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-white">{dietAssignment.template.name}</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">{dietAssignment.template.planType} · {dietAssignment.template.mealSlots?.length || 0} meals</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link href={`/coach/diet-templates/${dietAssignment.templateId}`}>
+                    <Button variant="ghost" size="sm">Edit</Button>
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Remove this diet plan from the client?")) return;
+                      await deactivateAssignment(dietAssignment.id);
+                      setDietAssignment(null);
+                    }}
+                    className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {(dietAssignment.template.mealSlots || [])
+                  .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+                  .map((slot: any) => (
+                    <div key={slot.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                      <div className="flex items-center justify-between p-4 pb-2">
+                        <p className="text-sm font-semibold text-white">{slot.name}</p>
+                        {slot.targetCalories && <span className="text-[10px] text-zinc-500">{slot.targetCalories} kcal target</span>}
+                      </div>
+                      <div className="px-4 pb-4">
+                        <MealSlotView slot={slot} mode="view" compact />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <Link href="/coach/plans/create" className="block">
+                <Button variant="secondary" size="sm" className="w-full">Reassign Different Plan</Button>
+              </Link>
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <UtensilsCrossed className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
+              <p className="text-zinc-400 text-sm">No diet plan assigned</p>
+              <Link href="/coach/plans/create">
+                <Button variant="gold" size="sm" className="mt-3">Assign Plan</Button>
+              </Link>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab === "workout" && (
+        <div>
+          {workoutAssignment?.template ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-white">{workoutAssignment.template.name}</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">{workoutAssignment.template.slots?.length || 0} workout days</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link href={`/coach/workout-templates/${workoutAssignment.templateId}`}>
+                    <Button variant="ghost" size="sm">Edit</Button>
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Remove this workout plan from the client?")) return;
+                      await removeWorkoutAssignment(workoutAssignment.id);
+                      setWorkoutAssignment(null);
+                    }}
+                    className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-500/10 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {(workoutAssignment.template.slots || [])
+                  .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+                  .map((slot: any) => (
+                    <Card key={slot.id} className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-white">{slot.name}</p>
+                        <span className="text-xs text-zinc-500">{slot.exercises?.length || 0} exercises</span>
+                      </div>
+                      <WorkoutSlotView slot={slot} mode="view" />
+                    </Card>
+                  ))}
+              </div>
+              <Link href="/coach/workouts/create" className="block">
+                <Button variant="secondary" size="sm" className="w-full">Reassign Different Workout</Button>
+              </Link>
+            </div>
+          ) : (
+            <Card className="p-8 text-center">
+              <Dumbbell className="h-8 w-8 text-zinc-600 mx-auto mb-3" />
+              <p className="text-zinc-400 text-sm">No workout plan assigned</p>
+              <Link href="/coach/workouts/create">
+                <Button variant="gold" size="sm" className="mt-3">Assign Workout</Button>
+              </Link>
+            </Card>
+          )}
         </div>
       )}
 

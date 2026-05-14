@@ -1,10 +1,28 @@
 # Landmines — read before touching existing code
 
-## 1. Supabase Credentials Require `.env.local`
+## 1. CLIENT_ID Required for Build
+**Location:** `site.config.ts`, `next.config.ts`
+**What breaks:** If `CLIENT_ID` is not set, the config loader defaults to the first registered client with a console warning. In production (Vercel), this MUST be set explicitly per project or the wrong client's config will load.
+**Correct handling:** Always set `CLIENT_ID` in `.env.local` for local dev and in Vercel env vars for production. The `next.config.ts` passes it through via the `env` option.
+**Status:** ⚠️ Defaults gracefully but must be explicit in production.
+
+## 2. Supabase Credentials Require `.env.local`
 **Location:** `src/lib/supabase.ts`
 **What breaks:** The app throws at runtime if `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are not set. There are no hardcoded fallbacks.
-**Correct handling:** Copy `.env.example` to `.env.local` and fill in your Supabase project credentials. The app logs a warning at import time and throws on first `getSupabase()` call if missing.
+**Correct handling:** Set in `.env.local` for local dev, in Vercel env vars for production. Each client has their own Supabase project — never share credentials between clients.
 **Status:** ✅ Resolved — credentials removed, `.env.example` added.
+
+## 3. Landing Pages Must Be Registered in Two Places
+**Location:** `site.config.ts` AND `src/app/page.tsx`
+**What breaks:** If you add a new client's config to `site.config.ts` but forget to add their landing page to `src/app/page.tsx`, the landing page will render the default/fallback client's page.
+**Correct handling:** Always register in both files when onboarding a new client. The config loader and landing page router are separate registries.
+**Status:** ⚠️ Manual step — easy to forget.
+
+## 4. Optional Config Fields Can Break Shared Pages
+**Location:** `src/app/pricing/page.tsx`, `src/app/about-platform/page.tsx`
+**What breaks:** The pricing page reads `config.programs` and `config.pricing`. The about-platform page reads `config.aboutPlatform`. These are optional in the type (`[key: string]: unknown`) but the pages assume they exist.
+**Correct handling:** If a client uses the shared pricing/about pages, they MUST include `programs`, `pricing`, and `aboutPlatform` in their config. Otherwise, create custom versions of those pages for the client.
+**Status:** ⚠️ Runtime error if fields are missing — no compile-time safety for optional fields.
 
 ## 2. No Error Handling on DB Read Operations
 **Location:** `src/lib/db.ts` (read functions)
@@ -12,11 +30,11 @@
 **Correct handling:** This is an accepted trade-off for this project's scale. All write operations return `{ error: string | null }`. If you add new DB functions, follow the same split: reads return `data || []`, writes return `{ error }`.
 **Status:** ⚠️ Accepted — read errors are silently swallowed by design. Write errors are all properly surfaced.
 
-## 3. Delete-and-Reinsert Pattern for Meal/Day Updates
-**Location:** `src/lib/db.ts` → `updateDietPlanMeals()`, `updateWorkoutPlanDays()`
-**What breaks:** Updating meals or workout days deletes ALL existing rows and re-inserts them. Not wrapped in a transaction. If the insert fails after the delete, the plan loses all its data.
-**Correct handling:** Both functions return `{ error }` so callers can detect failures. Meal/day IDs change on every save — don't rely on stable IDs. For true safety, use a Supabase RPC function with a transaction.
-**Status:** ✅ Resolved — error handling added. Transaction safety remains a known limitation.
+## 3. Delete-and-Reinsert Pattern for Template Updates
+**Location:** `src/lib/db.ts` → `updateDietTemplate()`, `updateWorkoutTemplate()`
+**What breaks:** Updating templates deletes ALL existing meal slots/workout slots and re-inserts them. `food_check_in_items` references slots with ON DELETE SET NULL, so old check-in items get nulled slot references (acceptable — historical data preserved).
+**Correct handling:** Both functions return `{ error }` so callers can detect failures. Slot IDs change on every save — don't rely on stable IDs.
+**Status:** ✅ Resolved — ON DELETE SET NULL on foreign keys prevents blocking.
 
 ## 4. Demo Mode Bypasses All Auth
 **Location:** `src/components/auth-guard.tsx`, every page with `useIsDemo()`

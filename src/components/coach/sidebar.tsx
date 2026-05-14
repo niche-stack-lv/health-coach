@@ -8,17 +8,19 @@ import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, Users, UtensilsCrossed, Camera,
-  Dumbbell, Settings, Menu, X, Flame, LogOut, TrendingUp,
+  LayoutDashboard, Users, UtensilsCrossed, Camera, CalendarCheck,
+  Dumbbell, Settings, Menu, X, LogOut, TrendingUp, CalendarDays,
 } from "lucide-react";
 
 const navItems = [
   { href: "/coach", label: "Dashboard", icon: LayoutDashboard },
   { href: "/coach/leads", label: "Leads", icon: TrendingUp },
   { href: "/coach/clients", label: "Clients", icon: Users },
-  { href: "/coach/plans", label: "Diet Plans", icon: UtensilsCrossed },
-  { href: "/coach/workouts", label: "Workouts", icon: Flame },
-  { href: "/coach/check-ins", label: "Check-ins", icon: Camera },
+  { href: "/coach/dishes", label: "Dishes", icon: UtensilsCrossed },
+  { href: "/coach/diet-templates", label: "Diet Templates", icon: CalendarDays },
+  { href: "/coach/workout-templates", label: "Workout Templates", icon: Dumbbell },
+  { href: "/coach/daily-check-ins", label: "Daily Log", icon: CalendarCheck },
+  { href: "/coach/check-ins", label: "Weekly", icon: Camera },
 ];
 
 export function CoachSidebar() {

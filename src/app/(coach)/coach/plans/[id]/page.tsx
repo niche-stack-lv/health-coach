@@ -6,8 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
-import { foodDatabase, mealTypes, type FoodItem } from "@/lib/food-database";
-import { getDietPlans, updateDietPlanMeals } from "@/lib/db";
+import { mealTypes, type FoodItem } from "@/lib/food-database";
+import { getDietPlans, updateDietPlanMeals, getFoods } from "@/lib/db";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate, cn } from "@/lib/utils";
 import { ArrowLeft, Pencil, Trash2, Plus, Check, X } from "lucide-react";
@@ -48,10 +48,21 @@ export default function PlanDetailPage() {
   const [activeCategory, setActiveCategory] = useState<"protein" | "carbs" | "fats" | "supplements">("protein");
   const [sheetFood, setSheetFood] = useState<FoodItem | null>(null);
   const [sheetGrams, setSheetGrams] = useState("");
+  const [foodDatabase, setFoodDatabase] = useState<FoodItem[]>([]);
 
   useEffect(() => {
-    if (user) loadPlan();
-  }, [user, id]);
+    getFoods().then((data) => {
+      setFoodDatabase(data.map((f: any) => ({
+        id: f.id, name: f.name, category: f.category, emoji: f.emoji || "🍽️",
+        unit: f.unit || undefined, gramsPerUnit: f.grams_per_unit || undefined,
+        per100g: { calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat },
+      })));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (user && foodDatabase.length > 0) loadPlan();
+  }, [user, id, foodDatabase.length]);
 
   async function loadPlan() {
     if (!user) return;

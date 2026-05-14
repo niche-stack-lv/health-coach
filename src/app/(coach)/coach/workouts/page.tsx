@@ -7,17 +7,37 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkoutPlans } from "@/lib/db";
+import { getWorkoutAssignments } from "@/lib/db";
 import Link from "next/link";
 
 export default function WorkoutsPage() {
   const { user } = useAuth();
-  const [plans, setPlans] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) getWorkoutPlans(user.id).then((d) => { setPlans(d); setLoading(false); });
+    if (user) {
+      getWorkoutAssignments(user.id).then((data) => {
+        setAssignments(data);
+        setLoading(false);
+      });
+    }
   }, [user]);
+
+  // Determine latest assignment per client (= active)
+  const latestPerClient = new Map<string, string>();
+  for (const a of assignments) {
+    if (!latestPerClient.has(a.clientId)) latestPerClient.set(a.clientId, a.id);
+  }
+
+  const plans = assignments.map((a: any) => ({
+    id: a.id,
+    templateId: a.templateId,
+    title: a.template?.name || "Workout Plan",
+    status: latestPerClient.get(a.clientId) === a.id ? "active" : "inactive",
+    clientName: a.clientName || "Client",
+    slots: a.template?.slots || [],
+  }));
 
   return (
     <div>
@@ -37,42 +57,33 @@ export default function WorkoutsPage() {
         <Card className="text-center py-12"><p className="text-zinc-500">No workout plans yet. Create your first one!</p></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {plans.map((plan) => {
-            const days = plan.days || [];
-            return (
-              <Link key={plan.id} href={`/coach/workouts/edit?id=${plan.id}`}>
-                <Card hover>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-base font-semibold text-white">{plan.title}</h3>
-                      <p className="text-sm text-zinc-500 mt-0.5">{days.length}-day split</p>
-                    </div>
-                    <Badge variant={plan.status === "active" ? "success" : "default"}>{plan.status}</Badge>
+          {plans.map((plan) => (
+            <Link key={plan.id} href={`/coach/workout-templates/${plan.templateId}`}>
+              <Card hover>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-white">{plan.title}</h3>
+                    <p className="text-sm text-zinc-500 mt-0.5">{plan.slots.length}-day split</p>
                   </div>
-                  {plan.client && (
-                    <div className="flex items-center gap-2 mb-3">
-                      <Avatar name={plan.client.name} size="sm" />
-                      <span className="text-sm text-zinc-300">{plan.client.name}</span>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    {days.map((day: any, i: number) => {
-                      const exercises = day.exercises || [];
-                      return (
-                        <div key={i} className="flex items-center justify-between text-sm rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-zinc-500 font-mono">{day.day_label}</span>
-                            <span className="font-medium text-zinc-300">{day.name}</span>
-                          </div>
-                          <span className="text-xs text-zinc-500">{exercises.length} exercises</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
+                  <Badge variant={plan.status === "active" ? "success" : "default"}>{plan.status}</Badge>
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Avatar name={plan.clientName} size="sm" />
+                  <span className="text-sm text-zinc-300">{plan.clientName}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {plan.slots
+                    .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+                    .map((slot: any) => (
+                      <div key={slot.id} className="flex items-center justify-between text-sm rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
+                        <span className="font-medium text-zinc-300">{slot.name}</span>
+                        <span className="text-xs text-zinc-500">{slot.exercises?.length || 0} exercises</span>
+                      </div>
+                    ))}
+                </div>
+              </Card>
+            </Link>
+          ))}
         </div>
       )}
     </div>

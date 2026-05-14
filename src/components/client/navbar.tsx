@@ -5,21 +5,28 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
-import { Dumbbell, Home, UtensilsCrossed, Camera, Flame, Ruler, Sparkles } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { Dumbbell, Home, UtensilsCrossed, Camera, Flame, Ruler, CalendarCheck } from "lucide-react";
 
 const navItems = [
   { href: "/client", label: "Home", icon: Home },
-  { href: "/client/plan", label: "Diet", icon: UtensilsCrossed },
+  { href: "/client/diet-plan", label: "Diet Plan", icon: UtensilsCrossed },
+  { href: "/client/food-check-in", label: "Daily", icon: CalendarCheck },
   { href: "/client/workout", label: "Workout", icon: Flame },
-  { href: "/client/habits", label: "Habits", icon: Sparkles },
+  { href: "/client/check-in", label: "Weekly", icon: Camera },
   { href: "/client/measurements", label: "Body", icon: Ruler },
-  { href: "/client/check-in", label: "Check-in", icon: Camera },
 ];
 
 function NavbarInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const demo = searchParams.get("demo") === "true" ? "?demo=true" : "";
+
+  // Get initials from user email or name
+  const initials = user?.email
+    ? user.email.substring(0, 2).toUpperCase()
+    : "ME";
 
   return (
     <>
@@ -33,7 +40,7 @@ function NavbarInner() {
             {demo && <span className="text-[10px] text-gold uppercase tracking-wider font-semibold">Demo</span>}
           </div>
           <Link href={`/client/profile${demo}`} className="h-8 w-8 rounded-xl bg-gold/10 flex items-center justify-center text-xs font-bold text-gold ring-1 ring-gold/20">
-            AR
+            {initials}
           </Link>
         </div>
       </header>

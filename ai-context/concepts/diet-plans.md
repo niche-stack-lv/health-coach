@@ -1,6 +1,9 @@
 # Diet Plans
 
-## What it does
+> **NOTE:** This is the LEGACY diet plan system. The new system is in `concepts/dishes-and-diet-directory.md`.
+> Both coexist — the legacy system uses `diet_plans` + `diet_meals` tables, the new system uses `dishes` + `diet_templates` + related tables.
+
+## What it does (LEGACY)
 Coaches create personalized diet plans for clients. Each plan has a title, duration (weeks), date range, and exactly 4 meals (Breakfast, Lunch, Snack, Dinner). Each meal contains food items with gram amounts and auto-calculated macros.
 
 ## How it works (step by step)

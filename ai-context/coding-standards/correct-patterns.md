@@ -201,3 +201,90 @@ const { data } = await sb
   .eq("coach_id", coachId);
 ```
 Established in: `src/lib/db.ts`.
+
+
+## 16. Shared Components with Mode Props
+
+When the same data structure is rendered in multiple contexts (coach edit, coach view, client view, client selection), use a SINGLE shared component with a `mode` prop instead of duplicating UI code.
+
+**Location:** `src/components/shared/`
+
+**Pattern:**
+```tsx
+// src/components/shared/meal-slot-view.tsx
+import { MealSlotView } from "@/components/shared/meal-slot-view";
+
+// Edit mode (template editor, plan creation):
+<MealSlotView
+  slot={localMealSlot}  // EditableMealSlot type
+  mode="edit"
+  allDishes={allDishes}
+  onAddDish={(compIdx) => openPicker(slotIdx, compIdx)}
+  onRemoveDish={(compIdx, dishId) => removeDish(slotIdx, compIdx, dishId)}
+/>
+
+// View mode (client diet plan):
+<MealSlotView slot={templateMealSlot} mode="view" />
+
+// Select mode (food check-in):
+<MealSlotView
+  slot={templateMealSlot}
+  mode="select"
+  selections={selections}
+  isSlotSkipped={skippedSlots.has(slot.id)}
+  onSelectDish={handleSelectDish}
+  onSelectOther={(compId) => setSelections(...)}
+  onSkipSlot={() => handleSkipSlot(slot.id, slot.components)}
+/>
+
+// src/components/shared/workout-slot-view.tsx
+import { WorkoutSlotView } from "@/components/shared/workout-slot-view";
+
+<WorkoutSlotView
+  slot={localSlot}  // EditableWorkoutSlot type
+  mode="edit"
+  onAddExercise={() => setPickerSlotIdx(slotIdx)}
+  onRemoveExercise={(exIdx) => removeExercise(slotIdx, exIdx)}
+/>
+
+// src/components/shared/macro-summary.tsx
+import { MacroSummary } from "@/components/shared/macro-summary";
+
+<MacroSummary calories={macros.calories} protein={macros.protein} carbs={macros.carbs} fat={macros.fat} />
+<MacroSummary calories={total.calories} protein={total.protein} carbs={total.carbs} fat={total.fat} size="sm" />
+```
+
+**Visual design (chip/list style — shared across all modes):**
+- Category labels: colored badges with `rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide` + category-specific colors
+- Dish chips: `rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px]` with emoji + name + calories
+- Edit mode adds: X button on chips + "+ Add Dish" dashed button
+- View mode adds: "or" separator between alternatives
+- Select mode: chips as buttons with gold highlight when selected + "Other" + "Skip" options
+
+**Why:** Changing the visual design once automatically updates ALL pages. No more updating 4+ files for one design change.
+
+**Rules:**
+- One component per data structure (MealSlotView, WorkoutSlotView, MacroSummary)
+- Mode determines behavior (editable, read-only, selectable)
+- Visual design is shared — only interaction differs
+- Props are optional based on mode (edit needs onAdd/onRemove, select needs selections/onSelect)
+- Never duplicate rendering logic across pages — extract to shared component
+- Edit mode accepts `EditableMealSlot` / `EditableWorkoutSlot` (local state types with `localId` + `dishIds`)
+- View/select modes accept `TemplateMealSlot` / `WorkoutTemplateSlot` (DB types with `id` + nested `dishes`)
+
+**Shared components (completed):**
+- `src/components/shared/meal-slot-view.tsx` — renders meal slot in edit/view/select modes
+- `src/components/shared/workout-slot-view.tsx` — renders workout slot in edit/view modes
+- `src/components/shared/macro-summary.tsx` — renders macro totals (sm/md/lg sizes)
+- `src/components/coach/food-picker.tsx` — food picker with category tabs + quantity sheet
+- `src/components/coach/quantity-sheet.tsx` — gram amount selector
+- `src/components/coach/dish-picker-modal.tsx` — dish picker filtered by category
+- `src/components/coach/exercise-picker.tsx` — exercise picker with muscle group tabs
+
+**Pages using shared components:**
+- `src/app/(coach)/coach/diet-templates/[id]/page.tsx` → `<MealSlotView mode="edit" />`
+- `src/app/(coach)/coach/plans/create/page.tsx` → `<MealSlotView mode="edit" />`
+- `src/app/(client)/client/diet-plan/page.tsx` → `<MealSlotView mode="view" />`
+- `src/app/(client)/client/food-check-in/page.tsx` → `<MealSlotView mode="select" />`
+- `src/app/(coach)/coach/workout-templates/[id]/page.tsx` → `<WorkoutSlotView mode="edit" />`
+- `src/app/(coach)/coach/workouts/create/page.tsx` → `<WorkoutSlotView mode="edit" />`

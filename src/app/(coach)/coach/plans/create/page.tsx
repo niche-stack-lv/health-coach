@@ -1,510 +1,413 @@
 "use client";
 
-import { useState, useEffect } from "react";
+/**
+ * Diet Plan Creation Page
+ *
+ * Uses the SAME UI as the template editor (meal slots with component rows + dish picker)
+ * but with a client selector. Optionally pre-fills from a template (copies, doesn't modify original).
+ * Saves as a new template assigned to the client.
+ */
+
+import { useState, useEffect, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { foodDatabase, mealTypes, type FoodItem, formatFoodAmount, getQuickAmounts } from "@/lib/food-database";
-import { mockClients } from "@/lib/mock-data";
-import { useStore } from "@/lib/store";
+import { DishPickerModal } from "@/components/coach/dish-picker-modal";
+import { FoodPicker } from "@/components/coach/food-picker";
+import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { useAuth } from "@/lib/auth-context";
-import { getClients, createDietPlan } from "@/lib/db";
-import { ArrowLeft, ArrowRight, Plus, Trash2, Check, X, Pencil } from "lucide-react";
-import Link from "next/link";
+import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
+import { getClients, getDishes, getDietTemplates, createDietTemplate, assignTemplate } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import type { DietTemplate, PlanType, ComponentCategory, Dish } from "@/types";
 
-interface SelectedFood { food: FoodItem; grams: number; }
-interface MealData { mealType: string; label: string; emoji: string; time: string; items: SelectedFood[]; }
-
-function calcMacros(items: SelectedFood[]) {
-  return items.reduce((acc, { food, grams }) => {
-    const m = grams / 100;
-    return {
-      calories: acc.calories + Math.round(food.per100g.calories * m),
-      protein: acc.protein + Math.round(food.per100g.protein * m),
-      carbs: acc.carbs + Math.round(food.per100g.carbs * m),
-      fat: acc.fat + Math.round(food.per100g.fat * m),
-    };
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+export default function CreatePlanPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>}>
+      <CreatePlanPageInner />
+    </Suspense>
+  );
 }
 
-function allMacros(meals: MealData[]) {
-  return calcMacros(meals.flatMap((m) => m.items));
+// ---- Types ----
+
+interface LocalComponent {
+  localId: string;
+  componentCategory: ComponentCategory;
+  dishIds: string[];
 }
 
-const categories = [
-  { key: "protein" as const, label: "Protein", emoji: "🥩", color: "text-red-400 bg-red-500/10 border-red-500/20" },
-  { key: "carbs" as const, label: "Carbs", emoji: "🍚", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  { key: "fats" as const, label: "Fats", emoji: "🥜", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  { key: "supplements" as const, label: "Supps", emoji: "💊", color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
-];
+interface LocalMealSlot {
+  localId: string;
+  name: string;
+  targetCalories: string;
+  isSkipped: boolean;
+  components: LocalComponent[];
+}
+
+// ---- Constants ----
+
+const COMPONENT_CATEGORIES: ComponentCategory[] = ["carbohydrate", "protein", "fiber", "complete_meal"];
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
-// Bottom sheet for adding food amount
-function AmountSheet({ food, onAdd, onClose }: { food: FoodItem; onAdd: (grams: number) => void; onClose: () => void; }) {
-  const [grams, setGrams] = useState("");
-  const quickOpts = getQuickAmounts(food);
-  const g = Number(grams) || 0;
-  const m = g / 100;
+// ---- Helpers ----
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-lg bg-[#1a1a1a] rounded-t-3xl border-t border-white/[0.08] p-5 pb-8 safe-area-bottom" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{food.emoji}</span>
-            <div>
-              <p className="font-semibold text-white">{food.name}</p>
-              <p className="text-xs text-zinc-500">{food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f per 100g</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
-        </div>
-
-        {/* Quick amount buttons */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {quickOpts.map((opt) => (
-            <button key={opt.grams} onClick={() => setGrams(String(opt.grams))}
-              className={cn("rounded-xl py-2.5 text-sm font-medium transition-all border",
-                Number(grams) === opt.grams ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-400 hover:bg-white/[0.04]"
-              )}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom amount */}
-        <div className="relative mb-4">
-          <input type="number" value={grams} onChange={(e) => setGrams(e.target.value)} placeholder={food.unit ? `Amount in grams` : "Custom amount"}
-            className={inputClass} autoFocus />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-500">g</span>
-        </div>
-
-        {/* Preview macros */}
-        {g > 0 && (
-          <div className="mb-1 text-center text-xs text-gold font-medium">{formatFoodAmount(food, g)}</div>
-        )}
-        {g > 0 && (
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="rounded-lg bg-white/[0.03] p-2 text-center">
-              <p className="text-sm font-bold text-gold">{Math.round(food.per100g.calories * m)}</p>
-              <p className="text-[10px] text-zinc-500">kcal</p>
-            </div>
-            <div className="rounded-lg bg-red-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-red-400">{Math.round(food.per100g.protein * m)}g</p>
-              <p className="text-[10px] text-zinc-500">protein</p>
-            </div>
-            <div className="rounded-lg bg-amber-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-amber-400">{Math.round(food.per100g.carbs * m)}g</p>
-              <p className="text-[10px] text-zinc-500">carbs</p>
-            </div>
-            <div className="rounded-lg bg-emerald-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-emerald-400">{Math.round(food.per100g.fat * m)}g</p>
-              <p className="text-[10px] text-zinc-500">fat</p>
-            </div>
-          </div>
-        )}
-
-        <Button variant="gold" className="w-full h-12 text-base rounded-2xl" disabled={g <= 0} onClick={() => { onAdd(g); onClose(); }}>
-          <Plus className="h-5 w-5" /> Add {food.name}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// Bottom sheet for adding a custom food not in the database
-function CustomFoodSheet({ category, onAdd, onClose }: { category: "protein" | "carbs" | "fats" | "supplements"; onAdd: (food: FoodItem, grams: number) => void; onClose: () => void; }) {
-  const [name, setName] = useState("");
-  const [grams, setGrams] = useState("");
-  const [calories, setCalories] = useState("");
-  const [protein, setProtein] = useState("");
-  const [carbs, setCarbs] = useState("");
-  const [fat, setFat] = useState("");
-
-  const canAdd = name && Number(grams) > 0;
-
-  const handleAdd = () => {
-    if (!canAdd) return;
-    const customFood: FoodItem = {
-      id: `custom-${Date.now()}`,
-      name,
-      category,
-      emoji: "🍽️",
-      per100g: {
-        calories: Number(calories) || 0,
-        protein: Number(protein) || 0,
-        carbs: Number(carbs) || 0,
-        fat: Number(fat) || 0,
-      },
-    };
-    onAdd(customFood, Number(grams));
-    onClose();
+function createEmptySlot(name: string): LocalMealSlot {
+  return {
+    localId: crypto.randomUUID(),
+    name,
+    targetCalories: "",
+    isSkipped: false,
+    components: COMPONENT_CATEGORIES.map((cat) => ({
+      localId: crypto.randomUUID(),
+      componentCategory: cat,
+      dishIds: [],
+    })),
   };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-lg bg-[#1a1a1a] rounded-t-3xl border-t border-white/[0.08] p-5 pb-8 safe-area-bottom max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <p className="font-semibold text-white">Add Custom Food</p>
-            <p className="text-xs text-zinc-500">Enter the details manually</p>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Food Name</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Moong Dal" className={inputClass} autoFocus />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Amount (grams)</label>
-            <input type="number" value={grams} onChange={(e) => setGrams(e.target.value)} placeholder="e.g. 100" className={inputClass} />
-          </div>
-          <p className="text-xs text-zinc-500 font-medium pt-1">Macros per 100g (optional)</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Calories</label>
-              <input type="number" value={calories} onChange={(e) => setCalories(e.target.value)} placeholder="0" className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Protein (g)</label>
-              <input type="number" value={protein} onChange={(e) => setProtein(e.target.value)} placeholder="0" className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Carbs (g)</label>
-              <input type="number" value={carbs} onChange={(e) => setCarbs(e.target.value)} placeholder="0" className={inputClass} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Fat (g)</label>
-              <input type="number" value={fat} onChange={(e) => setFat(e.target.value)} placeholder="0" className={inputClass} />
-            </div>
-          </div>
-        </div>
-
-        <Button variant="gold" className="w-full h-12 text-base rounded-2xl mt-5" disabled={!canAdd} onClick={handleAdd}>
-          <Plus className="h-5 w-5" /> Add {name || "Food"}
-        </Button>
-      </div>
-    </div>
-  );
 }
 
-export default function CreatePlanPage() {
-  const [step, setStep] = useState(0); // 0=details, 1-4=meals, 5=review
+function templateToLocalSlots(template: DietTemplate): LocalMealSlot[] {
+  return template.mealSlots
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((slot) => {
+      const existingComps = new Map(
+        slot.components.map((comp) => [comp.componentCategory, comp])
+      );
+      const components = COMPONENT_CATEGORIES.map((cat) => {
+        const existing = existingComps.get(cat);
+        if (existing) {
+          return {
+            localId: crypto.randomUUID(),
+            componentCategory: existing.componentCategory,
+            dishIds: existing.dishes.map((d) => d.dishId),
+          };
+        }
+        return {
+          localId: crypto.randomUUID(),
+          componentCategory: cat,
+          dishIds: [] as string[],
+        };
+      });
+      return {
+        localId: crypto.randomUUID(),
+        name: slot.name,
+        targetCalories: slot.targetCalories?.toString() || "",
+        isSkipped: slot.isSkipped,
+        components,
+      };
+    });
+}
+
+// ---- Main Component ----
+
+function CreatePlanPageInner() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const isDemo = useIsDemo();
+  const demoSuffix = useDemoSuffix();
+
+  // Form state
   const [planName, setPlanName] = useState("");
   const [selectedClient, setSelectedClient] = useState("");
-  const [weeks, setWeeks] = useState("4");
-  const [saved, setSaved] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<"protein" | "carbs" | "fats" | "supplements">("protein");
-  const [sheetFood, setSheetFood] = useState<FoodItem | null>(null);
-  const [showCustomFood, setShowCustomFood] = useState(false);
-  const [returnToReview, setReturnToReview] = useState(false);
-  const [meals, setMeals] = useState<MealData[]>(
-    mealTypes.map((m) => ({ mealType: m.id, label: m.label, emoji: m.emoji, time: m.time, items: [] }))
-  );
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [mealSlots, setMealSlots] = useState<LocalMealSlot[]>([
+    createEmptySlot("Meal 1"),
+    createEmptySlot("Meal 2"),
+    createEmptySlot("Meal 3"),
+    createEmptySlot("Meal 4"),
+  ]);
+  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(new Set());
 
-  const { user } = useAuth();
+  // Picker state
+  const [dishPickerState, setDishPickerState] = useState<{ slotIdx: number; compIdx: number } | null>(null);
+  const [foodPickerState, setFoodPickerState] = useState<{ slotIdx: number; compIdx: number } | null>(null);
+
+  // Data
   const [dbClients, setDbClients] = useState<any[]>([]);
-  useEffect(() => { if (user) getClients(user.id).then(setDbClients); }, [user]);
-  const activeClients = dbClients.filter((c: any) => c.status === "active").map((c: any) => ({ id: c.id, name: c.profile?.name || "Unknown" }));
-  const totals = allMacros(meals);
-  const totalItems = meals.reduce((sum, m) => sum + m.items.length, 0);
-  const currentMeal = step >= 1 && step <= 4 ? meals[step - 1] : null;
-  const currentMacros = currentMeal ? calcMacros(currentMeal.items) : null;
+  const [allDishes, setAllDishes] = useState<Dish[]>([]);
+  const [templates, setTemplates] = useState<DietTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const addFood = (mealIndex: number, food: FoodItem, grams: number) => {
-    setMeals((prev) => prev.map((m, i) => i === mealIndex ? { ...m, items: [...m.items, { food, grams }] } : m));
-  };
-  const removeFood = (mealIndex: number, foodIndex: number) => {
-    setMeals((prev) => prev.map((m, i) => i === mealIndex ? { ...m, items: m.items.filter((_, fi) => fi !== foodIndex) } : m));
-  };
+  // Load data
+  useEffect(() => {
+    if (isDemo) {
+      setDbClients([{ id: "demo", status: "active", profile: { name: "Demo Client" } }]);
+      setLoading(false);
+      return;
+    }
+    if (!user) return;
+    Promise.all([
+      getClients(user.id),
+      getDishes(user.id),
+      getDietTemplates(user.id),
+    ]).then(([clients, dishes, tmpls]) => {
+      setDbClients(clients);
+      setAllDishes(dishes);
+      setTemplates(tmpls);
+      setLoading(false);
+    });
+  }, [user, isDemo]);
 
-  if (saved) {
+  // Expand all slots by default
+  useEffect(() => {
+    setExpandedSlots(new Set(mealSlots.map((s) => s.localId)));
+  }, []);
+
+  const activeClients = dbClients
+    .filter((c: any) => c.status === "active")
+    .map((c: any) => ({ id: c.id, name: c.profile?.name || "Unknown" }));
+
+  // ---- Template pre-fill (copies, doesn't modify original) ----
+
+  function handleTemplateSelect(templateId: string) {
+    setSelectedTemplateId(templateId);
+    if (!templateId) {
+      const slots = [createEmptySlot("Meal 1"), createEmptySlot("Meal 2"), createEmptySlot("Meal 3"), createEmptySlot("Meal 4")];
+      setMealSlots(slots);
+      setExpandedSlots(new Set(slots.map((s) => s.localId)));
+      return;
+    }
+    const tmpl = templates.find((t) => t.id === templateId);
+    if (!tmpl) return;
+    const slots = templateToLocalSlots(tmpl);
+    setMealSlots(slots);
+    setExpandedSlots(new Set(slots.map((s) => s.localId)));
+    if (!planName) setPlanName(tmpl.name + " — Custom");
+  }
+
+  // ---- Slot management ----
+
+  function toggleSlotExpanded(localId: string) {
+    setExpandedSlots((prev) => { const n = new Set(prev); if (n.has(localId)) n.delete(localId); else n.add(localId); return n; });
+  }
+  function addSlot() {
+    if (mealSlots.length >= 6) return;
+    const s = createEmptySlot("Meal " + (mealSlots.length + 1));
+    setMealSlots((p) => [...p, s]);
+    setExpandedSlots((p) => new Set([...p, s.localId]));
+  }
+  function removeSlot(i: number) { if (mealSlots.length <= 1) return; setMealSlots((p) => p.filter((_, idx) => idx !== i)); }
+  function updateSlotName(i: number, v: string) { setMealSlots((p) => { const u = [...p]; u[i] = { ...u[i], name: v }; return u; }); }
+  function updateSlotCalories(i: number, v: string) { setMealSlots((p) => { const u = [...p]; u[i] = { ...u[i], targetCalories: v }; return u; }); }
+  function toggleSlotSkipped(i: number) { setMealSlots((p) => { const u = [...p]; u[i] = { ...u[i], isSkipped: !u[i].isSkipped }; return u; }); }
+
+  // ---- Dish management ----
+
+  function addDish(slotIdx: number, compIdx: number, dishId: string) {
+    setMealSlots((prev) => {
+      const u = [...prev];
+      const slot = { ...u[slotIdx], components: [...u[slotIdx].components] };
+      const comp = { ...slot.components[compIdx], dishIds: [...slot.components[compIdx].dishIds] };
+      if (!comp.dishIds.includes(dishId)) comp.dishIds.push(dishId);
+      slot.components[compIdx] = comp;
+      u[slotIdx] = slot;
+      return u;
+    });
+    setDishPickerState(null);
+  }
+
+  function removeDish(slotIdx: number, compIdx: number, dishId: string) {
+    setMealSlots((prev) => {
+      const u = [...prev];
+      const slot = { ...u[slotIdx], components: [...u[slotIdx].components] };
+      slot.components[compIdx] = { ...slot.components[compIdx], dishIds: slot.components[compIdx].dishIds.filter((id) => id !== dishId) };
+      u[slotIdx] = slot;
+      return u;
+    });
+  }
+
+  // ---- Save: creates a new template + assigns to client ----
+
+  async function handleSave() {
+    if (!user || !selectedClient || saving) return;
+    setSaving(true);
+
+    // Create a new template from the current state (marked as NOT a template — it's a plan)
+    const { error: createErr, templateId } = await createDietTemplate({
+      coachId: user.id,
+      name: planName.trim() || "Custom Plan",
+      planType: "nonveg" as PlanType,
+      isTemplate: false,
+      mealSlots: mealSlots.map((slot, i) => ({
+        name: slot.name,
+        targetCalories: slot.targetCalories ? parseFloat(slot.targetCalories) : null,
+        isSkipped: slot.isSkipped,
+        sortOrder: i,
+        components: slot.components.map((comp, ci) => ({
+          componentCategory: comp.componentCategory,
+          sortOrder: ci,
+          dishIds: comp.dishIds,
+        })),
+      })),
+    });
+
+    if (createErr || !templateId) { setSaving(false); return; }
+
+    // Assign to client
+    const { error: assignErr } = await assignTemplate({
+      templateId,
+      clientId: selectedClient,
+      coachId: user.id,
+    });
+
+    if (assignErr) { setSaving(false); return; }
+    setDone(true);
+  }
+
+  // ---- Render ----
+
+  if (done) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center px-4">
         <div className="h-16 w-16 rounded-full bg-gold/10 flex items-center justify-center mb-4"><Check className="h-8 w-8 text-gold" /></div>
-        <h1 className="text-xl font-bold text-white">Diet Plan Created!</h1>
-        <p className="text-sm text-zinc-500 mt-2">The plan has been saved and assigned.</p>
+        <h1 className="text-xl font-bold text-white">Diet Plan Assigned!</h1>
+        <p className="text-sm text-zinc-500 mt-2">The plan has been created and assigned to the client.</p>
         <Link href="/coach/plans"><Button variant="gold" className="mt-6">Back to Plans</Button></Link>
       </div>
     );
   }
 
-  const canProceedFromDetails = planName && selectedClient;
-  const isLastMeal = step === 4;
-  const isReview = step === 5;
+  if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
 
   return (
-    <div className="pb-28">
+    <div className="max-w-3xl mx-auto pb-28">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        {step === 0 ? (
-          <Link href="/coach/plans" className="p-2 -ml-2 rounded-xl hover:bg-white/[0.06]"><ArrowLeft className="h-5 w-5 text-zinc-400" /></Link>
-        ) : (
-          <button onClick={() => {
-            if (returnToReview) { setReturnToReview(false); setStep(5); }
-            else { setStep(step - 1); }
-          }} className="p-2 -ml-2 rounded-xl hover:bg-white/[0.06]"><ArrowLeft className="h-5 w-5 text-zinc-400" /></button>
-        )}
-        <div className="flex-1">
-          <h1 className="text-lg font-bold text-white">
-            {step === 0 ? "New Diet Plan" : isReview ? "Review Plan" : `${currentMeal?.emoji} ${currentMeal?.label}`}
-          </h1>
-          <p className="text-xs text-zinc-500">
-            {step === 0 ? "Step 1 of 6 · Plan details" : isReview ? "Step 6 of 6 · Confirm" : `Step ${step + 1} of 6 · Add foods`}
-          </p>
-        </div>
+        <Link href={`/coach/plans${demoSuffix}`} className="p-2 -ml-2 rounded-xl hover:bg-white/[0.06]">
+          <ArrowLeft className="h-5 w-5 text-zinc-400" />
+        </Link>
+        <h1 className="text-lg font-bold text-white">New Diet Plan</h1>
       </div>
 
-      {/* Progress bar */}
-      <div className="flex gap-1.5 mb-6">
-        {[0, 1, 2, 3, 4, 5].map((s) => (
-          <div key={s} className={cn("h-1 flex-1 rounded-full transition-all", s <= step ? "gradient-gold" : "bg-white/[0.06]")} />
-        ))}
-      </div>
-
-      {/* Step 0: Plan details */}
-      {step === 0 && (
+      {/* Plan details */}
+      <Card className="p-5 mb-4">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Plan Name</label>
+            <label className="block text-xs text-zinc-500 mb-1.5">Plan Name</label>
             <input type="text" value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="e.g. Fat Loss Phase 1" className={inputClass} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Client</label>
+            <label className="block text-xs text-zinc-500 mb-1.5">Client</label>
             <select value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)} className={inputClass}>
               <option value="">Select client</option>
-              {activeClients.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
+              {activeClients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Duration</label>
-            <div className="grid grid-cols-4 gap-2">
-              {["2", "3", "4", "6"].map((w) => (
-                <button key={w} onClick={() => setWeeks(w)}
-                  className={cn("rounded-xl py-3 text-sm font-medium border transition-all",
-                    weeks === w ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-400 hover:bg-white/[0.04]"
-                  )}>
-                  {w} weeks
-                </button>
-              ))}
-            </div>
+            <label className="block text-xs text-zinc-500 mb-1.5">Start from Template (optional)</label>
+            <select value={selectedTemplateId} onChange={(e) => handleTemplateSelect(e.target.value)} className={inputClass}>
+              <option value="">Start from scratch</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            <p className="text-[10px] text-zinc-600 mt-1">Pre-fills meals from template. Original template stays unchanged.</p>
           </div>
         </div>
-      )}
+      </Card>
 
-      {/* Steps 1-4: Meal builder */}
-      {currentMeal && (
-        <div>
-          {/* Added items */}
-          {currentMeal.items.length > 0 && (
-            <div className="space-y-2 mb-5">
-              {currentMeal.items.map((item, i) => {
-                const m = item.grams / 100;
-                return (
-                  <div key={i} className="flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span>{item.food.emoji}</span>
-                      <span className="text-sm font-medium text-white truncate">{item.food.name}</span>
-                      <Badge variant="gold">{formatFoodAmount(item.food, item.grams)}</Badge>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-zinc-500">{Math.round(item.food.per100g.calories * m)} kcal</span>
-                      <button onClick={() => removeFood(step - 1, i)} className="p-1 text-zinc-600 hover:text-red-400"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
+      {/* Meal Slots — SAME UI as template editor */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-xs text-zinc-500">Meal Slots</label>
+        </div>
+
+        <div className="space-y-3">
+          {mealSlots.map((slot, slotIdx) => {
+            const isExpanded = expandedSlots.has(slot.localId);
+            return (
+              <div key={slot.localId} className={cn("rounded-xl border", slot.isSkipped ? "border-zinc-700/50 bg-zinc-900/30 opacity-60" : "border-white/[0.06] bg-white/[0.02]")}>
+                {/* Header */}
+                <div className="flex items-center gap-2 p-4 cursor-pointer" onClick={() => toggleSlotExpanded(slot.localId)}>
+                  <input type="text" value={slot.name} onChange={(e) => updateSlotName(slotIdx, e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="Meal name" className="flex-1 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50" />
+                  <input type="number" value={slot.targetCalories} onChange={(e) => updateSlotCalories(slotIdx, e.target.value)} onClick={(e) => e.stopPropagation()} placeholder="kcal" className="w-20 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50" />
+                  <button onClick={(e) => { e.stopPropagation(); toggleSlotSkipped(slotIdx); }} className={cn("p-1.5 rounded-lg transition-colors", slot.isSkipped ? "bg-purple-500/20 text-purple-400" : "text-zinc-600 hover:text-purple-400 hover:bg-purple-500/10")}><SkipForward className="h-3.5 w-3.5" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); removeSlot(slotIdx); }} disabled={mealSlots.length <= 1} className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <div className="text-zinc-600">{isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</div>
+                </div>
+
+                {/* Expanded: component rows with dishes */}
+                {isExpanded && !slot.isSkipped && (
+                  <div className="px-4 pb-4">
+                    <MealSlotView
+                      slot={slot}
+                      mode="edit"
+                      allDishes={allDishes}
+                      onAddDish={(compIdx) => setDishPickerState({ slotIdx, compIdx })}
+                      onRemoveDish={(compIdx, dishId) => removeDish(slotIdx, compIdx, dishId)}
+                    />
                   </div>
-                );
-              })}
-              {currentMacros && (
-                <div className="flex items-center justify-between px-1 pt-1">
-                  <span className="text-xs text-zinc-500">Meal total</span>
-                  <span className="text-xs text-gold font-semibold">{currentMacros.calories} kcal · {currentMacros.protein}p · {currentMacros.carbs}c · {currentMacros.fat}f</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Category tabs */}
-          <div className="flex gap-2 mb-4">
-            {categories.map((cat) => (
-              <button key={cat.key} onClick={() => setActiveCategory(cat.key)}
-                className={cn("flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold border transition-all",
-                  activeCategory === cat.key ? cat.color : "border-white/[0.06] text-zinc-500 hover:bg-white/[0.04]"
-                )}>
-                <span>{cat.emoji}</span> {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Food grid */}
-          <div className="grid grid-cols-1 gap-2">
-            {foodDatabase.filter((f) => f.category === activeCategory).map((food) => (
-              <button key={food.id} onClick={() => setSheetFood(food)}
-                className="flex items-center gap-3 rounded-xl border border-white/[0.06] px-4 py-3 text-left hover:bg-white/[0.04] hover:border-white/[0.1] transition-all active:scale-[0.98]">
-                <span className="text-xl">{food.emoji}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">{food.name}</p>
-                  <p className="text-xs text-zinc-500">{food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f {food.unit ? `/ 100g · 1 ${food.unit} = ${food.gramsPerUnit}g` : "/100g"}</p>
-                </div>
-                <Plus className="h-4 w-4 text-zinc-500 shrink-0" />
-              </button>
-            ))}
-
-            {/* Custom food option */}
-            <button onClick={() => setShowCustomFood(true)}
-              className="flex items-center gap-3 rounded-xl border border-dashed border-gold/30 px-4 py-3 text-left hover:bg-gold/5 hover:border-gold/50 transition-all active:scale-[0.98]">
-              <span className="text-xl">✏️</span>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gold">Add Custom Food</p>
-                <p className="text-xs text-zinc-500">Not in the list? Add your own</p>
+                )}
               </div>
-              <Plus className="h-4 w-4 text-gold shrink-0" />
-            </button>
-          </div>
+            );
+          })}
         </div>
-      )}
 
-      {/* Step 5: Review */}
-      {isReview && (
-        <div className="space-y-4">
-          <Card>
-            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1">Plan</p>
-            <p className="text-white font-semibold">{planName}</p>
-            <p className="text-xs text-zinc-500 mt-1">{weeks} weeks · {activeClients.find((c) => c.id === selectedClient)?.name}</p>
-          </Card>
+        {mealSlots.length < 6 && (
+          <button onClick={addSlot} className="mt-3 w-full rounded-xl border border-dashed border-white/[0.1] py-2.5 text-xs text-zinc-500 hover:text-zinc-300 hover:border-white/[0.2] transition-colors">
+            <Plus className="h-3.5 w-3.5 inline mr-1" /> Add Meal Slot ({mealSlots.length}/6)
+          </button>
+        )}
+      </Card>
 
-          <div className="grid grid-cols-4 gap-2">
-            <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-center">
-              <p className="text-lg font-bold text-gold">{totals.calories}</p>
-              <p className="text-[10px] text-zinc-500">kcal</p>
-            </div>
-            <div className="rounded-xl bg-red-500/5 border border-red-500/10 p-3 text-center">
-              <p className="text-lg font-bold text-red-400">{totals.protein}g</p>
-              <p className="text-[10px] text-zinc-500">protein</p>
-            </div>
-            <div className="rounded-xl bg-amber-500/5 border border-amber-500/10 p-3 text-center">
-              <p className="text-lg font-bold text-amber-400">{totals.carbs}g</p>
-              <p className="text-[10px] text-zinc-500">carbs</p>
-            </div>
-            <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/10 p-3 text-center">
-              <p className="text-lg font-bold text-emerald-400">{totals.fat}g</p>
-              <p className="text-[10px] text-zinc-500">fat</p>
-            </div>
-          </div>
+      {/* Save */}
+      <Button variant="gold" className="w-full h-12 text-base rounded-2xl" disabled={!selectedClient || saving || isDemo} onClick={handleSave}>
+        {saving ? "Creating..." : <><Check className="h-5 w-5" /> Create & Assign Plan</>}
+      </Button>
 
-          {meals.map((meal, mealIndex) => (
-            <Card key={meal.mealType}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-lg">{meal.emoji}</span>
-                <p className="font-semibold text-white">{meal.label}</p>
-                <button
-                  onClick={() => { setReturnToReview(true); setStep(mealIndex + 1); setActiveCategory("protein"); }}
-                  className="ml-auto flex items-center gap-1 text-xs text-gold font-medium hover:text-gold-light transition-colors"
-                >
-                  <Pencil className="h-3 w-3" /> Edit
-                </button>
-              </div>
-              {meal.items.length === 0 ? (
-                <p className="text-xs text-zinc-600">No items added</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {meal.items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-zinc-300">{item.food.emoji} {item.food.name}</span>
-                      <span className="text-zinc-500">{item.grams}g · {Math.round(item.food.per100g.calories * item.grams / 100)} kcal</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Custom food sheet */}
-      {showCustomFood && currentMeal && (
-        <CustomFoodSheet
-          category={activeCategory}
-          onAdd={(food, grams) => addFood(step - 1, food, grams)}
-          onClose={() => setShowCustomFood(false)}
+      {/* Dish Picker Modal */}
+      {dishPickerState && (
+        <DishPickerModal
+          dishes={allDishes}
+          componentCategory={mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].componentCategory}
+          existingDishIds={mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].dishIds}
+          onSelect={(dishId) => addDish(dishPickerState.slotIdx, dishPickerState.compIdx, dishId)}
+          onClose={() => setDishPickerState(null)}
         />
       )}
 
-      {/* Bottom sheet for amount input */}
-      {sheetFood && currentMeal && (
-        <AmountSheet food={sheetFood} onClose={() => setSheetFood(null)} onAdd={(grams) => addFood(step - 1, sheetFood, grams)} />
+      {/* Food Picker */}
+      {foodPickerState && (
+        <FoodPicker
+          onAdd={async (food, grams) => {
+            // Create a single-ingredient dish on the fly and add it
+            const { createDish } = await import("@/lib/db");
+            const isStaticFood = food.id.length < 36;
+            const { dishId } = await createDish({
+              coachId: user!.id,
+              name: `${food.name} (${grams}g)`,
+              emoji: food.emoji,
+              componentCategory: food.category === "carbs" ? "carbohydrate" : food.category === "fats" ? "fiber" : food.category === "supplements" ? "complete_meal" : food.category as any,
+              totalCalories: Math.round(food.per100g.calories * grams / 100),
+              totalProtein: Math.round(food.per100g.protein * grams / 100),
+              totalCarbs: Math.round(food.per100g.carbs * grams / 100),
+              totalFat: Math.round(food.per100g.fat * grams / 100),
+              items: [{
+                foodId: isStaticFood ? null : food.id,
+                customName: isStaticFood ? food.name : undefined,
+                customEmoji: isStaticFood ? food.emoji : undefined,
+                customCalories: isStaticFood ? food.per100g.calories : undefined,
+                customProtein: isStaticFood ? food.per100g.protein : undefined,
+                customCarbs: isStaticFood ? food.per100g.carbs : undefined,
+                customFat: isStaticFood ? food.per100g.fat : undefined,
+                grams,
+                sortOrder: 0,
+              }],
+            });
+            if (dishId) {
+              addDish(foodPickerState.slotIdx, foodPickerState.compIdx, dishId);
+              // Refresh dishes list
+              const dishes = await getDishes(user!.id);
+              setAllDishes(dishes);
+            }
+            setFoodPickerState(null);
+          }}
+          onClose={() => setFoodPickerState(null)}
+        />
       )}
-
-      {/* Sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 glass-dark border-t border-white/[0.06] safe-area-bottom">
-        <div className="max-w-7xl mx-auto px-4 py-3 lg:pl-68">
-          {totalItems > 0 && !isReview && step > 0 && (
-            <div className="flex items-center justify-between mb-2 text-xs">
-              <span className="text-zinc-500">Daily total</span>
-              <span className="text-gold font-semibold">{totals.calories} kcal · {totals.protein}p · {totals.carbs}c · {totals.fat}f</span>
-            </div>
-          )}
-          <div className="flex gap-3">
-            {step > 0 && (
-              <Button variant="secondary" className="flex-1" onClick={() => setStep(step - 1)}>
-                <ArrowLeft className="h-4 w-4" /> Back
-              </Button>
-            )}
-            {step === 0 && (
-              <Button variant="gold" className="flex-1 h-12 text-base rounded-2xl" disabled={!canProceedFromDetails} onClick={() => setStep(1)}>
-                Start Building <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-            {step >= 1 && step <= 4 && !isLastMeal && (
-              <Button variant="gold" className="flex-1" onClick={() => {
-                if (returnToReview) { setReturnToReview(false); setStep(5); }
-                else { setStep(step + 1); setActiveCategory("protein"); }
-              }}>
-                {returnToReview ? (<>Done Editing <Check className="h-4 w-4" /></>) : (<>Next: {mealTypes[step]?.label} <ArrowRight className="h-4 w-4" /></>)}
-              </Button>
-            )}
-            {isLastMeal && (
-              <Button variant="gold" className="flex-1" onClick={() => setStep(5)}>
-                {returnToReview ? "Done Editing" : "Review Plan"} {returnToReview ? <Check className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-              </Button>
-            )}
-            {isReview && (
-              <Button variant="gold" className="flex-1 h-12 text-base rounded-2xl" onClick={async () => {
-                if (!user) return;
-                const now = new Date().toISOString().split("T")[0];
-                const endDate = new Date(Date.now() + Number(weeks) * 7 * 86400000).toISOString().split("T")[0];
-                await createDietPlan({
-                  coach_id: user.id,
-                  client_id: selectedClient,
-                  title: planName,
-                  description: "",
-                  start_date: now,
-                  end_date: endDate,
-                  weeks: Number(weeks),
-                  meals: meals.map((m, i) => ({
-                    name: m.label,
-                    time: m.time,
-                    items: m.items.map((item) => item.food.name + ` (${formatFoodAmount(item.food, item.grams)})`),
-                    calories: m.items.reduce((s, it) => s + Math.round(it.food.per100g.calories * it.grams / 100), 0),
-                    protein: m.items.reduce((s, it) => s + Math.round(it.food.per100g.protein * it.grams / 100), 0),
-                    carbs: m.items.reduce((s, it) => s + Math.round(it.food.per100g.carbs * it.grams / 100), 0),
-                    fat: m.items.reduce((s, it) => s + Math.round(it.food.per100g.fat * it.grams / 100), 0),
-                    sort_order: i,
-                  })),
-                });
-                setSaved(true);
-              }} disabled={totalItems === 0}>
-                <Check className="h-5 w-5" /> Save Diet Plan
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

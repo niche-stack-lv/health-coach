@@ -8,6 +8,7 @@ import { getClientActiveAssignment } from "@/lib/db";
 import { calculateDailyMacros } from "@/lib/macro-calc";
 import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { MacroSummary } from "@/components/shared/macro-summary";
+import { DishDetailSheet } from "@/components/shared/dish-detail-sheet";
 import type { TemplateAssignment, TemplateMealSlot, Dish } from "@/types";
 
 export default function ClientDietPlanPage() {
@@ -139,6 +140,7 @@ function ClientDietPlanPageInner() {
   const isDemo = useIsDemo();
   const [assignment, setAssignment] = useState<TemplateAssignment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
 
   useEffect(() => {
     if (isDemo) {
@@ -209,9 +211,12 @@ function ClientDietPlanPageInner() {
         {template.mealSlots
           .sort((a, b) => a.sortOrder - b.sortOrder)
           .map((slot) => (
-            <MealSlotView key={slot.id} slot={slot} mode="view" />
+            <MealSlotView key={slot.id} slot={slot} mode="view" onDishClick={setSelectedDish} />
           ))}
       </div>
+
+      {/* Dish detail sheet */}
+      {selectedDish && <DishDetailSheet dish={selectedDish} onClose={() => setSelectedDish(null)} />}
     </div>
   );
 }

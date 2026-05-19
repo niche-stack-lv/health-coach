@@ -77,3 +77,31 @@
 **What breaks:** The function performs 3 sequential inserts (auth.signUp → profiles.insert → clients.insert). Previously, if step 2 or 3 failed, orphaned records were left behind.
 **Correct handling:** If the profile insert fails, the function attempts to delete the auth user (logs a warning if it can't — admin API requires service role key). If the client insert fails, the profile is cleaned up. Auth user cleanup is best-effort since the anon key can't call `admin.deleteUser`.
 **Status:** ✅ Resolved — cleanup logic added with best-effort auth user removal.
+
+## 11. When Adding Columns, Update ALL CRUD Functions
+**Rule:** When adding a new column to any table, you MUST update: (1) the CREATE function's input type + insert object, (2) the UPDATE function's input type + update object, (3) the row mapper function. Missing any one causes silent data loss on save.
+**Status:** ⚠️ Recurring pattern — check every time.
+
+## 12. Supabase Queries with Foreign Keys Must JOIN Related Tables
+**Rule:** If a table has a `foreign_key_id` column pointing to another table, and the UI needs data from that related table, the `select()` query MUST include the join (e.g., `dish_items(*, food:foods(*))`). Without the join, the mapper function gets null for related fields and shows "Unknown" / 0 values.
+**Status:** ⚠️ Easy to miss — always check what the UI needs to display.
+
+## 13. TypeScript Index Signatures Make Extra Fields `unknown`
+**Rule:** If an interface has `[key: string]: unknown`, accessing any field not explicitly defined returns `unknown` and causes build errors. Fix by adding frequently-used optional fields as properly typed properties. Use optional chaining (`config.pricing?.callPrice`) not `as any` casts.
+**Status:** ⚠️ Affects any page using client-specific config fields.
+
+## 14. Never Pass Non-UUID Strings to UUID Database Columns
+**Rule:** When a selection value can be a special string like `"other"`, `"skipped"`, or `""`, it MUST be converted to `null` before being passed to a UUID column. Also filter out items with empty/null required fields before DB insert. Postgres will throw "invalid input syntax for type uuid" otherwise.
+**Status:** ⚠️ Check every form submission that maps user selections to DB inserts.
+
+## 15. Client-Side Pages Need RLS Policies on ALL Joined Tables
+**Rule:** If a client page queries table A which joins tables B and C, the client needs SELECT policies on ALL THREE tables (A, B, and C). Having a policy on A but not B/C causes the nested data to silently return null. The page shows "not assigned" even when data exists.
+**Status:** ⚠️ Check RLS on every table in the join chain when adding client-read features.
+
+## 16. Supabase Storage Buckets Must Be Created Before Upload
+**Rule:** File uploads to Supabase Storage fail silently if the target bucket doesn't exist. When adding file upload features: (1) create the bucket via migration or SQL, (2) add upload policy for authenticated users, (3) add read policy (public or authenticated). Test the upload before shipping.
+**Status:** ⚠️ Not caught by TypeScript — only fails at runtime.
+
+## 17. Editor UIs Must Show All Possible Options Even If DB Has Fewer
+**Rule:** When loading data from DB into an editor form, always ensure all possible options/categories are represented in the local state — even if the DB record only has some. Otherwise the user can't add to missing categories. Fill in empty defaults for anything not in the DB response.
+**Status:** ⚠️ Applies to any editor that loads partial data and needs to allow additions.

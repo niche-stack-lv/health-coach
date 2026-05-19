@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
-import { getDish, createDish, updateDish, deleteDish, getDishReferences, createFood } from "@/lib/db";
+import { getDish, createDish, updateDish, deleteDish, getDishReferences, createFood, getDishTags, createDishTag, setDishTags, deleteDishTag } from "@/lib/db";
 import { calculateDishMacros, calculateItemMacros, roundMacros } from "@/lib/macro-calc";
 import { foodDatabase, type FoodItem } from "@/lib/food-database";
 import { FoodPickerSheet } from "@/components/coach/food-picker-sheet";
@@ -79,6 +79,13 @@ function DishEditPageInner() {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🍽️");
   const [componentCategory, setComponentCategory] = useState<ComponentCategory | null>(null);
+  const [description, setDescription] = useState("");
+  const [mealSize, setMealSize] = useState<"small" | "medium" | "large" | "">("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<any[]>([]);
+  const [newTagName, setNewTagName] = useState("");
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [items, setItems] = useState<LocalDishItem[]>([]);
   const [loading, setLoading] = useState(!isCreateMode);
   const [saving, setSaving] = useState(false);
@@ -101,6 +108,13 @@ function DishEditPageInner() {
     if (user) loadDish();
   }, [user, isDemo, dishId]);
 
+  // Load tags
+  useEffect(() => {
+    if (user && !isDemo) {
+      getDishTags(user.id).then(setAllTags);
+    }
+  }, [user, isDemo]);
+
   async function loadDish() {
     const dish = await getDish(dishId);
     if (!dish) {
@@ -115,6 +129,10 @@ function DishEditPageInner() {
     setName(dish.name);
     setEmoji(dish.emoji);
     setComponentCategory(dish.componentCategory);
+    setDescription(dish.description || "");
+    setMealSize((dish.mealSize as any) || "");
+    setImageUrl(dish.imageUrl || "");
+    setSelectedTagIds((dish.tags || []).map((t) => t.id));
     setItems(
       dish.items.map((item) => {
         const food = item.foodId ? foodDatabase.find((f) => f.id === item.foodId) : null;
@@ -166,6 +184,9 @@ function DishEditPageInner() {
       name: name.trim(),
       emoji,
       componentCategory: componentCategory!,
+      description: description.trim() || undefined,
+      imageUrl: imageUrl.trim() || undefined,
+      mealSize: (mealSize || undefined) as "small" | "medium" | "large" | undefined,
       totalCalories: macroTotals.calories,
       totalProtein: macroTotals.protein,
       totalCarbs: macroTotals.carbs,
@@ -187,10 +208,11 @@ function DishEditPageInner() {
           sortOrder: idx,
         };
       }),
+      tagIds: selectedTagIds,
     };
 
     if (isCreateMode) {
-      const { error } = await createDish({ coachId: user.id, ...dishInput });
+      const { error, dishId: newDishId } = await createDish({ coachId: user.id, ...dishInput });
       if (error) {
         setErrors({ name: error });
         setSaving(false);
@@ -203,6 +225,8 @@ function DishEditPageInner() {
         setSaving(false);
         return;
       }
+      // Update tags for existing dish
+      await setDishTags(dishId, selectedTagIds);
     }
 
     router.push(`/coach/dishes${demoSuffix}`);
@@ -361,6 +385,161 @@ function DishEditPageInner() {
           ))}
         </div>
         {errors.category && <p className="text-xs text-red-400 mt-2">{errors.category}</p>}
+      </Card>
+
+      {/* Description + Meal Size + Image */}
+      <Card className="p-5 mb-4 space-y-4">
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1.5">Description (optional)</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Brief description of this dish..."
+            className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 px-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50 min-h-[60px] resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1.5">Meal Size (optional)</label>
+          <div className="flex gap-2">
+            {(["small", "medium", "large"] as const).map((size) => (
+              <button
+                key={size}
+                onClick={() => setMealSize(mealSize === size ? "" : size)}
+                className={cn(
+                  "rounded-xl border px-4 py-2 text-xs font-medium capitalize transition-all",
+                  mealSize === size
+                    ? "border-gold/50 bg-gold/10 text-gold"
+                    : "border-white/[0.06] text-zinc-500 hover:text-zinc-300"
+                )}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-zinc-500 mb-1.5">Image (optional)</label>
+          <div className="flex gap-3 items-start">
+            {/* File upload */}
+            <label className="flex-1 flex items-center justify-center gap-2 h-10 rounded-lg border border-dashed border-white/[0.1] bg-white/[0.02] px-3 text-xs text-zinc-500 cursor-pointer hover:border-white/[0.2] hover:text-zinc-300 transition-colors">
+              <span>{imageUrl ? "Change image" : "Upload image"}</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !user) return;
+                  const { getSupabase } = await import("@/lib/supabase");
+                  const sb = getSupabase();
+                  const path = `dish-images/${user.id}/${Date.now()}-${file.name}`;
+                  const { error } = await sb.storage.from("dish-images").upload(path, file);
+                  if (!error) {
+                    const { data: urlData } = sb.storage.from("dish-images").getPublicUrl(path);
+                    setImageUrl(urlData.publicUrl);
+                  }
+                }}
+              />
+            </label>
+            {/* Or paste URL */}
+            <input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="or paste URL"
+              className="flex-1 h-10 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+            />
+          </div>
+          {imageUrl && (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="rounded-lg overflow-hidden border border-white/[0.08] w-16 h-16">
+                <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+              <button onClick={() => setImageUrl("")} className="text-xs text-red-400 hover:text-red-300">Remove</button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Tags */}
+      <Card className="p-5 mb-4">
+        <label className="block text-xs text-zinc-500 mb-2">Tags (optional)</label>
+        {/* Selected tags shown as chips */}
+        {selectedTagIds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {selectedTagIds.map((tagId) => {
+              const tag = allTags.find((t) => t.id === tagId);
+              if (!tag) return null;
+              return (
+                <span key={tag.id} className="inline-flex items-center gap-1 rounded-lg border border-gold/30 bg-gold/10 px-2.5 py-1 text-xs text-gold font-medium">
+                  {tag.name}
+                  <button onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tag.id))} className="text-gold/60 hover:text-gold ml-0.5">×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+        {/* Searchable dropdown input */}
+        <div className="relative">
+          <input
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            onFocus={() => setShowTagDropdown(true)}
+            placeholder="Search or create tag..."
+            className="w-full h-10 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+          />
+          {/* Dropdown */}
+          {showTagDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-20 max-h-48 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#1a1a1a] shadow-xl">
+              {allTags
+                .filter((tag) => !selectedTagIds.includes(tag.id))
+                .filter((tag) => !newTagName || tag.name.toLowerCase().includes(newTagName.toLowerCase()))
+                .map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => {
+                      setSelectedTagIds((prev) => [...prev, tag.id]);
+                      setNewTagName("");
+                      setShowTagDropdown(false);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/[0.04] transition-colors"
+                  >
+                    <span>{tag.name}</span>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await deleteDishTag(tag.id);
+                        setAllTags((prev) => prev.filter((t) => t.id !== tag.id));
+                      }}
+                      className="text-zinc-600 hover:text-red-400 text-xs px-1"
+                    >×</button>
+                  </button>
+                ))}
+              {newTagName.trim() && !allTags.some((t) => t.name.toLowerCase() === newTagName.trim().toLowerCase()) && (
+                <button
+                  onClick={async () => {
+                    if (!user) return;
+                    const { id } = await createDishTag(user.id, newTagName.trim());
+                    if (id) {
+                      const newTag = { id, name: newTagName.trim(), color: "#6b7280" };
+                      setAllTags((prev) => [...prev, newTag]);
+                      setSelectedTagIds((prev) => [...prev, id]);
+                    }
+                    setNewTagName("");
+                    setShowTagDropdown(false);
+                  }}
+                  className="w-full px-3 py-2.5 text-sm text-gold hover:bg-gold/5 transition-colors text-left border-t border-white/[0.06]"
+                >
+                  + Create &ldquo;{newTagName.trim()}&rdquo;
+                </button>
+              )}
+              {allTags.filter((t) => !selectedTagIds.includes(t.id)).filter((t) => !newTagName || t.name.toLowerCase().includes(newTagName.toLowerCase())).length === 0 && !newTagName.trim() && (
+                <p className="px-3 py-2.5 text-xs text-zinc-600">No tags yet. Type to create one.</p>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Click outside to close */}
+        {showTagDropdown && <div className="fixed inset-0 z-10" onClick={() => setShowTagDropdown(false)} />}
       </Card>
 
       {/* Food Items */}

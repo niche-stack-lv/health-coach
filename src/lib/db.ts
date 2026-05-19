@@ -2,6 +2,7 @@ import { getSupabase } from "./supabase";
 import type {
   Dish,
   DishItem,
+  DishTag,
   ComponentCategory,
   DietTemplate,
   TemplateMealSlot,
@@ -560,16 +561,18 @@ export async function updateDailyCheckInFeedback(id: string, feedback: string) {
 // ---- Dishes ----
 
 function mapDishItemRow(row: any): DishItem {
+  // If food_id is set and food data is joined, use it as custom fields
+  const food = row.food;
   return {
     id: row.id,
     dishId: row.dish_id,
     foodId: row.food_id,
-    customName: row.custom_name ?? undefined,
-    customEmoji: row.custom_emoji ?? undefined,
-    customCalories: row.custom_calories ?? undefined,
-    customProtein: row.custom_protein ?? undefined,
-    customCarbs: row.custom_carbs ?? undefined,
-    customFat: row.custom_fat ?? undefined,
+    customName: row.custom_name ?? food?.name ?? undefined,
+    customEmoji: row.custom_emoji ?? food?.emoji ?? undefined,
+    customCalories: row.custom_calories ?? (food ? Number(food.calories) : undefined),
+    customProtein: row.custom_protein ?? (food ? Number(food.protein) : undefined),
+    customCarbs: row.custom_carbs ?? (food ? Number(food.carbs) : undefined),
+    customFat: row.custom_fat ?? (food ? Number(food.fat) : undefined),
     grams: row.grams,
     sortOrder: row.sort_order,
   };
@@ -582,11 +585,15 @@ function mapDishRow(row: any): Dish {
     name: row.name,
     emoji: row.emoji,
     componentCategory: row.component_category as ComponentCategory,
+    description: row.description,
+    imageUrl: row.image_url,
+    mealSize: row.meal_size,
     totalCalories: row.total_calories,
     totalProtein: row.total_protein,
     totalCarbs: row.total_carbs,
     totalFat: row.total_fat,
     items: (row.dish_items || []).map(mapDishItemRow),
+    tags: (row.dish_tag_links || []).map((link: any) => link.tag).filter(Boolean),
     createdAt: row.created_at,
   };
 }
@@ -595,7 +602,7 @@ export async function getDishes(coachId: string): Promise<Dish[]> {
   const sb = getSupabase();
   const { data } = await sb
     .from("dishes")
-    .select(`*, dish_items(*)`)
+    .select(`*, dish_items(*, food:foods(*)), dish_tag_links(tag:dish_tags(*))`)
     .eq("coach_id", coachId)
     .order("created_at", { ascending: false });
   return (data || []).map(mapDishRow);
@@ -605,10 +612,57 @@ export async function getDish(dishId: string): Promise<Dish | null> {
   const sb = getSupabase();
   const { data } = await sb
     .from("dishes")
-    .select(`*, dish_items(*)`)
+    .select(`*, dish_items(*, food:foods(*)), dish_tag_links(tag:dish_tags(*))`)
     .eq("id", dishId)
     .single();
   return data ? mapDishRow(data) : null;
+}
+
+// ---- Dish Tags ----
+
+export async function getDishTags(coachId: string): Promise<DishTag[]> {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from("dish_tags")
+    .select("*")
+    .eq("coach_id", coachId)
+    .order("name");
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    coachId: row.coach_id,
+    name: row.name,
+    color: row.color,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function createDishTag(coachId: string, name: string, color?: string): Promise<{ id: string | null; error: string | null }> {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("dish_tags")
+    .insert({ coach_id: coachId, name, color: color || "#6b7280" })
+    .select()
+    .single();
+  return { id: data?.id || null, error: error?.message || null };
+}
+
+export async function deleteDishTag(tagId: string): Promise<{ error: string | null }> {
+  const sb = getSupabase();
+  const { error } = await sb.from("dish_tags").delete().eq("id", tagId);
+  return { error: error?.message || null };
+}
+
+export async function setDishTags(dishId: string, tagIds: string[]): Promise<{ error: string | null }> {
+  const sb = getSupabase();
+  // Delete existing links
+  await sb.from("dish_tag_links").delete().eq("dish_id", dishId);
+  // Insert new links
+  if (tagIds.length > 0) {
+    const rows = tagIds.map((tagId) => ({ dish_id: dishId, tag_id: tagId }));
+    const { error } = await sb.from("dish_tag_links").insert(rows);
+    if (error) return { error: error.message };
+  }
+  return { error: null };
 }
 
 export async function createDish(input: {
@@ -616,6 +670,9 @@ export async function createDish(input: {
   name: string;
   emoji: string;
   componentCategory: ComponentCategory;
+  description?: string;
+  imageUrl?: string;
+  mealSize?: "small" | "medium" | "large";
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -631,6 +688,7 @@ export async function createDish(input: {
     grams: number;
     sortOrder: number;
   }>;
+  tagIds?: string[];
 }): Promise<{ error: string | null; dishId?: string }> {
   const sb = getSupabase();
   const { data, error } = await sb
@@ -640,6 +698,9 @@ export async function createDish(input: {
       name: input.name,
       emoji: input.emoji,
       component_category: input.componentCategory,
+      description: input.description || null,
+      image_url: input.imageUrl || null,
+      meal_size: input.mealSize || null,
       total_calories: input.totalCalories,
       total_protein: input.totalProtein,
       total_carbs: input.totalCarbs,
@@ -667,6 +728,12 @@ export async function createDish(input: {
     if (itemsError) return { error: itemsError.message };
   }
 
+  // Link tags if provided
+  if (input.tagIds && input.tagIds.length > 0) {
+    const tagRows = input.tagIds.map((tagId) => ({ dish_id: data.id, tag_id: tagId }));
+    await sb.from("dish_tag_links").insert(tagRows);
+  }
+
   return { error: null, dishId: data.id };
 }
 
@@ -674,6 +741,9 @@ export async function updateDish(dishId: string, input: {
   name: string;
   emoji: string;
   componentCategory: ComponentCategory;
+  description?: string;
+  imageUrl?: string;
+  mealSize?: "small" | "medium" | "large";
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -697,6 +767,9 @@ export async function updateDish(dishId: string, input: {
       name: input.name,
       emoji: input.emoji,
       component_category: input.componentCategory,
+      description: input.description || null,
+      image_url: input.imageUrl || null,
+      meal_size: input.mealSize || null,
       total_calories: input.totalCalories,
       total_protein: input.totalProtein,
       total_carbs: input.totalCarbs,

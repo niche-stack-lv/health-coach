@@ -69,6 +69,8 @@ export interface MealSlotViewProps {
   disabled?: boolean;
   /** Use compact horizontal chip layout (for coach desktop views) */
   compact?: boolean;
+  /** Callback when a dish is tapped (opens detail sheet on client side) */
+  onDishClick?: (dish: Dish) => void;
 }
 
 // ---- Type guards ----
@@ -98,6 +100,7 @@ export function MealSlotView({
   onSkipSlot,
   disabled = false,
   compact = false,
+  onDishClick,
 }: MealSlotViewProps) {
   const isSkipped = isTemplateMealSlot(slot) ? slot.isSkipped : slot.isSkipped;
   const slotName = isTemplateMealSlot(slot) ? slot.name : slot.name;
@@ -120,7 +123,7 @@ export function MealSlotView({
   }
 
   if (mode === "view" && isTemplateMealSlot(slot)) {
-    return compact ? <MealSlotCompactView slot={slot} /> : <MealSlotViewMode slot={slot} />;
+    return compact ? <MealSlotCompactView slot={slot} /> : <MealSlotViewMode slot={slot} onDishClick={onDishClick} />;
   }
 
   if (mode === "select" && isTemplateMealSlot(slot)) {
@@ -133,6 +136,7 @@ export function MealSlotView({
         onSelectOther={onSelectOther}
         onSkipSlot={onSkipSlot}
         disabled={disabled}
+        onDishClick={onDishClick}
       />
     );
   }
@@ -188,7 +192,7 @@ function MealSlotCompactView({ slot }: { slot: TemplateMealSlot }) {
 
 // ---- View Mode (Mobile-first vertical layout) ----
 
-function MealSlotViewMode({ slot }: { slot: TemplateMealSlot }) {
+function MealSlotViewMode({ slot, onDishClick }: { slot: TemplateMealSlot; onDishClick?: (dish: Dish) => void }) {
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       {/* Slot header */}
@@ -220,9 +224,23 @@ function MealSlotViewMode({ slot }: { slot: TemplateMealSlot }) {
                         <div className="flex-1 border-t border-white/[0.04]" />
                       </div>
                     )}
-                    <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 min-h-[44px]">
-                      <span className="text-base shrink-0">{msd.dish?.emoji || "🍽️"}</span>
-                      <span className="flex-1 text-sm text-white font-medium truncate">{msd.dish?.name || "Unknown"}</span>
+                    <div
+                      className={cn("flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 min-h-[44px]", onDishClick && msd.dish && "cursor-pointer active:bg-white/[0.06]")}
+                      onClick={() => onDishClick && msd.dish && onDishClick(msd.dish)}
+                    >
+                      {msd.dish?.imageUrl ? (
+                        <div className="h-8 w-8 rounded-lg overflow-hidden shrink-0 border border-white/[0.08]">
+                          <img src={msd.dish.imageUrl} alt={msd.dish.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <span className="text-base shrink-0">{msd.dish?.emoji || "🍽️"}</span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-white font-medium truncate block">{msd.dish?.name || "Unknown"}</span>
+                        {msd.dish?.mealSize && (
+                          <span className="text-[10px] text-zinc-600 capitalize">{msd.dish.mealSize}</span>
+                        )}
+                      </div>
                       {msd.dish && (
                         <span className="text-xs text-zinc-500 shrink-0">{msd.dish.totalCalories} cal</span>
                       )}
@@ -247,6 +265,7 @@ function MealSlotSelectMode({
   onSelectOther,
   onSkipSlot,
   disabled,
+  onDishClick,
 }: {
   slot: TemplateMealSlot;
   selections: Record<string, string>;
@@ -255,6 +274,7 @@ function MealSlotSelectMode({
   onSelectOther?: (componentId: string) => void;
   onSkipSlot?: () => void;
   disabled: boolean;
+  onDishClick?: (dish: Dish) => void;
 }) {
   return (
     <div className={cn("rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden", isSlotSkipped && "opacity-50")}>
@@ -303,10 +323,30 @@ function MealSlotSelectMode({
                             : "border-white/[0.06] bg-white/[0.02] active:bg-white/[0.04]"
                         )}
                       >
-                        <span className="text-base shrink-0">{msd.dish?.emoji || "🍽️"}</span>
-                        <span className={cn("flex-1 text-sm font-medium truncate", isSelected ? "text-gold" : "text-white")}>{msd.dish?.name || "Unknown"}</span>
+                        {msd.dish?.imageUrl ? (
+                          <div className="h-8 w-8 rounded-lg overflow-hidden shrink-0 border border-white/[0.08]">
+                            <img src={msd.dish.imageUrl} alt={msd.dish.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <span className="text-base shrink-0">{msd.dish?.emoji || "🍽️"}</span>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <span className={cn("text-sm font-medium truncate block", isSelected ? "text-gold" : "text-white")}>{msd.dish?.name || "Unknown"}</span>
+                          {msd.dish?.mealSize && (
+                            <span className={cn("text-[10px] capitalize", isSelected ? "text-gold/60" : "text-zinc-600")}>{msd.dish.mealSize}</span>
+                          )}
+                        </div>
                         {msd.dish && (
-                          <span className={cn("text-xs shrink-0", isSelected ? "text-gold/70" : "text-zinc-500")}>{msd.dish.totalCalories} cal</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={cn("text-xs", isSelected ? "text-gold/70" : "text-zinc-500")}>{msd.dish.totalCalories} cal</span>
+                            {onDishClick && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); onDishClick(msd.dish!); }}
+                                className="text-zinc-600 hover:text-white text-xs"
+                              >ⓘ</button>
+                            )}
+                          </div>
                         )}
                       </button>
                     );

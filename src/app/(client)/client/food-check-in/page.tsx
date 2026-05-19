@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { CheckCircle2 } from "lucide-react";
 import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { MacroSummary } from "@/components/shared/macro-summary";
+import { DishDetailSheet } from "@/components/shared/dish-detail-sheet";
 import type { TemplateAssignment, TemplateMealSlot, MealSlotComponent, Dish } from "@/types";
 
 export default function FoodCheckInPage() {
@@ -83,6 +84,7 @@ function FoodCheckInPageInner() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weight, setWeight] = useState("");
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
 
   // Selections: componentId -> dishId | "other" | "skipped"
   const [selections, setSelections] = useState<Record<string, string>>({});
@@ -352,6 +354,7 @@ function FoodCheckInPageInner() {
                     setOtherDetails((prev) => ({ ...prev, [componentId]: { name: "", calories: "" } }));
                   }
                 }}
+                onDishClick={setSelectedDish}
                 disabled={isDemo}
               />
               {/* Inline "Other" detail inputs for this slot */}
@@ -389,6 +392,9 @@ function FoodCheckInPageInner() {
       >
         {isDemo ? "Demo Mode — Submit Disabled" : submitting ? "Submitting..." : existingCheckIn ? "Update Check-in" : "Submit Check-in"}
       </Button>
+
+      {/* Dish detail sheet */}
+      {selectedDish && <DishDetailSheet dish={selectedDish} onClose={() => setSelectedDish(null)} />}
     </div>
   );
 }

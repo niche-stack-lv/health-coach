@@ -101,12 +101,23 @@ export function DishPickerModal({
                   onClick={() => onSelect(dish.id)}
                   className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-white/[0.04] transition-colors"
                 >
-                  <span className="text-lg">{dish.emoji}</span>
+                  {dish.imageUrl ? (
+                    <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0 border border-white/[0.08]">
+                      <img src={dish.imageUrl} alt={dish.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <span className="text-lg">{dish.emoji}</span>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white truncate">{dish.name}</p>
-                    <p className="text-[11px] text-zinc-500">
-                      {dish.totalCalories} cal · {dish.totalProtein}p · {dish.totalCarbs}c · {dish.totalFat}f
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] text-zinc-500">
+                        {dish.totalCalories} cal · {dish.totalProtein}p · {dish.totalCarbs}c · {dish.totalFat}f
+                      </p>
+                      {dish.mealSize && (
+                        <span className="text-[9px] text-zinc-600 capitalize border border-white/[0.06] rounded px-1">{dish.mealSize}</span>
+                      )}
+                    </div>
                   </div>
                   <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase", categoryColors[dish.componentCategory])}>
                     {categoryLabels[dish.componentCategory]}

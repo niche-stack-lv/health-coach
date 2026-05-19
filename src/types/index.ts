@@ -98,11 +98,24 @@ export interface Dish {
   name: string;
   emoji: string;
   componentCategory: ComponentCategory;
+  description?: string | null;
+  imageUrl?: string | null;
+  mealSize?: "small" | "medium" | "large" | null;
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
   items: DishItem[];
+  tags?: DishTag[];
+  createdAt: string;
+}
+
+// Custom tag for organizing dishes
+export interface DishTag {
+  id: string;
+  coachId: string;
+  name: string;
+  color: string;
   createdAt: string;
 }
 
@@ -142,6 +155,7 @@ export interface MealSlotDish {
   componentId: string;
   dishId: string;
   dish?: Dish;                 // populated on read
+  mealSize?: "small" | "medium" | "large" | null;
   sortOrder: number;
 }
 

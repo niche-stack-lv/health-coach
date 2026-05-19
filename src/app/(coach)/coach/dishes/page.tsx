@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
-import { getDishes } from "@/lib/db";
+import { getDishes, getDishTags } from "@/lib/db";
 import { filterDishes } from "@/lib/template-validation";
 import { cn } from "@/lib/utils";
 import type { Dish, ComponentCategory } from "@/types";
@@ -47,6 +47,8 @@ function DishesPageInner() {
   const isDemo = useIsDemo();
   const demoSuffix = useDemoSuffix();
   const [dishes, setDishes] = useState<Dish[]>([]);
+  const [allTags, setAllTags] = useState<any[]>([]);
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -71,16 +73,21 @@ function DishesPageInner() {
 
   async function loadDishes() {
     if (!user) return;
-    const data = await getDishes(user.id);
+    const [data, tags] = await Promise.all([getDishes(user.id), getDishTags(user.id)]);
     setDishes(data);
+    setAllTags(tags);
     setLoading(false);
   }
 
-  const filteredDishes = filterDishes(
+  let filteredDishes = filterDishes(
     dishes,
     debouncedQuery || null,
     categoryFilter === "all" ? null : categoryFilter
   );
+  // Filter by tag
+  if (selectedTagFilter) {
+    filteredDishes = filteredDishes.filter((d) => d.tags?.some((t) => t.id === selectedTagFilter));
+  }
 
   if (loading) return (
     <div className="flex justify-center py-20">
@@ -114,7 +121,7 @@ function DishesPageInner() {
       </div>
 
       {/* Category filter tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
         {categories.map((cat) => (
           <button
             key={cat.value}
@@ -131,6 +138,27 @@ function DishesPageInner() {
         ))}
       </div>
 
+      {/* Tag filter */}
+      {allTags.length > 0 && (
+        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1">
+          <button
+            onClick={() => setSelectedTagFilter(null)}
+            className={cn("rounded-lg px-3 py-1.5 text-xs font-medium border whitespace-nowrap",
+              !selectedTagFilter ? "border-gold/50 bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500"
+            )}
+          >All Tags</button>
+          {allTags.map((tag) => (
+            <button
+              key={tag.id}
+              onClick={() => setSelectedTagFilter(selectedTagFilter === tag.id ? null : tag.id)}
+              className={cn("rounded-lg px-3 py-1.5 text-xs font-medium border whitespace-nowrap",
+                selectedTagFilter === tag.id ? "border-gold/50 bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500"
+              )}
+            >{tag.name}</button>
+          ))}
+        </div>
+      )}
+
       {/* Dishes grid */}
       {filteredDishes.length === 0 ? (
         <Card className="p-8 text-center">
@@ -141,24 +169,48 @@ function DishesPageInner() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-stretch">
           {filteredDishes.map((dish) => (
             <Link key={dish.id} href={`/coach/dishes/${dish.id}${demoSuffix}`}>
-              <Card hover className="p-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">{dish.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{dish.name}</p>
-                    <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide mt-1", categoryColors[dish.componentCategory])}>
-                      {dish.componentCategory.replace("_", " ")}
-                    </span>
+              <Card hover className="p-0 h-full flex flex-col overflow-hidden">
+                {/* Image banner (if available) */}
+                {dish.imageUrl && (
+                  <div className="w-full aspect-video overflow-hidden border-b border-white/[0.06] bg-black/50">
+                    <img src={dish.imageUrl} alt={dish.name} className="w-full h-full object-contain" />
                   </div>
-                </div>
-                <div className="flex gap-2 mt-3 flex-wrap">
-                  <MacroBadge label="Cal" value={dish.totalCalories} />
-                  <MacroBadge label="P" value={dish.totalProtein} />
-                  <MacroBadge label="C" value={dish.totalCarbs} />
-                  <MacroBadge label="F" value={dish.totalFat} />
+                )}
+                <div className="p-4 flex-1 flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg shrink-0">{dish.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{dish.name}</p>
+                      <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide mt-0.5", categoryColors[dish.componentCategory])}>
+                        {dish.componentCategory.replace("_", " ")}
+                      </span>
+                    </div>
+                    {dish.mealSize && (
+                      <span className="text-[9px] text-zinc-600 capitalize border border-white/[0.06] rounded px-1.5 py-0.5 shrink-0">{dish.mealSize}</span>
+                    )}
+                  </div>
+                  {/* Description */}
+                  {dish.description && (
+                    <p className="text-[11px] text-zinc-500 mt-2 line-clamp-2">{dish.description}</p>
+                  )}
+                  {/* Tags */}
+                  {dish.tags && dish.tags.length > 0 && (
+                    <div className="flex gap-1 mt-2 flex-wrap">
+                      {dish.tags.map((tag) => (
+                        <span key={tag.id} className="rounded bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-zinc-500">{tag.name}</span>
+                      ))}
+                    </div>
+                  )}
+                  {/* Macros — always at bottom */}
+                  <div className="flex gap-2 mt-auto pt-3 flex-wrap">
+                    <MacroBadge label="Cal" value={dish.totalCalories} />
+                    <MacroBadge label="P" value={dish.totalProtein} />
+                    <MacroBadge label="C" value={dish.totalCarbs} />
+                    <MacroBadge label="F" value={dish.totalFat} />
+                  </div>
                 </div>
               </Card>
             </Link>

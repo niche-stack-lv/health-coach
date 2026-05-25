@@ -6,15 +6,16 @@ import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
-import { Dumbbell, Home, UtensilsCrossed, Camera, Flame, Ruler, CalendarCheck } from "lucide-react";
+import { Dumbbell, Home, UtensilsCrossed, Camera, Flame, Ruler, CalendarCheck, HelpCircle } from "lucide-react";
 
 const navItems = [
   { href: "/client", label: "Home", icon: Home },
-  { href: "/client/diet-plan", label: "Diet Plan", icon: UtensilsCrossed },
+  { href: "/client/diet-plan", label: "Diet", icon: UtensilsCrossed },
   { href: "/client/food-check-in", label: "Daily", icon: CalendarCheck },
   { href: "/client/workout", label: "Workout", icon: Flame },
   { href: "/client/check-in", label: "Weekly", icon: Camera },
   { href: "/client/measurements", label: "Body", icon: Ruler },
+  { href: "/client/faq", label: "Help", icon: HelpCircle },
 ];
 
 function NavbarInner() {

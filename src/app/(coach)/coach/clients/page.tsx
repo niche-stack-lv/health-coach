@@ -439,8 +439,8 @@ export default function ClientsPage() {
                 Cancel
               </Button>
               <Button 
-                variant={confirmAction.type === "delete" ? "default" : "gold"}
-                className={cn("flex-1", confirmAction.type === "delete" && "bg-red-500 hover:bg-red-600 text-white")}
+                variant={confirmAction.type === "delete" ? "danger" : "gold"}
+                className="flex-1"
                 onClick={confirmAction.type === "delete" ? handleDelete : handleMarkInactive}
                 disabled={actionLoading}
               >

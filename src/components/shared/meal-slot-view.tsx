@@ -7,24 +7,30 @@ import type { TemplateMealSlot, ComponentCategory, Dish } from "@/types";
 // ---- Constants (exported for reuse) ----
 
 export const categoryLabels: Record<ComponentCategory, string> = {
-  carbohydrate: "Carb",
   protein: "Protein",
+  carbs: "Carbs",
+  fats: "Fats",
   fiber: "Fiber",
   complete_meal: "Complete",
+  supplements: "Supps",
 };
 
 export const categoryColors: Record<ComponentCategory, string> = {
-  carbohydrate: "text-amber-400",
   protein: "text-sky-400",
+  carbs: "text-amber-400",
+  fats: "text-orange-400",
   fiber: "text-emerald-400",
   complete_meal: "text-purple-400",
+  supplements: "text-pink-400",
 };
 
 export const categoryBadgeColors: Record<ComponentCategory, string> = {
-  carbohydrate: "bg-amber-500/10 text-amber-400 border-amber-500/30",
   protein: "bg-sky-500/10 text-sky-400 border-sky-500/30",
+  carbs: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  fats: "bg-orange-500/10 text-orange-400 border-orange-500/30",
   fiber: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
   complete_meal: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+  supplements: "bg-pink-500/10 text-pink-400 border-pink-500/30",
 };
 
 // ---- Editable slot type (used by template editors with local state) ----
@@ -180,18 +186,25 @@ function MealSlotCompactView({ slot }: { slot: TemplateMealSlot }) {
               {categoryLabels[comp.componentCategory]}
             </span>
             <div className="flex-1 flex flex-wrap gap-1 items-center min-h-[28px]">
-              {comp.dishes.map((msd, idx) => (
-                <span key={msd.id} className="flex items-center gap-1">
-                  {idx > 0 && <span className="text-[10px] text-zinc-600 mx-0.5">or</span>}
-                  <span
-                    title={msd.dish ? `${msd.dish.totalCalories} cal · ${msd.dish.totalProtein}p · ${msd.dish.totalCarbs}c · ${msd.dish.totalFat}f` : undefined}
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] text-zinc-300 cursor-default"
-                  >
-                    {msd.dish?.emoji || "🍽️"} {msd.dish?.name || "Unknown"}
-                    <span className="text-zinc-500 ml-0.5">{msd.dish?.totalCalories}cal</span>
+              {comp.dishes.map((msd, idx) => {
+                const isDish = !!msd.dishId && !!msd.dish;
+                const isFood = !!msd.foodId && !!msd.food;
+                const name = isDish ? msd.dish!.name : isFood ? msd.food!.name : "Unknown";
+                const emoji = isDish ? msd.dish!.emoji : isFood ? msd.food!.emoji : "🍽️";
+                const cal = isDish ? msd.dish!.totalCalories : isFood && msd.foodQuantity ? Math.round(msd.food!.calories * msd.foodQuantity / 100) : 0;
+                return (
+                  <span key={msd.id} className="flex items-center gap-1">
+                    {idx > 0 && <span className="text-[10px] text-zinc-600 mx-0.5">or</span>}
+                    <span
+                      title={isDish ? `${msd.dish!.totalCalories} cal · ${msd.dish!.totalProtein}p · ${msd.dish!.totalCarbs}c · ${msd.dish!.totalFat}f` : undefined}
+                      className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] text-zinc-300 cursor-default"
+                    >
+                      {emoji} {name}{isFood && msd.foodQuantity ? ` (${msd.foodQuantity}g)` : ""}
+                      {cal > 0 && <span className="text-zinc-500 ml-0.5">{cal}cal</span>}
+                    </span>
                   </span>
-                </span>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
@@ -222,40 +235,50 @@ function MealSlotViewMode({ slot, onDishClick }: { slot: TemplateMealSlot; onDis
               <span className={cn("inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide mb-2", categoryBadgeColors[comp.componentCategory])}>
                 {categoryLabels[comp.componentCategory]}
               </span>
-              {/* Dish rows — stacked vertically */}
+              {/* Dish/Food rows — stacked vertically */}
               <div className="space-y-1.5">
-                {comp.dishes.map((msd, idx) => (
-                  <div key={msd.id}>
-                    {idx > 0 && (
-                      <div className="flex items-center gap-2 py-1">
-                        <div className="flex-1 border-t border-white/[0.04]" />
-                        <span className="text-[10px] text-zinc-600 font-medium">or</span>
-                        <div className="flex-1 border-t border-white/[0.04]" />
-                      </div>
-                    )}
-                    <div
-                      className={cn("flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 min-h-[44px]", onDishClick && msd.dish && "cursor-pointer active:bg-white/[0.06]")}
-                      onClick={() => onDishClick && msd.dish && onDishClick(msd.dish)}
-                    >
-                      {msd.dish?.imageUrl ? (
-                        <div className="h-8 w-8 rounded-lg overflow-hidden shrink-0 border border-white/[0.08]">
-                          <img src={msd.dish.imageUrl} alt={msd.dish.name} className="w-full h-full object-cover" />
+                {comp.dishes.map((msd, idx) => {
+                  const isDish = !!msd.dishId && !!msd.dish;
+                  const isFood = !!msd.foodId && !!msd.food;
+                  const itemName = isDish ? msd.dish!.name : isFood ? `${msd.food!.name}${msd.foodQuantity ? ` (${msd.foodQuantity}g)` : ""}` : "Unknown";
+                  const itemEmoji = isDish ? msd.dish!.emoji : isFood ? msd.food!.emoji : "🍽️";
+                  const itemCal = isDish ? msd.dish!.totalCalories : isFood && msd.foodQuantity ? Math.round(msd.food!.calories * msd.foodQuantity / 100) : 0;
+                  const itemImage = isDish ? msd.dish!.imageUrl : null;
+                  const itemMealSize = isDish ? msd.dish!.mealSize : null;
+
+                  return (
+                    <div key={msd.id}>
+                      {idx > 0 && (
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="flex-1 border-t border-white/[0.04]" />
+                          <span className="text-[10px] text-zinc-600 font-medium">or</span>
+                          <div className="flex-1 border-t border-white/[0.04]" />
                         </div>
-                      ) : (
-                        <span className="text-base shrink-0">{msd.dish?.emoji || "🍽️"}</span>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-white font-medium truncate block">{msd.dish?.name || "Unknown"}</span>
-                        {msd.dish?.mealSize && (
-                          <span className="text-[10px] text-zinc-600 capitalize">{msd.dish.mealSize}</span>
+                      <div
+                        className={cn("flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/[0.06] px-3 py-2.5 min-h-[44px]", onDishClick && isDish && "cursor-pointer active:bg-white/[0.06]")}
+                        onClick={() => onDishClick && isDish && onDishClick(msd.dish!)}
+                      >
+                        {itemImage ? (
+                          <div className="h-8 w-8 rounded-lg overflow-hidden shrink-0 border border-white/[0.08]">
+                            <img src={itemImage} alt={itemName} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <span className="text-base shrink-0">{itemEmoji}</span>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm text-white font-medium truncate block">{itemName}</span>
+                          {itemMealSize && (
+                            <span className="text-[10px] text-zinc-600 capitalize">{itemMealSize}</span>
+                          )}
+                        </div>
+                        {itemCal > 0 && (
+                          <span className="text-xs text-zinc-500 shrink-0">{itemCal} cal</span>
                         )}
                       </div>
-                      {msd.dish && (
-                        <span className="text-xs text-zinc-500 shrink-0">{msd.dish.totalCalories} cal</span>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -349,14 +372,44 @@ function MealSlotSelectMode({
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className={cn("text-xs", isSelected ? "text-gold/70" : "text-zinc-500")}>{msd.dish.totalCalories} cal</span>
                             {onDishClick && (
-                              <button
-                                type="button"
+                              <span
+                                role="button"
                                 onClick={(e) => { e.stopPropagation(); onDishClick(msd.dish!); }}
-                                className="text-zinc-600 hover:text-white text-xs"
-                              >ⓘ</button>
+                                className="text-zinc-600 hover:text-white text-xs cursor-pointer"
+                              >ⓘ</span>
                             )}
                           </div>
                         )}
+                      </button>
+                    );
+                  })}
+                  {/* Food item options */}
+                  {comp.dishes.filter((msd) => msd.foodId && !msd.dishId).map((msd) => {
+                    const isSelected = selections[comp.id] === msd.id;
+                    const foodName = msd.food?.name || "Food";
+                    const foodEmoji = msd.food?.emoji || "🥗";
+                    const foodCal = msd.food && msd.foodQuantity
+                      ? Math.round(msd.food.calories * (msd.foodQuantity / 100))
+                      : msd.food?.calories || 0;
+                    return (
+                      <button
+                        key={msd.id}
+                        onClick={() => onSelectDish?.(comp.id, msd.id)}
+                        disabled={disabled}
+                        className={cn(
+                          "w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 min-h-[44px] text-left transition-all",
+                          isSelected
+                            ? "border-gold bg-gold/10 ring-1 ring-gold/20"
+                            : "border-emerald-500/10 bg-white/[0.02] active:bg-white/[0.04]"
+                        )}
+                      >
+                        <span className="text-base shrink-0">{foodEmoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className={cn("text-sm font-medium truncate block", isSelected ? "text-gold" : "text-white")}>
+                            {foodName} {msd.foodQuantity ? `(${msd.foodQuantity}g)` : ""}
+                          </span>
+                        </div>
+                        <span className={cn("text-xs shrink-0", isSelected ? "text-gold/70" : "text-zinc-500")}>{foodCal} cal</span>
                       </button>
                     );
                   })}

@@ -17,17 +17,19 @@ export interface FoodPickerProps {
 
 // ---- Constants ----
 
-const categories = [
-  { key: "protein" as const, label: "Protein", emoji: "🥩", color: "text-red-400 bg-red-500/10 border-red-500/20" },
-  { key: "carbs" as const, label: "Carbs", emoji: "🍚", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-  { key: "fats" as const, label: "Fats", emoji: "🥜", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  { key: "supplements" as const, label: "Supps", emoji: "💊", color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
-];
+const categoryMeta: Record<string, { label: string; emoji: string; color: string }> = {
+  protein: { label: "Protein", emoji: "🥩", color: "text-red-400 bg-red-500/10 border-red-500/20" },
+  carbs: { label: "Carbs", emoji: "🍚", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+  fats: { label: "Fats", emoji: "🥜", color: "text-orange-400 bg-orange-500/10 border-orange-500/20" },
+  fiber: { label: "Fiber", emoji: "🥦", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+  complete_meal: { label: "Complete", emoji: "🍱", color: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
+  supplements: { label: "Supps", emoji: "💊", color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
+};
 
 // ---- Main Component ----
 
 export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerProps) {
-  const [activeCategory, setActiveCategory] = useState<"protein" | "carbs" | "fats" | "supplements">("protein");
+  const [activeCategory, setActiveCategory] = useState<string>("protein");
   const [search, setSearch] = useState("");
   const [sheetFood, setSheetFood] = useState<FoodItem | null>(null);
   const [dbFoods, setDbFoods] = useState<FoodItem[]>([]);
@@ -57,6 +59,28 @@ export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerP
     return [...dbFoods, ...staticFiltered];
   }, [externalFoods, dbFoods]);
 
+  // Derive unique categories from actual food data
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const f of allFoods) {
+      cats.add(f.category);
+    }
+    // Sort in a sensible order: known categories first, then any new ones
+    const order = ["protein", "carbs", "fats", "fiber", "complete_meal", "supplements"];
+    return Array.from(cats).sort((a, b) => {
+      const ai = order.indexOf(a);
+      const bi = order.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+  }, [allFoods]);
+
+  // Set initial active category to first available
+  useEffect(() => {
+    if (availableCategories.length > 0 && !availableCategories.includes(activeCategory)) {
+      setActiveCategory(availableCategories[0]);
+    }
+  }, [availableCategories]);
+
   // Filter by category + search
   const filtered = useMemo(() => {
     let list = allFoods.filter((f) => f.category === activeCategory);
@@ -82,20 +106,23 @@ export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerP
           </button>
         </div>
 
-        {/* Category tabs */}
-        <div className="flex gap-2 p-3 border-b border-white/[0.06]">
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold border transition-all",
-                activeCategory === cat.key ? cat.color : "border-white/[0.06] text-zinc-500 hover:bg-white/[0.04]"
-              )}
-            >
-              <span>{cat.emoji}</span> {cat.label}
-            </button>
-          ))}
+        {/* Category tabs — derived from data */}
+        <div className="flex gap-2 p-3 border-b border-white/[0.06] overflow-x-auto">
+          {availableCategories.map((catKey) => {
+            const meta = categoryMeta[catKey] || { label: catKey, emoji: "📦", color: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20" };
+            return (
+              <button
+                key={catKey}
+                onClick={() => setActiveCategory(catKey)}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-xl py-2.5 px-3 text-xs font-semibold border transition-all whitespace-nowrap shrink-0",
+                  activeCategory === catKey ? meta.color : "border-white/[0.06] text-zinc-500 hover:bg-white/[0.04]"
+                )}
+              >
+                <span>{meta.emoji}</span> {meta.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Search */}

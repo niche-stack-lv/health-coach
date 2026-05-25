@@ -23,7 +23,7 @@ export default function DishesPage() {
 type PageTab = "dishes" | "foods";
 
 const demoDishes: Dish[] = [
-  { id: "demo-1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbohydrate", totalCalories: 380, totalProtein: 35, totalCarbs: 45, totalFat: 8, items: [], createdAt: "" },
+  { id: "demo-1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 380, totalProtein: 35, totalCarbs: 45, totalFat: 8, items: [], createdAt: "" },
   { id: "demo-2", coachId: "demo", name: "Palak Paneer", emoji: "🧀", componentCategory: "protein", totalCalories: 265, totalProtein: 18, totalCarbs: 5, totalFat: 21, items: [], createdAt: "" },
   { id: "demo-3", coachId: "demo", name: "Steamed Broccoli", emoji: "🥦", componentCategory: "fiber", totalCalories: 55, totalProtein: 4, totalCarbs: 11, totalFat: 0, items: [], createdAt: "" },
   { id: "demo-4", coachId: "demo", name: "Chicken Biryani", emoji: "🍚", componentCategory: "complete_meal", totalCalories: 450, totalProtein: 28, totalCarbs: 55, totalFat: 12, items: [], createdAt: "" },
@@ -31,19 +31,23 @@ const demoDishes: Dish[] = [
 
 const dishCategories: { value: ComponentCategory | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "carbohydrate", label: "Carbs" },
   { value: "protein", label: "Protein" },
+  { value: "carbs", label: "Carbs" },
+  { value: "fats", label: "Fats" },
   { value: "fiber", label: "Fiber" },
   { value: "complete_meal", label: "Complete" },
+  { value: "supplements", label: "Supps" },
 ];
 
 const foodCategories = ["all", "protein", "carbs", "fats", "fiber", "supplements"] as const;
 
 const categoryColors: Record<ComponentCategory, string> = {
-  carbohydrate: "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20",
   protein: "bg-sky-500/10 text-sky-400 ring-1 ring-sky-500/20",
+  carbs: "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20",
+  fats: "bg-orange-500/10 text-orange-400 ring-1 ring-orange-500/20",
   fiber: "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20",
   complete_meal: "bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/20",
+  supplements: "bg-pink-500/10 text-pink-400 ring-1 ring-pink-500/20",
 };
 
 function DishesPageInner() {

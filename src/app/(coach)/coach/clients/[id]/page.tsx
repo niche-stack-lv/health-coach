@@ -1,16 +1,16 @@
 "use client";
-import { useParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WeightChart } from "@/components/charts/weight-chart";
 import { MeasurementsChart } from "@/components/charts/measurements-chart";
-import { getClients, getCoachCheckIns, getDietPlans, getMeasurements, getHabits, addHabit, deleteHabit, getClientActiveAssignment, getClientActiveWorkoutAssignment, deactivateAssignment, removeWorkoutAssignment, getOnboarding } from "@/lib/db";
+import { getClients, getCoachCheckIns, getMeasurements, getHabits, addHabit, deleteHabit, getClientActiveAssignment, getClientActiveWorkoutAssignment, deactivateAssignment, removeWorkoutAssignment, getOnboarding, updateClient, updateProfile, getClientFoodCheckIns } from "@/lib/db";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate, cn } from "@/lib/utils";
-import { ArrowLeft, TrendingDown, Camera, Calendar, Target, Plus, Trash2, Sparkles, X, UtensilsCrossed, Dumbbell } from "lucide-react";
+import { ArrowLeft, TrendingDown, Camera, Calendar, Plus, Trash2, Sparkles, X, UtensilsCrossed, Dumbbell, Pencil } from "lucide-react";
 import Link from "next/link";
 import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { WorkoutSlotView } from "@/components/shared/workout-slot-view";
@@ -18,18 +18,26 @@ import { WorkoutSlotView } from "@/components/shared/workout-slot-view";
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
 export default function ClientDetailPage() {
+  return <Suspense fallback={<div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>}><ClientDetailPageInner /></Suspense>;
+}
+
+function ClientDetailPageInner() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
-  const [tab, setTab] = useState<"overview" | "diet" | "workout" | "measurements" | "habits" | "profile">("overview");
+  const initialTab = (searchParams.get("tab") as any) || "overview";
+  const [tab, setTab] = useState<"overview" | "checkins" | "diet" | "workout" | "measurements" | "habits" | "profile">(initialTab);
   const [client, setClient] = useState<any>(null);
   const [checkIns, setCheckIns] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
   const [habits, setHabits] = useState<any[]>([]);
   const [dietAssignment, setDietAssignment] = useState<any>(null);
   const [workoutAssignment, setWorkoutAssignment] = useState<any>(null);
   const [onboarding, setOnboarding] = useState<any>(null);
+  const [foodCheckIns, setFoodCheckIns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showWeightGraph, setShowWeightGraph] = useState(false);
 
   // Habit form state
   const [showHabitForm, setShowHabitForm] = useState(false);
@@ -44,25 +52,25 @@ export default function ClientDetailPage() {
 
   async function loadData() {
     if (!user) return;
-    const [clients, cis, pls, meas, habs, dietAsgn, workoutAsgn, onb] = await Promise.all([
+    const [clients, cis, meas, habs, dietAsgn, workoutAsgn, onb, fci] = await Promise.all([
       getClients(user.id),
       getCoachCheckIns(user.id),
-      getDietPlans(user.id),
       getMeasurements(id as string),
       getHabits(id as string),
       getClientActiveAssignment(id as string),
       getClientActiveWorkoutAssignment(id as string),
       getOnboarding(id as string),
+      getClientFoodCheckIns(id as string),
     ]);
     const found = clients.find((c: any) => c.id === id);
     setClient(found || null);
     setCheckIns(cis.filter((c: any) => c.client_id === id));
-    setPlans(pls.filter((p: any) => p.client_id === id));
     setMeasurements(meas);
     setHabits(habs);
     setDietAssignment(dietAsgn);
     setWorkoutAssignment(workoutAsgn);
     setOnboarding(onb);
+    setFoodCheckIns(fci);
     setLoading(false);
   }
 
@@ -89,6 +97,16 @@ export default function ClientDetailPage() {
 
   const name = client.profile?.name || "Unknown";
   const weightHistory = measurements.map((m: any) => ({ date: m.date || m.created_at, weight: m.weight })).filter((m: any) => m.weight);
+  // Get weight from food check-ins (daily) + weekly check-ins
+  const checkInWeights = [
+    ...foodCheckIns
+      .filter((ci: any) => ci.weight)
+      .map((ci: any) => ({ date: ci.date || ci.createdAt, weight: ci.weight })),
+    ...checkIns
+      .filter((ci: any) => ci.weight)
+      .map((ci: any) => ({ date: ci.date || ci.created_at, weight: ci.weight })),
+  ].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const latestCheckInWeight = checkInWeights.length > 0 ? checkInWeights[checkInWeights.length - 1].weight : null;
   const latest = measurements[measurements.length - 1];
 
   return (
@@ -96,10 +114,13 @@ export default function ClientDetailPage() {
       <Link href="/coach/clients" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-gold mb-4"><ArrowLeft className="h-4 w-4" /> Back</Link>
       <div className="flex items-center gap-3 mb-4">
         <Avatar name={name} size="lg" />
-        <div className="min-w-0">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-lg lg:text-2xl font-bold text-white">{name}</h1>
             <Badge variant={client.status === "active" ? "success" : "default"}>{client.status}</Badge>
+            <button onClick={() => setShowEditModal(true)} className="p-1.5 rounded-lg text-zinc-500 hover:text-gold hover:bg-white/[0.04] transition-colors">
+              <Pencil className="h-4 w-4" />
+            </button>
           </div>
           <p className="text-sm text-zinc-500 truncate">{client.goal}</p>
           <p className="text-xs text-zinc-600">{client.profile?.email}</p>
@@ -107,18 +128,21 @@ export default function ClientDetailPage() {
       </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-        {(["overview", "profile", "diet", "workout", "measurements", "habits"] as const).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("rounded-xl px-4 py-2 text-sm font-semibold border capitalize whitespace-nowrap", tab === t ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500")}>{t === "diet" ? "Diet Plan" : t === "workout" ? "Workout" : t}</button>
+        {(["overview", "checkins", "profile", "diet", "workout", "measurements", "habits"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={cn("rounded-xl px-4 py-2 text-sm font-semibold border capitalize whitespace-nowrap", tab === t ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500")}>{t === "diet" ? "Diet Plan" : t === "workout" ? "Workout" : t === "checkins" ? "Check-ins" : t}</button>
         ))}
       </div>
 
       {tab === "overview" && (
         <div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <Card className="p-3"><TrendingDown className="h-4 w-4 text-emerald-400 mb-1" /><p className="text-xl font-bold text-white">{latest?.weight || client.current_weight || "—"}</p><p className="text-[10px] text-zinc-500">Current kg</p></Card>
-            <Card className="p-3"><Target className="h-4 w-4 text-gold mb-1" /><p className="text-xl font-bold text-white">{client.target_weight || "—"}</p><p className="text-[10px] text-zinc-500">Target kg</p></Card>
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <Card className="p-3 cursor-pointer hover:border-gold/30 transition-colors" onClick={() => setShowWeightGraph(true)}>
+              <TrendingDown className="h-4 w-4 text-emerald-400 mb-1" />
+              <p className="text-xl font-bold text-white">{latestCheckInWeight || latest?.weight || client.current_weight || "—"}{(latestCheckInWeight || latest?.weight || client.current_weight) ? " kg" : ""}</p>
+              <p className="text-[10px] text-zinc-500">Current kg</p>
+            </Card>
             <Card className="p-3"><Camera className="h-4 w-4 text-sky-400 mb-1" /><p className="text-xl font-bold text-white">{checkIns.length}</p><p className="text-[10px] text-zinc-500">Check-ins</p></Card>
-            <Card className="p-3"><Calendar className="h-4 w-4 text-amber-400 mb-1" /><p className="text-xl font-bold text-white">{plans.length}</p><p className="text-[10px] text-zinc-500">Diet plans</p></Card>
+            <Card className="p-3"><Calendar className="h-4 w-4 text-amber-400 mb-1" /><p className="text-xl font-bold text-white">{dietAssignment ? 1 : 0}</p><p className="text-[10px] text-zinc-500">Diet plan</p></Card>
           </div>
 
           {weightHistory.length > 0 && (
@@ -135,19 +159,57 @@ export default function ClientDetailPage() {
             ) : (
               <div className="space-y-3">
                 {checkIns.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between rounded-xl border border-white/[0.06] p-3">
+                  <button key={c.id} onClick={() => setTab("checkins")} className="w-full flex items-center justify-between rounded-xl border border-white/[0.06] p-3 hover:bg-white/[0.03] transition-colors cursor-pointer text-left">
                     <div className="flex items-center gap-2">
                       <div className="h-9 w-9 shrink-0 rounded-lg bg-white/[0.04] flex items-center justify-center text-xs font-bold text-gold">
-                        {c.weight ? `${c.weight}` : "—"}
+                        {c.weight ? `${c.weight} kg` : "—"}
                       </div>
                       <p className="text-sm text-white">{formatDate(c.date || c.created_at)}</p>
                     </div>
                     <Badge variant={c.status === "reviewed" ? "success" : "warning"}>{c.status}</Badge>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </Card>
+        </div>
+      )}
+
+      {tab === "checkins" && (
+        <div className="space-y-6">
+          {/* Weekly Check-ins */}
+          <div>
+            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Camera className="h-4 w-4 text-sky-400" /> Weekly Check-ins
+              {checkIns.length > 0 && <span className="text-[10px] text-zinc-500">({checkIns.length})</span>}
+            </h2>
+            {checkIns.length === 0 ? (
+              <Card className="p-6 text-center"><p className="text-sm text-zinc-500">No weekly check-ins yet.</p></Card>
+            ) : (
+              <div className="space-y-2">
+                {checkIns.map((ci) => (
+                  <WeeklyCheckInCard key={ci.id} checkIn={ci} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Daily Food Check-ins */}
+          <div>
+            <h2 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-amber-400" /> Daily Check-ins
+              {foodCheckIns.length > 0 && <span className="text-[10px] text-zinc-500">({foodCheckIns.length})</span>}
+            </h2>
+            {foodCheckIns.length === 0 ? (
+              <Card className="p-6 text-center"><p className="text-sm text-zinc-500">No daily check-ins yet.</p></Card>
+            ) : (
+              <div className="space-y-2">
+                {foodCheckIns.map((ci: any) => (
+                  <DailyCheckInCard key={ci.id} checkIn={ci} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -453,6 +515,310 @@ export default function ClientDetailPage() {
           )}
         </div>
       )}
+
+      {/* Weight Progression Graph Modal */}
+      {showWeightGraph && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowWeightGraph(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg bg-[#1a1a1a] rounded-t-3xl sm:rounded-3xl border-t sm:border border-white/[0.08] p-6 safe-area-bottom" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">Weight Progression</h2>
+              <button onClick={() => setShowWeightGraph(false)} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
+            </div>
+            {checkInWeights.length > 1 ? (
+              <WeightChart data={checkInWeights} height={250} />
+            ) : checkInWeights.length === 1 ? (
+              <div className="text-center py-8">
+                <p className="text-2xl font-bold text-white">{checkInWeights[0].weight} kg</p>
+                <p className="text-xs text-zinc-500 mt-1">Only 1 check-in recorded ({checkInWeights[0].date})</p>
+                <p className="text-xs text-zinc-600 mt-3">More data points needed to show a graph.</p>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-zinc-500">No weight data from daily check-ins yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Client Modal */}
+      {showEditModal && (
+        <EditClientModal
+          client={client}
+          onClose={() => setShowEditModal(false)}
+          onSaved={() => { setShowEditModal(false); loadData(); }}
+        />
+      )}
     </div>
+  );
+}
+
+// ─── Edit Client Modal ─────────────────────────────────────────
+function EditClientModal({ client, onClose, onSaved }: { client: any; onClose: () => void; onSaved: () => void }) {
+  const [goal, setGoal] = useState(client.goal || "");
+  const [status, setStatus] = useState<"active" | "inactive">(client.status || "active");
+  const [currentWeight, setCurrentWeight] = useState(client.current_weight?.toString() || "");
+  const [name, setName] = useState(client.profile?.name || "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    // Update client table
+    await updateClient(client.id, {
+      goal: goal.trim(),
+      status,
+      current_weight: currentWeight ? parseFloat(currentWeight) : null,
+    });
+    // Update profile name if changed
+    if (name.trim() && name.trim() !== client.profile?.name) {
+      await updateProfile(client.id, { name: name.trim() });
+    }
+    onSaved();
+  }
+
+  const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-md bg-[#1a1a1a] rounded-t-3xl sm:rounded-3xl border-t sm:border border-white/[0.08] p-6 safe-area-bottom" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-white">Edit Client</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1.5">Name</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1.5">Goal</label>
+            <input type="text" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. Fat loss" className={inputClass} />
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1.5">Status</label>
+            <div className="flex gap-2">
+              {(["active", "inactive"] as const).map((s) => (
+                <button key={s} onClick={() => setStatus(s)}
+                  className={cn("flex-1 rounded-xl py-2.5 text-sm font-medium border capitalize",
+                    status === s ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500"
+                  )}>{s}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-zinc-500 mb-1.5">Current Weight (kg)</label>
+            <input type="number" value={currentWeight} onChange={(e) => setCurrentWeight(e.target.value)} placeholder="e.g. 85" className={inputClass} />
+          </div>
+          <Button variant="gold" className="w-full h-12 text-base rounded-xl" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Expandable Check-in Cards ─────────────────────────────────
+
+function WeeklyCheckInCard({ checkIn }: { checkIn: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [feedback, setFeedback] = useState(checkIn.coach_feedback || "");
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(checkIn.status || "pending");
+
+  async function loadPhotos() {
+    if (photoUrls.length > 0 || !checkIn.photos || checkIn.photos.length === 0) return;
+    setLoadingPhotos(true);
+    const { getSupabase } = await import("@/lib/supabase");
+    const sb = getSupabase();
+    const urls: string[] = [];
+    for (const photo of checkIn.photos) {
+      const path = typeof photo === "string" ? photo : photo.path || photo.url;
+      if (!path) continue;
+      if (path.startsWith("http")) {
+        urls.push(path);
+      } else {
+        const { data } = await sb.storage.from("check-in-photos").createSignedUrl(path, 3600);
+        if (data?.signedUrl) urls.push(data.signedUrl);
+      }
+    }
+    setPhotoUrls(urls);
+    setLoadingPhotos(false);
+  }
+
+  function handleExpand() {
+    setExpanded(!expanded);
+    if (!expanded) loadPhotos();
+  }
+
+  async function handleMarkReviewed() {
+    setSaving(true);
+    const { getSupabase } = await import("@/lib/supabase");
+    const sb = getSupabase();
+    await sb.from("check_ins").update({ status: "reviewed", coach_feedback: feedback }).eq("id", checkIn.id);
+    setStatus("reviewed");
+    setSaving(false);
+  }
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <button onClick={handleExpand} className="w-full p-3 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-14 shrink-0 rounded-lg bg-sky-500/10 flex items-center justify-center text-[10px] font-bold text-sky-400">
+            {checkIn.weight ? `${checkIn.weight} kg` : "—"}
+          </div>
+          <div>
+            <p className="text-sm text-white">{formatDate(checkIn.date || checkIn.created_at)}</p>
+            {checkIn.notes && <p className="text-[11px] text-zinc-500 truncate max-w-[200px]">{checkIn.notes}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {(checkIn.photos || []).length > 0 && <span className="text-[10px] text-zinc-500">{checkIn.photos.length} photos</span>}
+          <Badge variant={status === "reviewed" ? "success" : "warning"}>{status}</Badge>
+        </div>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 border-t border-white/[0.06] pt-3 space-y-3">
+          {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white">{checkIn.weight} kg</span></p>}
+          {checkIn.notes && <p className="text-xs text-zinc-400">Notes: <span className="text-zinc-300">{checkIn.notes}</span></p>}
+          {/* Photos */}
+          {(checkIn.photos || []).length > 0 && (
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase font-semibold mb-2">Progress Photos</p>
+              {loadingPhotos ? (
+                <p className="text-xs text-zinc-600">Loading photos...</p>
+              ) : photoUrls.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {photoUrls.map((url, i) => (
+                    <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden border border-white/[0.08] bg-black">
+                      <img src={url} alt={`Progress photo ${i + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600">{checkIn.photos.length} photos uploaded</p>
+              )}
+            </div>
+          )}
+          {/* Feedback + Review */}
+          <div className="pt-2 border-t border-white/[0.06] space-y-2">
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase font-semibold">Coach Feedback</label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Add feedback for the client..."
+                className="w-full mt-1 rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50 resize-none min-h-[50px]"
+              />
+            </div>
+            {status !== "reviewed" && (
+              <Button variant="gold" size="sm" className="w-full" onClick={handleMarkReviewed} disabled={saving}>
+                {saving ? "Saving..." : "✓ Mark Reviewed"}
+              </Button>
+            )}
+            {status === "reviewed" && feedback !== checkIn.coach_feedback && (
+              <Button variant="secondary" size="sm" className="w-full" onClick={handleMarkReviewed} disabled={saving}>
+                {saving ? "Saving..." : "Update Feedback"}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function DailyCheckInCard({ checkIn }: { checkIn: any }) {
+  const [expanded, setExpanded] = useState(false);
+  const [feedback, setFeedback] = useState(checkIn.coachFeedback || "");
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(checkIn.status || "submitted");
+
+  async function handleMarkReviewed() {
+    setSaving(true);
+    const { updateDailyCheckInFeedback } = await import("@/lib/db");
+    await updateDailyCheckInFeedback(checkIn.id, feedback);
+    setStatus("reviewed");
+    setSaving(false);
+  }
+
+  return (
+    <Card className="p-0 overflow-hidden">
+      <button onClick={() => setExpanded(!expanded)} className="w-full p-3 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 shrink-0 rounded-lg bg-amber-500/10 flex items-center justify-center text-xs font-bold text-amber-400">
+            {checkIn.adherenceScore != null ? checkIn.adherenceScore : "—"}
+          </div>
+          <div>
+            <p className="text-sm text-white">{formatDate(checkIn.date)}</p>
+            <p className="text-[11px] text-zinc-500">
+              {checkIn.totalCalories} cal · {checkIn.weight ? `${checkIn.weight} kg` : "no weight"}
+            </p>
+          </div>
+        </div>
+        <Badge variant={status === "reviewed" ? "success" : "warning"}>{status}</Badge>
+      </button>
+      {expanded && (
+        <div className="px-3 pb-3 border-t border-white/[0.06] pt-3 space-y-3">
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalCalories}</p><p className="text-[9px] text-zinc-500">cal</p></div>
+            <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalProtein}g</p><p className="text-[9px] text-zinc-500">protein</p></div>
+            <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalCarbs}g</p><p className="text-[9px] text-zinc-500">carbs</p></div>
+            <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalFat}g</p><p className="text-[9px] text-zinc-500">fat</p></div>
+          </div>
+          {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white">{checkIn.weight} kg</span></p>}
+          {checkIn.notes && <p className="text-xs text-zinc-400">Notes: <span className="text-zinc-300">{checkIn.notes}</span></p>}
+          {/* Food items */}
+          {checkIn.items?.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] text-zinc-500 uppercase font-semibold">Meals</p>
+              {checkIn.items.map((item: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  {item._slot?.name && <span className="text-zinc-600 w-20 shrink-0">{item._slot.name}</span>}
+                  {item._component?.component_category && (
+                    <span className="text-[9px] uppercase text-zinc-500 w-16 shrink-0">{item._component.component_category.replace("_", " ")}</span>
+                  )}
+                  {item.isSkipped ? (
+                    <span className="text-zinc-500">⏭️ Skipped</span>
+                  ) : item._dish ? (
+                    <span className="text-zinc-300">{item._dish.emoji} {item._dish.name}</span>
+                  ) : item.customName ? (
+                    <span className="text-zinc-300">✏️ {item.customName}</span>
+                  ) : (
+                    <span className="text-zinc-600">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Feedback + Review */}
+          <div className="pt-2 border-t border-white/[0.06] space-y-2">
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase font-semibold">Coach Feedback</label>
+              <textarea
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                placeholder="Add feedback for the client..."
+                className="w-full mt-1 rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50 resize-none min-h-[50px]"
+              />
+            </div>
+            {status !== "reviewed" && (
+              <Button variant="gold" size="sm" className="w-full" onClick={handleMarkReviewed} disabled={saving}>
+                {saving ? "Saving..." : "✓ Mark Reviewed"}
+              </Button>
+            )}
+            {status === "reviewed" && feedback !== checkIn.coachFeedback && (
+              <Button variant="secondary" size="sm" className="w-full" onClick={handleMarkReviewed} disabled={saving}>
+                {saving ? "Saving..." : "Update Feedback"}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

@@ -165,3 +165,33 @@ DROP TABLE IF EXISTS daily_check_ins;
 ALTER TABLE habits ADD COLUMN IF NOT EXISTS unit text; -- e.g. 'L', 'steps', 'hrs'
 ```
 **Status:** ⚠️ Feature gap — works in demo, silently absent in production.
+
+## 22. Legacy diet_plans System Fully Removed
+**Location:** `src/lib/db.ts`, `src/types/index.ts`
+**What changed:** The old `diet_plans` + `diet_meals` tables and their CRUD functions (`getDietPlans`, `updateDietPlanMeals`) have been removed from the codebase. The `DietPlan` and `Meal` TypeScript types are also removed. All diet plan functionality now uses the template system (`diet_templates` + `template_assignments`).
+**Correct handling:** Use `getDietTemplates`, `createDietTemplate`, `getCoachAssignments` instead. The `/coach/plans` page now only shows template assignments. The `/coach/plans/[id]` legacy editor page has been deleted.
+**Status:** ✅ Resolved — old system fully removed from code (DB tables still exist but are unused).
+
+## 23. Unified Component Categories (6 values)
+**Location:** `src/types/index.ts`, `dishes` table, `meal_slot_components` table, `foods` table
+**What changed:** Categories were unified across dishes and foods. Old dish categories (`carbohydrate`, `protein`, `fiber`, `complete_meal`) replaced with 6 unified values: `protein`, `carbs`, `fats`, `fiber`, `complete_meal`, `supplements`. The CHECK constraints on `dishes` and `meal_slot_components` tables were updated. All existing `carbohydrate` values were migrated to `carbs`.
+**Correct handling:** Always use the 6 unified values. Never use `carbohydrate` — use `carbs` instead. The `foods.category` column already used these values.
+**Status:** ✅ Resolved — DB constraints updated, all code references migrated.
+
+## 24. Plan Types Are Now Dynamic (Not Enum)
+**Location:** `plan_types` table, `diet_templates.plan_type` column
+**What changed:** Plan types are no longer a hardcoded 4-value enum. They're stored in a `plan_types` table and coaches can create custom ones. The CHECK constraint on `diet_templates.plan_type` was dropped. The diet template editor uses a searchable dropdown (like dish tags) for plan type selection.
+**Correct handling:** Don't hardcode plan type values. Use `getPlanTypes(coachId)` to fetch available types. The `plan_type` column on `diet_templates` stores the plan type name as a free-text string.
+**Status:** ✅ Resolved — dynamic plan types with create-new option.
+
+## 25. meal_slot_dishes Supports Both Dishes AND Food Items
+**Location:** `meal_slot_dishes` table, `src/lib/db.ts`
+**What changed:** The `meal_slot_dishes` table now has `food_id` (nullable FK → foods) and `food_quantity` columns alongside the existing `dish_id`. A CHECK constraint ensures exactly one of `dish_id` or `food_id` is set per row. The `dish_id` column is now nullable.
+**Correct handling:** When reading meal slot dishes, check both `dishId` and `foodId`. When inserting, set one to null and the other to the value. The `MealSlotDish` TypeScript type has both fields as optional. Food items show with quantity in grams.
+**Status:** ✅ Resolved — both dishes and foods can be added to diet plan meal slots.
+
+## 26. Dish Picker No Longer Filters by Category
+**Location:** `src/components/coach/dish-picker-modal.tsx`
+**What changed:** The dish picker modal used to filter dishes by the component category of the row being edited. Now it shows ALL dishes regardless of category, with category filter tabs and tag filters for the coach to narrow down manually.
+**Correct handling:** The `componentCategory` prop on `DishPickerModal` is now optional and unused for filtering. All dishes are shown. The coach uses the category tabs and tag filters to find what they need.
+**Status:** ✅ By design — gives coaches full flexibility to add any dish to any slot.

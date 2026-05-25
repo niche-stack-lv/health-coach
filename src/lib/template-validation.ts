@@ -4,14 +4,16 @@
  */
 
 // Local type definitions (will be imported from @/types after task 6.1)
-export type ComponentCategory = "carbohydrate" | "protein" | "fiber" | "complete_meal";
+export type ComponentCategory = "protein" | "carbs" | "fats" | "fiber" | "complete_meal" | "supplements";
 export type PlanType = "veg" | "nonveg" | "low_carb_nonveg" | "intermittent_fasting";
 
 const VALID_COMPONENT_CATEGORIES: ComponentCategory[] = [
-  "carbohydrate",
   "protein",
+  "carbs",
+  "fats",
   "fiber",
   "complete_meal",
+  "supplements",
 ];
 
 export interface DishInput {

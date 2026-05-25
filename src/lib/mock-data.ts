@@ -1,4 +1,4 @@
-import { Client, DietPlan, CheckIn } from "@/types";
+import { Client, CheckIn } from "@/types";
 
 export const mockClients: Client[] = [
   {
@@ -68,7 +68,7 @@ export const mockClients: Client[] = [
   },
 ];
 
-export const mockDietPlans: DietPlan[] = [
+export const mockDietPlans: any[] = [
   {
     id: "dp1",
     coachId: "coach1",

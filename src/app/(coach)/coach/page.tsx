@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Users, Camera, UtensilsCrossed, IndianRupee } from "lucide-react";
+import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
+import { Users, Camera } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useIsDemo } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
-import { getClients, getDietPlans, getCoachCheckIns } from "@/lib/db";
+import { getClients, getCoachCheckIns, getCoachDailyCheckIns } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
-
-import { Suspense } from "react";
 
 export default function CoachDashboard() {
   return <Suspense fallback={<div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>}><CoachDashboardInner /></Suspense>;
@@ -21,8 +20,8 @@ function CoachDashboardInner() {
   const { user } = useAuth();
   const isDemo = useIsDemo();
   const [clients, setClients] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
   const [checkIns, setCheckIns] = useState<any[]>([]);
+  const [dailyCheckIns, setDailyCheckIns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,7 +37,6 @@ function CoachDashboardInner() {
         { id: "ci2", status: "pending", date: "2026-03-28", weight: 71.5, photos: [1, 2], client: { name: "Jordan Smith" } },
         { id: "ci3", status: "reviewed", date: "2026-03-21", weight: 84.5, photos: [1], client: { name: "Alex Rivera" }, coach_feedback: "Great progress!" },
       ]);
-      setPlans([{ id: "p1", status: "active" }, { id: "p2", status: "active" }, { id: "p3", status: "active" }]);
       setLoading(false);
       return;
     }
@@ -47,20 +45,21 @@ function CoachDashboardInner() {
 
   async function loadData() {
     if (!user) return;
-    const [c, p, ci] = await Promise.all([
+    const [c, ci, dci] = await Promise.all([
       getClients(user.id),
-      getDietPlans(user.id),
       getCoachCheckIns(user.id),
+      getCoachDailyCheckIns(user.id),
     ]);
     setClients(c);
-    setPlans(p);
     setCheckIns(ci);
+    setDailyCheckIns(dci);
     setLoading(false);
   }
 
   const activeClients = clients.filter((c) => c.status === "active");
-  const pendingCheckIns = checkIns.filter((c) => c.status === "pending");
-  const activePlans = plans.filter((p) => p.status === "active");
+  const pendingWeekly = checkIns.filter((c) => c.status === "pending");
+  const pendingDaily = dailyCheckIns.filter((c: any) => c.status === "submitted");
+  const totalPending = pendingWeekly.length + pendingDaily.length;
 
   if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
 
@@ -71,38 +70,59 @@ function CoachDashboardInner() {
         <p className="text-zinc-500 mt-1 text-sm">Here&apos;s your business overview.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5 mb-6">
-        <StatCard title="Active Clients" value={activeClients.length} subtitle={`${clients.length} total`} icon={Users} />
-        <StatCard title="Active Plans" value={activePlans.length} icon={UtensilsCrossed} />
-        <StatCard title="Pending Check-ins" value={pendingCheckIns.length} subtitle="Awaiting review" icon={Camera} />
-        <StatCard title="Total Check-ins" value={checkIns.length} icon={IndianRupee} />
+      <div className="grid grid-cols-2 gap-3 lg:gap-5 mb-6">
+        <Link href="/coach/clients" className="block">
+          <StatCard title="Active Clients" value={activeClients.length} subtitle={`${clients.length} total`} icon={Users} />
+        </Link>
+        <StatCard title="Pending Check-ins" value={totalPending} subtitle={`${pendingDaily.length} daily · ${pendingWeekly.length} weekly`} icon={Camera} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-2">
           <Card>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm lg:text-base font-semibold text-white">Pending Check-in Reviews</h2>
-              {pendingCheckIns.length > 0 && <Badge variant="warning">{pendingCheckIns.length} pending</Badge>}
+              <h2 className="text-sm lg:text-base font-semibold text-white">Pending Check-ins</h2>
+              {totalPending > 0 && <Badge variant="warning">{totalPending} pending</Badge>}
             </div>
-            {pendingCheckIns.length === 0 ? (
+            {totalPending === 0 ? (
               <p className="text-sm text-zinc-500">All caught up! No pending check-ins.</p>
             ) : (
               <div className="space-y-3">
-                {pendingCheckIns.slice(0, 5).map((ci) => (
-                  <div key={ci.id} className="flex items-center justify-between rounded-xl border border-white/[0.06] p-3 hover:bg-white/[0.03] transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Avatar name={ci.client?.name || "?"} />
-                      <div>
-                        <p className="text-sm font-medium text-white">{ci.client?.name}</p>
-                        <p className="text-xs text-zinc-500">{formatDate(ci.date || ci.created_at)}</p>
+                {/* Weekly pending */}
+                {pendingWeekly.slice(0, 5).map((ci) => (
+                  <Link key={ci.id} href={`/coach/clients/${ci.client_id}?tab=checkins`} className="block">
+                    <div className="flex items-center justify-between rounded-xl border border-white/[0.06] p-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={ci.client?.name || "?"} />
+                        <div>
+                          <p className="text-sm font-medium text-white">{ci.client?.name}</p>
+                          <p className="text-xs text-zinc-500">{formatDate(ci.date || ci.created_at)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {ci.weight && <span className="text-xs text-zinc-400">{ci.weight} kg</span>}
+                        <Badge variant="info">Weekly</Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {ci.weight && <span className="text-xs text-zinc-400">{ci.weight} kg</span>}
-                      {(ci.photos || []).length > 0 && <Badge variant="info">{ci.photos.length} photos</Badge>}
+                  </Link>
+                ))}
+                {/* Daily pending */}
+                {pendingDaily.slice(0, 5).map((ci: any) => (
+                  <Link key={ci.id} href={`/coach/clients/${ci.client_id}?tab=checkins`} className="block">
+                    <div className="flex items-center justify-between rounded-xl border border-white/[0.06] p-3 hover:bg-white/[0.03] transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={ci.profile?.name || "?"} />
+                        <div>
+                          <p className="text-sm font-medium text-white">{ci.profile?.name || "Client"}</p>
+                          <p className="text-xs text-zinc-500">{formatDate(ci.date)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {ci.weight && <span className="text-xs text-zinc-400">{ci.weight} kg</span>}
+                        <Badge variant="gold">Daily</Badge>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

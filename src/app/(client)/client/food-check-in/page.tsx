@@ -24,8 +24,8 @@ export default function FoodCheckInPage() {
 
 // Demo data
 const demoDishes: Dish[] = [
-  { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbohydrate", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, items: [], createdAt: "" },
-  { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbohydrate", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, items: [], createdAt: "" },
+  { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, items: [], createdAt: "" },
+  { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbs", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, items: [], createdAt: "" },
   { id: "d3", coachId: "demo", name: "Chicken Breast 150g", emoji: "🍗", componentCategory: "protein", totalCalories: 248, totalProtein: 46, totalCarbs: 0, totalFat: 5, items: [], createdAt: "" },
   { id: "d4", coachId: "demo", name: "Palak Paneer 60g", emoji: "🥬", componentCategory: "protein", totalCalories: 180, totalProtein: 12, totalCarbs: 6, totalFat: 12, items: [], createdAt: "" },
   { id: "d5", coachId: "demo", name: "Mixed Salad", emoji: "🥗", componentCategory: "fiber", totalCalories: 45, totalProtein: 2, totalCarbs: 8, totalFat: 1, items: [], createdAt: "" },
@@ -36,7 +36,7 @@ function buildDemoSlots(): TemplateMealSlot[] {
     {
       id: "slot-breakfast", templateId: "demo-template", name: "Breakfast", targetCalories: 350, isSkipped: false, sortOrder: 0,
       components: [{
-        id: "comp-b-carb", slotId: "slot-breakfast", componentCategory: "carbohydrate", sortOrder: 0,
+        id: "comp-b-carb", slotId: "slot-breakfast", componentCategory: "carbs", sortOrder: 0,
         dishes: [
           { id: "msd-1", componentId: "comp-b-carb", dishId: "d1", dish: demoDishes[0], sortOrder: 0 },
           { id: "msd-2", componentId: "comp-b-carb", dishId: "d2", dish: demoDishes[1], sortOrder: 1 },
@@ -187,8 +187,18 @@ function FoodCheckInPageInner() {
       for (const comp of slot.components) {
         const sel = selections[comp.id];
         if (sel && sel !== "skipped" && sel !== "other") {
+          // Check if selection is a dishId
           const msd = comp.dishes.find((d) => d.dishId === sel);
-          if (msd?.dish) selectedDishes.push(msd.dish);
+          if (msd?.dish) {
+            selectedDishes.push(msd.dish);
+          } else {
+            // Check if selection is a food item (msd.id match)
+            const foodMsd = comp.dishes.find((d) => d.id === sel && d.foodId);
+            if (foodMsd?.food && foodMsd.foodQuantity) {
+              const qty = foodMsd.foodQuantity;
+              otherCalories += Math.round(foodMsd.food.calories * qty / 100);
+            }
+          }
         } else if (sel === "other") {
           const other = otherDetails[comp.id];
           if (other?.calories) otherCalories += parseFloat(other.calories) || 0;
@@ -209,7 +219,7 @@ function FoodCheckInPageInner() {
       slot.components.map((comp) => ({
         componentId: comp.id,
         slotId: slot.id,
-        prescribedDishIds: comp.dishes.map((d) => d.dishId).filter(Boolean) as string[],
+        prescribedDishIds: comp.dishes.map((d) => d.dishId || d.id).filter(Boolean) as string[],
       }))
     );
 

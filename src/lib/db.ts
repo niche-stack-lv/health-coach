@@ -74,16 +74,20 @@ export async function addClient(coachId: string, email: string, name: string, go
   return { error: null, clientId: userId, tempPassword };
 }
 
-// ---- Diet Plans (legacy — used by coach pages for backward compat) ----
-export async function getDietPlans(coachId: string) {
+export async function updateClient(clientId: string, updates: {
+  goal?: string;
+  status?: "active" | "inactive";
+  current_weight?: number | null;
+  target_weight?: number | null;
+}): Promise<{ error: string | null }> {
   const sb = getSupabase();
-  const { data } = await sb
-    .from("diet_plans")
-    .select("*, meals:diet_meals(*), client:profiles!diet_plans_client_id_fkey(name, email)")
-    .eq("coach_id", coachId)
-    .order("created_at", { ascending: false });
-  return data || [];
+  const { error } = await sb.from("clients").update(updates).eq("id", clientId);
+  return { error: error?.message || null };
 }
+
+// ---- Diet Plans (legacy — removed) ----
+// getDietPlans removed — legacy diet_plans table no longer used
+// Use getDietTemplates + getCoachAssignments instead
 
 // ---- Check-ins ----
 export async function getCheckIns(clientId: string) {
@@ -219,20 +223,7 @@ export async function updateLeadStatus(id: string, status: "new" | "contacted" |
 }
 
 // ---- Update Diet Plan Meals ----
-export async function updateDietPlanMeals(planId: string, meals: {
-  id?: string; name: string; time: string; items: string[];
-  calories: number; protein: number; carbs: number; fat: number; sort_order: number;
-}[]) {
-  const sb = getSupabase();
-  // Delete existing meals and re-insert
-  const { error: deleteError } = await sb.from("diet_meals").delete().eq("plan_id", planId);
-  if (deleteError) return { error: deleteError.message };
-  if (meals.length > 0) {
-    const { error: insertError } = await sb.from("diet_meals").insert(meals.map((m) => ({ plan_id: planId, ...m })));
-    if (insertError) return { error: insertError.message };
-  }
-  return { error: null };
-}
+// updateDietPlanMeals removed — legacy diet_plans table no longer used
 
 // ---- Search signed-up profiles (not yet clients) ----
 export async function searchProfiles(query: string) {
@@ -1281,6 +1272,10 @@ function mapFoodCheckInItemRow(row: any): FoodCheckInItem {
     isSkipped: row.is_skipped,
     customName: row.custom_name,
     customCalories: row.custom_calories,
+    // Extended fields from joins (not in type but passed through)
+    ...(row.dish && { _dish: row.dish }),
+    ...(row.slot && { _slot: row.slot }),
+    ...(row.component && { _component: row.component }),
   };
 }
 
@@ -1432,7 +1427,7 @@ export async function getClientFoodCheckIns(clientId: string, limit = 30): Promi
   const sb = getSupabase();
   const { data } = await sb
     .from("food_check_ins")
-    .select(`*, food_check_in_items(*)`)
+    .select(`*, food_check_in_items(*, dish:dishes(name, emoji, total_calories), slot:template_meal_slots(name), component:meal_slot_components(component_category))`)
     .eq("client_id", clientId)
     .order("date", { ascending: false })
     .limit(limit);

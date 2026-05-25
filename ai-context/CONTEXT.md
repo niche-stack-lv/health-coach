@@ -204,7 +204,7 @@ CLIENT_ID env var
 | Diet Template | A reusable meal plan structure with slots and dish options |
 | Dish | A pre-defined recipe with fixed portions and auto-calculated macros |
 | Meal Slot | A single meal occasion within a template (Breakfast, Lunch, etc.) |
-| Component | A nutritional category within a meal slot (carb, protein, fiber, complete_meal) |
+| Component | A nutritional category within a meal slot (protein, carbs, fats, fiber, complete_meal, supplements) |
 | Workout Template | A reusable workout structure with slots and exercises |
 | Workout Slot | A single training day within a workout template |
 | Template Assignment | Links a diet template to a client (one active per client) |
@@ -223,7 +223,10 @@ CLIENT_ID env var
 - The system is single-tenant per deployment — one coach per Supabase project.
 - Clients can only be role `"client"`, coach is role `"coach"`. Role is stored in `profiles.role`.
 - A client must have a profile before being linked as a client. `clients.id` = `profiles.id`.
-- Diet templates have 1-6 meal slots with component categories (carb, protein, fiber, complete_meal).
+- Diet templates have 1-6 meal slots with component categories (protein, carbs, fats, fiber, complete_meal, supplements).
+- Component categories are unified across dishes and foods — same 6 values in both tables.
+- Plan types are dynamic/custom — coaches can create their own (stored in `plan_types` table).
+- Meal slot components can contain both dishes AND individual food items (via `meal_slot_dishes` table with `dish_id` OR `food_id`).
 - Workout templates have 1-7 workout slots with exercises.
 - Plans are assigned to clients via assignment tables (template_assignments, workout_assignments).
 - Check-in status: `"pending"` → `"reviewed"` (for weekly photo check-ins).
@@ -247,7 +250,8 @@ type PlanStatus = "active" | "completed" | "draft";
 type CheckInStatus = "pending" | "reviewed";
 type LeadStatus = "new" | "contacted" | "converted";
 type LeadSource = "pricing" | "enquiry" | "book-call";
-type FoodCategory = "protein" | "carbs" | "fats" | "supplements";
+type FoodCategory = "protein" | "carbs" | "fats" | "fiber" | "complete_meal" | "supplements";
+type ComponentCategory = "protein" | "carbs" | "fats" | "fiber" | "complete_meal" | "supplements";
 type ExerciseCategory = "chest" | "back" | "shoulders" | "arms" | "legs" | "core" | "cardio";
 const mealTypes = ["breakfast", "lunch", "snack", "dinner"];
 ```

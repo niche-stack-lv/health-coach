@@ -42,7 +42,7 @@ interface LocalMealSlot {
 
 // ---- Constants ----
 
-const COMPONENT_CATEGORIES: ComponentCategory[] = ["carbohydrate", "protein", "fiber", "complete_meal"];
+const COMPONENT_CATEGORIES: ComponentCategory[] = ["protein", "carbs", "fats", "fiber", "complete_meal", "supplements"];
 
 // ---- Demo template ----
 
@@ -60,7 +60,7 @@ const demoTemplate: DietTemplate = {
       isSkipped: false,
       sortOrder: 0,
       components: [
-        { id: "demo-comp-1-1", slotId: "demo-slot-1", componentCategory: "carbohydrate" as ComponentCategory, sortOrder: 0, dishes: [] },
+        { id: "demo-comp-1-1", slotId: "demo-slot-1", componentCategory: "carbs" as ComponentCategory, sortOrder: 0, dishes: [] },
         { id: "demo-comp-1-2", slotId: "demo-slot-1", componentCategory: "protein" as ComponentCategory, sortOrder: 1, dishes: [] },
       ],
     },
@@ -72,7 +72,7 @@ const demoTemplate: DietTemplate = {
       isSkipped: false,
       sortOrder: 1,
       components: [
-        { id: "demo-comp-2-1", slotId: "demo-slot-2", componentCategory: "carbohydrate" as ComponentCategory, sortOrder: 0, dishes: [] },
+        { id: "demo-comp-2-1", slotId: "demo-slot-2", componentCategory: "carbs" as ComponentCategory, sortOrder: 0, dishes: [] },
         { id: "demo-comp-2-2", slotId: "demo-slot-2", componentCategory: "protein" as ComponentCategory, sortOrder: 1, dishes: [] },
         { id: "demo-comp-2-3", slotId: "demo-slot-2", componentCategory: "fiber" as ComponentCategory, sortOrder: 2, dishes: [] },
       ],
@@ -85,7 +85,7 @@ const demoTemplate: DietTemplate = {
       isSkipped: false,
       sortOrder: 2,
       components: [
-        { id: "demo-comp-3-1", slotId: "demo-slot-3", componentCategory: "carbohydrate" as ComponentCategory, sortOrder: 0, dishes: [] },
+        { id: "demo-comp-3-1", slotId: "demo-slot-3", componentCategory: "carbs" as ComponentCategory, sortOrder: 0, dishes: [] },
         { id: "demo-comp-3-2", slotId: "demo-slot-3", componentCategory: "protein" as ComponentCategory, sortOrder: 1, dishes: [] },
         { id: "demo-comp-3-3", slotId: "demo-slot-3", componentCategory: "fiber" as ComponentCategory, sortOrder: 2, dishes: [] },
       ],

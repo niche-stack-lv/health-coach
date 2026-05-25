@@ -19,30 +19,7 @@ export interface Client extends User {
   targetWeight?: number;
 }
 
-export interface DietPlan {
-  id: string;
-  coachId: string;
-  clientId: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  weeks: number;
-  meals: Meal[];
-  status: "active" | "completed" | "draft";
-  createdAt: string;
-}
-
-export interface Meal {
-  id: string;
-  name: string;
-  time: string;
-  items: string[];
-  calories?: number;
-  protein?: number;
-  carbs?: number;
-  fat?: number;
-}
+// Legacy DietPlan/Meal types removed — use DietTemplate + TemplateAssignment instead
 
 export interface CheckIn {
   id: string;
@@ -70,8 +47,8 @@ export interface WeightEntry {
   weight: number;
 }
 
-// Component categories for dishes
-export type ComponentCategory = "carbohydrate" | "protein" | "fiber" | "complete_meal";
+// Component categories for dishes and foods (unified)
+export type ComponentCategory = "protein" | "carbs" | "fats" | "fiber" | "complete_meal" | "supplements";
 
 // Diet plan template types
 export type PlanType = "veg" | "nonveg" | "low_carb_nonveg" | "intermittent_fasting";

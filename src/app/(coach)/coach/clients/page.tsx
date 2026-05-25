@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, X, UserPlus, Users } from "lucide-react";
+import { Plus, Search, X, UserPlus, Users, MoreVertical, UserX, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
-import { getClients, addClient, searchProfiles, promoteToClient, getLeads } from "@/lib/db";
+import { getClients, addClient, searchProfiles, promoteToClient, getLeads, updateClient } from "@/lib/db";
 import { formatDate, cn } from "@/lib/utils";
 import Link from "next/link";
 
@@ -21,6 +21,7 @@ export default function ClientsPage() {
 
   // Existing clients search
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   // Find & Add tab
   const [findQuery, setFindQuery] = useState("");
@@ -37,6 +38,11 @@ export default function ClientsPage() {
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
   const [addSuccess, setAddSuccess] = useState<{ password: string } | null>(null);
+
+  // Action menu & confirmation modals
+  const [showMenu, setShowMenu] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "inactive" | "delete"; clientId: string; clientName: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => { if (user) loadClients(); }, [user]);
   useEffect(() => { if (user && tab === "find") loadPaidLeads(); }, [user, tab]);
@@ -94,10 +100,38 @@ export default function ClientsPage() {
     loadClients();
   }
 
+  async function handleMarkInactive() {
+    if (!confirmAction || confirmAction.type !== "inactive") return;
+    setActionLoading(true);
+    const { error } = await updateClient(confirmAction.clientId, { status: "inactive" });
+    setActionLoading(false);
+    if (!error) {
+      await loadClients();
+      setConfirmAction(null);
+      setShowMenu(null);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirmAction || confirmAction.type !== "delete") return;
+    setActionLoading(true);
+    // Delete client record (this will cascade delete related data based on DB constraints)
+    const { getSupabase } = await import("@/lib/supabase");
+    const { error } = await getSupabase().from("clients").delete().eq("id", confirmAction.clientId);
+    setActionLoading(false);
+    if (!error) {
+      await loadClients();
+      setConfirmAction(null);
+      setShowMenu(null);
+    }
+  }
+
   const filtered = clients.filter((c) => {
     const name = c.profile?.name || "";
     const email = c.profile?.email || "";
-    return name.toLowerCase().includes(search.toLowerCase()) || email.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = name.toLowerCase().includes(search.toLowerCase()) || email.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -133,6 +167,35 @@ export default function ClientsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clients..." className={cn(inputClass, "pl-10")} />
           </div>
+          
+          {/* Status Filter */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
+                statusFilter === "all" ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500 hover:border-white/[0.12]"
+              )}
+            >
+              All ({clients.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("active")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
+                statusFilter === "active" ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500 hover:border-white/[0.12]"
+              )}
+            >
+              Active ({clients.filter(c => c.status === "active").length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("inactive")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
+                statusFilter === "inactive" ? "border-gold bg-gold/10 text-gold" : "border-white/[0.06] text-zinc-500 hover:border-white/[0.12]"
+              )}
+            >
+              Inactive ({clients.filter(c => c.status === "inactive").length})
+            </button>
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>
           ) : filtered.length === 0 ? (
@@ -142,8 +205,8 @@ export default function ClientsPage() {
           ) : (
             <div className="space-y-3">
               {filtered.map((client) => (
-                <Link key={client.id} href={`/coach/clients/${client.id}`}>
-                  <Card className="p-4 hover:border-gold/20 transition-colors">
+                <Card key={client.id} className="p-4 hover:border-gold/20 transition-colors relative">
+                  <Link href={`/coach/clients/${client.id}`} className="block">
                     <div className="flex items-center gap-3 mb-2">
                       <Avatar name={client.profile?.name || "?"} />
                       <div className="flex-1 min-w-0">
@@ -159,8 +222,53 @@ export default function ClientsPage() {
                       {client.current_weight && <span>{client.current_weight} kg → {client.target_weight} kg</span>}
                       <span>Joined {formatDate(client.created_at)}</span>
                     </div>
-                  </Card>
-                </Link>
+                  </Link>
+                  
+                  {/* Action Menu Button */}
+                  <div className="absolute top-4 right-4">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowMenu(showMenu === client.id ? null : client.id);
+                      }}
+                      className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors"
+                    >
+                      <MoreVertical className="h-4 w-4 text-zinc-400" />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {showMenu === client.id && (
+                      <div className="absolute right-0 top-10 w-48 bg-[#1a1a1a] border border-white/[0.08] rounded-xl shadow-xl z-10"
+                        onClick={(e) => e.stopPropagation()}>
+                        {client.status === "active" && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setConfirmAction({ type: "inactive", clientId: client.id, clientName: client.profile?.name || "this client" });
+                              setShowMenu(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-300 hover:bg-white/[0.06] transition-colors rounded-t-xl"
+                          >
+                            <UserX className="h-4 w-4" />
+                            Mark as Inactive
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setConfirmAction({ type: "delete", clientId: client.id, clientName: client.profile?.name || "this client" });
+                            setShowMenu(null);
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors rounded-b-xl"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete Client
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </Card>
               ))}
             </div>
           )}
@@ -290,6 +398,55 @@ export default function ClientsPage() {
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setConfirmAction(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md bg-[#1a1a1a] rounded-2xl border border-white/[0.08] p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-4 mb-5">
+              <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                confirmAction.type === "delete" ? "bg-red-500/10 ring-1 ring-red-500/20" : "bg-amber-500/10 ring-1 ring-amber-500/20"
+              )}>
+                {confirmAction.type === "delete" ? (
+                  <Trash2 className="h-6 w-6 text-red-400" />
+                ) : (
+                  <UserX className="h-6 w-6 text-amber-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-1">
+                  {confirmAction.type === "delete" ? "Delete Client?" : "Mark as Inactive?"}
+                </h3>
+                <p className="text-sm text-zinc-400">
+                  {confirmAction.type === "delete" 
+                    ? `Are you sure you want to permanently delete ${confirmAction.clientName}? This will remove all their data including diet plans, check-ins, and progress. This action cannot be undone.`
+                    : `Are you sure you want to mark ${confirmAction.clientName} as inactive? They will no longer appear in your active clients list.`
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                variant="secondary" 
+                className="flex-1" 
+                onClick={() => setConfirmAction(null)}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant={confirmAction.type === "delete" ? "default" : "gold"}
+                className={cn("flex-1", confirmAction.type === "delete" && "bg-red-500 hover:bg-red-600 text-white")}
+                onClick={confirmAction.type === "delete" ? handleDelete : handleMarkInactive}
+                disabled={actionLoading}
+              >
+                {actionLoading ? "Processing..." : confirmAction.type === "delete" ? "Delete" : "Mark Inactive"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

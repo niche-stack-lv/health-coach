@@ -1,8 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { mockDietPlans, mockWorkoutPlan, mockMeasurements, mockHabits, type WorkoutDay, type BodyMeasurement, type Habit, type HabitLog } from "./mock-data";
-import type { DietPlan } from "@/types";
+import { mockWorkoutPlan, mockMeasurements, mockHabits, type WorkoutDay, type BodyMeasurement, type Habit, type HabitLog } from "./mock-data";
 
 export interface StoredWorkoutPlan {
   id: string;
@@ -13,8 +12,6 @@ export interface StoredWorkoutPlan {
 }
 
 interface AppStore {
-  dietPlans: DietPlan[];
-  addDietPlan: (plan: DietPlan) => void;
   workoutPlans: StoredWorkoutPlan[];
   addWorkoutPlan: (plan: StoredWorkoutPlan) => void;
   measurements: Record<string, BodyMeasurement[]>;
@@ -29,7 +26,6 @@ interface AppStore {
 const StoreContext = createContext<AppStore | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [dietPlans, setDietPlans] = useState<DietPlan[]>(mockDietPlans);
   const [workoutPlans, setWorkoutPlans] = useState<StoredWorkoutPlan[]>([
     { id: "wp1", title: mockWorkoutPlan.title, clientId: mockWorkoutPlan.clientId, status: "active", days: mockWorkoutPlan.days },
   ]);
@@ -37,7 +33,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>(mockHabits);
   const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
 
-  const addDietPlan = (plan: DietPlan) => setDietPlans((prev) => [...prev, plan]);
   const addWorkoutPlan = (plan: StoredWorkoutPlan) => setWorkoutPlans((prev) => [...prev, plan]);
   const addMeasurement = (clientId: string, entry: BodyMeasurement) => {
     setMeasurements((prev) => ({ ...prev, [clientId]: [...(prev[clientId] || []), entry] }));
@@ -53,7 +48,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <StoreContext.Provider value={{ dietPlans, addDietPlan, workoutPlans, addWorkoutPlan, measurements, addMeasurement, habits, addHabit, removeHabit, habitLogs, toggleHabitLog }}>
+    <StoreContext.Provider value={{ workoutPlans, addWorkoutPlan, measurements, addMeasurement, habits, addHabit, removeHabit, habitLogs, toggleHabitLog }}>
       {children}
     </StoreContext.Provider>
   );

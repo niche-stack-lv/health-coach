@@ -193,9 +193,12 @@ export default function OnboardingPage() {
       cooking_comfort: cookingComfort,
       urgency,
     });
+    // Mark onboarding as completed
+    const { getSupabase } = await import("@/lib/supabase");
+    await getSupabase().from("clients").update({ onboarding_completed: true }).eq("id", user.id);
     setSaving(false);
     setDone(true);
-    setTimeout(() => router.push("/client"), 2000);
+    setTimeout(() => { window.location.href = "/client"; }, 2000);
   }
 
   if (done) {

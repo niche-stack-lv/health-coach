@@ -34,17 +34,21 @@ interface LocalDishItem {
 }
 
 const categoryOptions: { value: ComponentCategory; label: string }[] = [
-  { value: "carbohydrate", label: "Carbohydrate" },
   { value: "protein", label: "Protein" },
+  { value: "carbs", label: "Carbs" },
+  { value: "fats", label: "Fats" },
   { value: "fiber", label: "Fiber" },
   { value: "complete_meal", label: "Complete Meal" },
+  { value: "supplements", label: "Supplements" },
 ];
 
 const categoryColors: Record<ComponentCategory, string> = {
-  carbohydrate: "border-amber-500/40 bg-amber-500/10 text-amber-400",
   protein: "border-sky-500/40 bg-sky-500/10 text-sky-400",
+  carbs: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+  fats: "border-orange-500/40 bg-orange-500/10 text-orange-400",
   fiber: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
   complete_meal: "border-purple-500/40 bg-purple-500/10 text-purple-400",
+  supplements: "border-pink-500/40 bg-pink-500/10 text-pink-400",
 };
 
 const demoDish: Dish = {
@@ -52,7 +56,7 @@ const demoDish: Dish = {
   coachId: "demo",
   name: "Overnight Oats",
   emoji: "🥣",
-  componentCategory: "carbohydrate",
+  componentCategory: "carbs",
   totalCalories: 380,
   totalProtein: 35,
   totalCarbs: 45,

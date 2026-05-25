@@ -49,7 +49,7 @@ interface LocalMealSlot {
 
 // ---- Constants ----
 
-const COMPONENT_CATEGORIES: ComponentCategory[] = ["carbohydrate", "protein", "fiber", "complete_meal"];
+const COMPONENT_CATEGORIES: ComponentCategory[] = ["protein", "carbs", "fats", "fiber", "complete_meal", "supplements"];
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
@@ -380,7 +380,7 @@ function CreatePlanPageInner() {
               coachId: user!.id,
               name: `${food.name} (${grams}g)`,
               emoji: food.emoji,
-              componentCategory: food.category === "carbs" ? "carbohydrate" : food.category === "fats" ? "fiber" : food.category === "supplements" ? "complete_meal" : food.category as any,
+              componentCategory: food.category as ComponentCategory,
               totalCalories: Math.round(food.per100g.calories * grams / 100),
               totalProtein: Math.round(food.per100g.protein * grams / 100),
               totalCarbs: Math.round(food.per100g.carbs * grams / 100),

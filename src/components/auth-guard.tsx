@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 
 function Spinner() {
@@ -37,43 +37,56 @@ function ClientGuardInner({ children }: { children: React.ReactNode }) {
   const { user, role, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const isDemo = searchParams.get("demo") === "true";
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [hasOnboarding, setHasOnboarding] = useState(true);
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const [gateChecked, setGateChecked] = useState(false);
+  const [allowed, setAllowed] = useState(true);
 
   useEffect(() => {
     if (isDemo || loading) return;
     if (!user || role !== "client") { router.replace("/login"); return; }
 
-    // Skip onboarding check if already on the onboarding page
-    if (pathname.includes("/client/onboarding")) {
-      setOnboardingChecked(true);
+    // Skip gate checks if already on the gate pages
+    if (pathname.includes("/client/change-password") || pathname.includes("/client/onboarding")) {
+      setGateChecked(true);
       return;
     }
 
-    import("@/lib/db").then(({ getOnboarding }) => {
-      getOnboarding(user.id).then((data) => {
-        if (!data) {
-          setHasOnboarding(false);
-          router.replace("/client/onboarding");
+    // Check password_changed and onboarding_completed
+    (async () => {
+      try {
+        const { getSupabase } = await import("@/lib/supabase");
+        const sb = getSupabase();
+        const { data } = await sb.from("clients").select("password_changed, onboarding_completed").eq("id", user.id).single();
+        
+        if (data && !data.password_changed) {
+          setAllowed(false);
+          router.replace("/client/change-password");
+        } else if (data && !data.onboarding_completed) {
+          const { getOnboarding } = await import("@/lib/db");
+          const onb = await getOnboarding(user.id);
+          if (!onb) {
+            setAllowed(false);
+            router.replace("/client/onboarding");
+          } else {
+            await sb.from("clients").update({ onboarding_completed: true }).eq("id", user.id);
+            setAllowed(true);
+          }
         } else {
-          setHasOnboarding(true);
+          setAllowed(true);
         }
-        setOnboardingChecked(true);
-      }).catch(() => {
-        // If the table doesn't exist yet or query fails, let them through
-        setHasOnboarding(true);
-        setOnboardingChecked(true);
-      });
-    });
+      } catch {
+        setAllowed(true);
+      }
+      setGateChecked(true);
+    })();
   }, [user, role, loading, router, isDemo, pathname]);
 
   if (isDemo) return <>{children}</>;
   if (loading) return <Spinner />;
   if (!user || role !== "client") return null;
-  if (!onboardingChecked) return <Spinner />;
-  if (!hasOnboarding && !pathname.includes("/client/onboarding")) return null;
+  if (!gateChecked) return <Spinner />;
+  if (!allowed) return null;
   return <>{children}</>;
 }
 

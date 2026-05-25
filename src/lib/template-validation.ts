@@ -4,14 +4,16 @@
  */
 
 // Local type definitions (will be imported from @/types after task 6.1)
-export type ComponentCategory = "carbohydrate" | "protein" | "fiber" | "complete_meal";
-export type PlanType = "veg" | "nonveg" | "low_carb_nonveg" | "intermittent_fasting";
+export type ComponentCategory = string;
+export type PlanType = string;
 
-const VALID_COMPONENT_CATEGORIES: ComponentCategory[] = [
-  "carbohydrate",
+const VALID_COMPONENT_CATEGORIES: string[] = [
   "protein",
+  "carbs",
+  "fats",
   "fiber",
   "complete_meal",
+  "supplements",
 ];
 
 export interface DishInput {
@@ -88,8 +90,8 @@ export function validateMealSlotCount(count: number): ValidationResult {
  * Returns true if categories match OR the dish category is 'complete_meal'.
  */
 export function validateComponentCategoryMatch(
-  dishCategory: ComponentCategory,
-  componentCategory: ComponentCategory
+  dishCategory: string,
+  componentCategory: string
 ): boolean {
   if (dishCategory === "complete_meal") {
     return true;
@@ -157,8 +159,8 @@ export function validateTemplateCompleteness(
  * - If categoryFilter is null/undefined, don't filter by category
  */
 export function filterDishes<
-  T extends { name: string; componentCategory: ComponentCategory },
->(dishes: T[], query: string | null | undefined, categoryFilter: ComponentCategory | null | undefined): T[] {
+  T extends { name: string; componentCategory: string },
+>(dishes: T[], query: string | null | undefined, categoryFilter: string | null | undefined): T[] {
   return dishes.filter((dish) => {
     // Filter by name if query is provided and non-empty
     if (query && query.trim().length > 0) {

@@ -1,9 +1,10 @@
 import { jsPDF } from "jspdf";
-import type { DietPlan } from "@/types";
 import type { WorkoutDay } from "./mock-data";
 import { config } from "./config";
 
-export function exportDietPlanPDF(plan: DietPlan, clientName: string) {
+// Legacy diet plan PDF export — kept for backward compatibility
+// Can be adapted for template-based plans in the future
+export function exportDietPlanPDF(plan: { title: string; weeks: number; startDate: string; endDate: string; meals: Array<{ name: string; time: string; items: string[]; calories?: number; protein?: number; carbs?: number; fat?: number }> }, clientName: string) {
   const doc = new jsPDF();
   const gold = config.colors.primaryRgb;
   const dark = [20, 20, 20] as const;

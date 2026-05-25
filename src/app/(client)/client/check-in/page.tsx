@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Camera, Upload, Scale, MessageSquare, Check } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,44 @@ function CheckInContent() {
   const [photos, setPhotos] = useState<Record<string, File | null>>({});
   const [uploading, setUploading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // Check if already submitted this week (Mon-Sun)
+  useEffect(() => {
+    if (isDemo) { setChecking(false); return; }
+    if (!user) return;
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon...
+    const diff = day === 0 ? 6 : day - 1; // days since Monday
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diff);
+    monday.setHours(0, 0, 0, 0);
+    const mondayStr = monday.toISOString().split("T")[0];
+
+    const sb = getSupabase();
+    sb.from("check_ins")
+      .select("id")
+      .eq("client_id", user.id)
+      .gte("date", mondayStr)
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) setAlreadySubmitted(true);
+        setChecking(false);
+      });
+  }, [user, isDemo]);
+
+  if (checking) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
+
+  if (alreadySubmitted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+        <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4"><Check className="h-8 w-8 text-emerald-400" /></div>
+        <h1 className="text-xl font-bold text-white">Already Submitted This Week</h1>
+        <p className="text-sm text-zinc-400 mt-2 max-w-xs">You&apos;ve already submitted your weekly check-in. Come back next Monday!</p>
+      </div>
+    );
+  }
 
   const handleFileChange = (type: string, file: File | null) => {
     setPhotos((p) => ({ ...p, [type]: file }));
@@ -50,6 +88,7 @@ function CheckInContent() {
     // Save check-in
     await sb.from("check_ins").insert({
       client_id: user.id,
+      date: new Date().toISOString().split("T")[0],
       weight: weight ? Number(weight) : null,
       notes: notes || null,
       photos: photoUrls,

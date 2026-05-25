@@ -21,12 +21,12 @@ export default function ClientDietPlanPage() {
 
 // Demo mock data
 const demoDishes: Dish[] = [
-  { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbohydrate", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, items: [], createdAt: "" },
-  { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbohydrate", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, items: [], createdAt: "" },
+  { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, items: [], createdAt: "" },
+  { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbs", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, items: [], createdAt: "" },
   { id: "d3", coachId: "demo", name: "Chicken Breast 150g", emoji: "🍗", componentCategory: "protein", totalCalories: 248, totalProtein: 46, totalCarbs: 0, totalFat: 5, items: [], createdAt: "" },
   { id: "d4", coachId: "demo", name: "Palak Paneer 60g", emoji: "🥬", componentCategory: "protein", totalCalories: 180, totalProtein: 12, totalCarbs: 6, totalFat: 12, items: [], createdAt: "" },
   { id: "d5", coachId: "demo", name: "Mixed Salad", emoji: "🥗", componentCategory: "fiber", totalCalories: 45, totalProtein: 2, totalCarbs: 8, totalFat: 1, items: [], createdAt: "" },
-  { id: "d6", coachId: "demo", name: "Brown Rice 150g", emoji: "🍚", componentCategory: "carbohydrate", totalCalories: 170, totalProtein: 4, totalCarbs: 36, totalFat: 1, items: [], createdAt: "" },
+  { id: "d6", coachId: "demo", name: "Brown Rice 150g", emoji: "🍚", componentCategory: "carbs", totalCalories: 170, totalProtein: 4, totalCarbs: 36, totalFat: 1, items: [], createdAt: "" },
 ];
 
 function buildDemoAssignment(): TemplateAssignment {
@@ -53,7 +53,7 @@ function buildDemoAssignment(): TemplateAssignment {
             {
               id: "comp-b-carb",
               slotId: "slot-breakfast",
-              componentCategory: "carbohydrate",
+              componentCategory: "carbs",
               sortOrder: 0,
               dishes: [
                 { id: "msd-1", componentId: "comp-b-carb", dishId: "d1", dish: demoDishes[0], sortOrder: 0 },
@@ -83,7 +83,7 @@ function buildDemoAssignment(): TemplateAssignment {
             {
               id: "comp-l-carb",
               slotId: "slot-lunch",
-              componentCategory: "carbohydrate",
+              componentCategory: "carbs",
               sortOrder: 1,
               dishes: [
                 { id: "msd-5", componentId: "comp-l-carb", dishId: "d6", dish: demoDishes[5], sortOrder: 0 },

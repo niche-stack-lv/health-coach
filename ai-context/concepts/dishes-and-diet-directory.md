@@ -30,10 +30,14 @@ A pre-defined recipe with fixed quantities. Each dish has:
 
 ### Component Category
 Every dish is tagged with one category indicating its nutritional role:
-- `carbohydrate` — rice, roti, tortillas, salads used as carb base
 - `protein` — paneer, chicken, dal, eggs, turkey
-- `fiber` — vegetables, fruits
+- `carbs` — rice, roti, tortillas, oats
+- `fats` — almonds, ghee, olive oil, peanut butter
+- `fiber` — vegetables, fruits, salads
 - `complete_meal` — overnight oats, smoothie, biryani (contains all macros, can go in any slot)
+- `supplements` — whey protein, protein bars, vitamins
+
+Categories are unified across both `dishes` and `foods` tables — same 6 values.
 
 ### Diet Template
 A hierarchical structure: template → days (1-7) → meal slots → components → dishes:
@@ -59,16 +63,19 @@ Daily record of what the client actually ate (merged with daily check-in):
 - Calculates adherence score (% of components where client picked a prescribed option)
 - Stored in `food_check_ins` table (replaces old `daily_check_ins`)
 
-## Database Tables (9 new tables)
+## Database Tables (11 tables)
 
 | Table | Purpose |
 |-------|---------|
-| `dishes` | Reusable recipes (coach_id, name, emoji, component_category, total macros) |
+| `dishes` | Reusable recipes (coach_id, name, emoji, component_category, total macros, manual_macros flag) |
 | `dish_items` | Food items within a dish (food_id or custom, grams) |
-| `diet_templates` | Plan templates (coach_id, name, plan_type) |
+| `dish_tags` | Custom tags for organizing dishes |
+| `dish_tag_links` | Many-to-many link between dishes and tags |
+| `plan_types` | Dynamic plan types (coach_id, name, is_default) — replaces hardcoded enum |
+| `diet_templates` | Plan templates (coach_id, name, plan_type as free text) |
 | `template_meal_slots` | Meal slots within a template (template_id, name, target_calories, is_skipped) |
-| `meal_slot_components` | Component positions within a slot (component_category) |
-| `meal_slot_dishes` | Dish alternatives within a component (dish_id) |
+| `meal_slot_components` | Component positions within a slot (component_category — 6 unified values) |
+| `meal_slot_dishes` | Dish OR food alternatives within a component (dish_id OR food_id + food_quantity) |
 | `template_assignments` | Links template to client (status: active/inactive) |
 | `food_check_ins` | Daily check-in record (macros, adherence_score, weight, notes, status, coach_feedback) |
 | `food_check_in_items` | Individual selections per component (dish_id, custom_name, custom_calories) |
@@ -123,15 +130,17 @@ Daily record of what the client actually ate (merged with daily check-in):
 - `src/types/index.ts` — TypeScript interfaces (Dish, DietTemplate, TemplateAssignment, FoodCheckIn, etc.)
 
 ### UI pages
-- `src/app/(coach)/coach/dishes/page.tsx` — dishes list
-- `src/app/(coach)/coach/dishes/[id]/page.tsx` — dish create/edit
-- `src/app/(coach)/coach/diet-templates/page.tsx` — templates list
-- `src/app/(coach)/coach/diet-templates/[id]/page.tsx` — template create/edit
+- `src/app/(coach)/coach/dishes/page.tsx` — Foods & Dishes page (tabs: Dishes / Foods with full CRUD)
+- `src/app/(coach)/coach/dishes/[id]/page.tsx` — dish create/edit (with manual macros toggle)
+- `src/app/(coach)/coach/diet-templates/page.tsx` — templates list (with plan type filter)
+- `src/app/(coach)/coach/diet-templates/[id]/page.tsx` — template create/edit (searchable plan type, food items in slots)
 - `src/app/(coach)/coach/diet-templates/assign/page.tsx` — assign template to client
 - `src/app/(coach)/coach/plans/create/page.tsx` — diet plan creation (2-step: details + meal builder with template pre-fill)
+- `src/app/(coach)/coach/plans/page.tsx` — assigned plans list (template assignments only)
+- `src/app/(coach)/coach/clients/[id]/page.tsx` — client detail (edit modal, weight from check-ins, weight graph)
 - `src/app/(coach)/coach/clients/[id]/adherence/page.tsx` — adherence view
-- `src/app/(client)/client/diet-plan/page.tsx` — client daily plan view
-- `src/app/(client)/client/food-check-in/page.tsx` — daily food check-in
+- `src/app/(client)/client/diet-plan/page.tsx` — client daily plan view (shows both dishes and food items)
+- `src/app/(client)/client/food-check-in/page.tsx` — daily food check-in (supports food items in selections)
 
 ### Shared components
 - `src/components/shared/meal-slot-view.tsx` — Shared meal slot renderer with mode prop (edit/view/select)

@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
-import { getDietPlans, getCoachAssignments } from "@/lib/db";
+import { getCoachAssignments } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 
@@ -22,12 +22,8 @@ export default function PlansPage() {
 
   async function loadPlans() {
     if (!user) return;
-    const [legacyPlans, assignments] = await Promise.all([
-      getDietPlans(user.id),
-      getCoachAssignments(user.id),
-    ]);
-    // Merge: show assignments as plans
-    // The latest assignment per client is "active", older ones are "inactive"
+    const assignments = await getCoachAssignments(user.id);
+    // Show assignments as plans
     const latestPerClient = new Map<string, string>();
     for (const a of assignments) {
       const clientId = a.clientId;
@@ -47,7 +43,7 @@ export default function PlansPage() {
       _templateId: a.templateId || a.template_id,
       _template: a.template,
     }));
-    setPlans([...assignmentPlans, ...legacyPlans]);
+    setPlans(assignmentPlans);
     setLoading(false);
   }
 

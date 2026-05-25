@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard, Users, UtensilsCrossed, Camera, CalendarCheck,
+  LayoutDashboard, Users, UtensilsCrossed,
   Dumbbell, Settings, Menu, X, LogOut, TrendingUp, CalendarDays,
 } from "lucide-react";
 
@@ -19,8 +19,6 @@ const navItems = [
   { href: "/coach/dishes", label: "Foods & Dishes", icon: UtensilsCrossed },
   { href: "/coach/diet-templates", label: "Diet Templates", icon: CalendarDays },
   { href: "/coach/workout-templates", label: "Workout Templates", icon: Dumbbell },
-  { href: "/coach/daily-check-ins", label: "Daily Log", icon: CalendarCheck },
-  { href: "/coach/check-ins", label: "Weekly", icon: Camera },
 ];
 
 export function CoachSidebar() {

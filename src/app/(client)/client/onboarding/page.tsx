@@ -187,7 +187,7 @@ export default function OnboardingPage() {
       weekend_routine: weekendRoutine,
       last_meal_sleep: lastMealSleep,
       energy_level: energyLevel,
-      coaching_style: coachingStyle,
+      coaching_style: coachingStyle.join(", "),
       biggest_struggle: biggestStruggle,
       daily_steps: dailySteps,
       cooking_comfort: cookingComfort,

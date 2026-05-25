@@ -58,6 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message };
     if (data.user) {
       await sb().from("profiles").insert({ id: data.user.id, email, name, role });
+      // If signing up as client, also create clients record with password_changed=true
+      if (role === "client") {
+        await sb().from("clients").insert({ 
+          id: data.user.id, 
+          password_changed: true, // They set their own password
+          onboarding_completed: false 
+        });
+      }
     }
     return { error: null };
   };

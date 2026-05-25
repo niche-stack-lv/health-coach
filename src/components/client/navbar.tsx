@@ -15,7 +15,7 @@ const navItems = [
   { href: "/client/workout", label: "Workout", icon: Flame },
   { href: "/client/check-in", label: "Weekly", icon: Camera },
   { href: "/client/measurements", label: "Body", icon: Ruler },
-  { href: "/client/faq", label: "Help", icon: HelpCircle },
+  { href: "/client/faq", label: "FAQs", icon: HelpCircle },
 ];
 
 function NavbarInner() {

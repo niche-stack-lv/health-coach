@@ -139,7 +139,7 @@ export default function OnboardingPage() {
   const [weekendRoutine, setWeekendRoutine] = useState("");
   const [lastMealSleep, setLastMealSleep] = useState("");
   const [energyLevel, setEnergyLevel] = useState("");
-  const [coachingStyle, setCoachingStyle] = useState("");
+  const [coachingStyle, setCoachingStyle] = useState<string[]>([]);
   const [biggestStruggle, setBiggestStruggle] = useState("");
   const [dailySteps, setDailySteps] = useState("");
   const [cookingComfort, setCookingComfort] = useState("");
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
       weekend_routine: weekendRoutine,
       last_meal_sleep: lastMealSleep,
       energy_level: energyLevel,
-      coaching_style: coachingStyle,
+      coaching_style: coachingStyle.join(", "),
       biggest_struggle: biggestStruggle,
       daily_steps: dailySteps,
       cooking_comfort: cookingComfort,
@@ -350,7 +350,7 @@ export default function OnboardingPage() {
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-2">Fruits you enjoy (pick 5)</label>
-              <ChipSelect options={["Apples", "Oranges", "Strawberries", "Blueberries", "Bananas", "Watermelon", "Cantaloupe", "Pears", "Peaches", "Kiwi"]} selected={fruits} onChange={setFruits} columns={3} />
+              <ChipSelect options={["Apples", "Oranges", "Strawberries", "Blueberries", "Bananas", "Watermelon", "Cantaloupe", "Pears", "Peaches", "Kiwi", "Pineapple"]} selected={fruits} onChange={setFruits} columns={3} />
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-2">Snack preference?</label>
@@ -401,7 +401,7 @@ export default function OnboardingPage() {
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-2">Breakfast person?</label>
-              <RadioSelect options={["Need breakfast", "Can do IF", "Flexible"]} value={breakfastPerson} onChange={setBreakfastPerson} columns={3} />
+              <RadioSelect options={["Need breakfast", "Can do Intermittent Fasting"]} value={breakfastPerson} onChange={setBreakfastPerson} columns={2} />
             </div>
           </Card>
         )}
@@ -415,8 +415,8 @@ export default function OnboardingPage() {
               <textarea value={weightHistory} onChange={e => setWeightHistory(e.target.value)} placeholder="Describe your weight journey..." className={textareaClass} />
             </div>
             <div>
-              <label className="block text-xs text-zinc-400 mb-2">What coaching style works best?</label>
-              <RadioSelect options={["Strict accountability", "Flexible guidance", "Just a clear plan"]} value={coachingStyle} onChange={setCoachingStyle} />
+              <label className="block text-xs text-zinc-400 mb-2">What coaching style works best? (select all that apply)</label>
+              <ChipSelect options={["Strict accountability", "Flexible guidance", "Just a clear plan"]} selected={coachingStyle} onChange={setCoachingStyle} columns={3} />
             </div>
             <div>
               <label className="block text-xs text-zinc-400 mb-1">Biggest reason you haven&apos;t achieved your goal yet?</label>
@@ -431,7 +431,7 @@ export default function OnboardingPage() {
               <textarea value={urgency} onChange={e => setUrgency(e.target.value)} placeholder="Marriage, event, health scare, just ready..." className={textareaClass} />
             </div>
             <div>
-              <label className="block text-xs text-zinc-400 mb-1">Vacation/holiday plans?</label>
+              <label className="block text-xs text-zinc-400 mb-1">Vacation/holiday plans (in next 6 months)?</label>
               <input value={vacationPlans} onChange={e => setVacationPlans(e.target.value)} placeholder="Any upcoming trips or events?" className={inputClass} />
             </div>
             <div>

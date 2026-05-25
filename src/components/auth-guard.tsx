@@ -53,37 +53,33 @@ function ClientGuardInner({ children }: { children: React.ReactNode }) {
     }
 
     // Check password_changed and onboarding_completed
-    import("@/lib/supabase").then(({ getSupabase }) => {
-      const sb = getSupabase();
-      sb.from("clients").select("password_changed, onboarding_completed").eq("id", user.id).single().then(({ data }) => {
+    (async () => {
+      try {
+        const { getSupabase } = await import("@/lib/supabase");
+        const sb = getSupabase();
+        const { data } = await sb.from("clients").select("password_changed, onboarding_completed").eq("id", user.id).single();
+        
         if (data && !data.password_changed) {
           setAllowed(false);
           router.replace("/client/change-password");
         } else if (data && !data.onboarding_completed) {
-          // Check if onboarding exists (might have been completed before this column was added)
-          import("@/lib/db").then(({ getOnboarding }) => {
-            getOnboarding(user.id).then((onb) => {
-              if (!onb) {
-                setAllowed(false);
-                router.replace("/client/onboarding");
-              } else {
-                // Onboarding exists, mark as completed
-                sb.from("clients").update({ onboarding_completed: true }).eq("id", user.id);
-                setAllowed(true);
-              }
-              setGateChecked(true);
-            });
-          });
-          return;
+          const { getOnboarding } = await import("@/lib/db");
+          const onb = await getOnboarding(user.id);
+          if (!onb) {
+            setAllowed(false);
+            router.replace("/client/onboarding");
+          } else {
+            await sb.from("clients").update({ onboarding_completed: true }).eq("id", user.id);
+            setAllowed(true);
+          }
         } else {
           setAllowed(true);
         }
-        setGateChecked(true);
-      }).catch(() => {
+      } catch {
         setAllowed(true);
-        setGateChecked(true);
-      });
-    });
+      }
+      setGateChecked(true);
+    })();
   }, [user, role, loading, router, isDemo, pathname]);
 
   if (isDemo) return <>{children}</>;

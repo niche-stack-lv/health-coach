@@ -48,10 +48,10 @@ export interface WeightEntry {
 }
 
 // Component categories for dishes and foods (unified)
-export type ComponentCategory = "protein" | "carbs" | "fats" | "fiber" | "complete_meal" | "supplements";
+export type ComponentCategory = string;
 
-// Diet plan template types
-export type PlanType = "veg" | "nonveg" | "low_carb_nonveg" | "intermittent_fasting";
+// Diet plan template types (dynamic — coaches can create custom plan types)
+export type PlanType = string;
 
 // A food item within a dish (standard or custom)
 export interface DishItem {

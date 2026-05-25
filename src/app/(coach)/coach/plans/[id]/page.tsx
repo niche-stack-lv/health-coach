@@ -54,7 +54,7 @@ export default function PlanDetailPage() {
     getFoods().then((data) => {
       setFoodDatabase(data.map((f: any) => ({
         id: f.id, name: f.name, category: f.category, emoji: f.emoji || "🍽️",
-        unit: f.unit || undefined, gramsPerUnit: f.grams_per_unit || undefined,
+        unit: f.unit || undefined, gramsPerUnit: f.gramsPerUnit || undefined,
         per100g: { calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat },
       })));
     });

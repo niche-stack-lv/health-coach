@@ -51,4 +51,4 @@ The public-facing pricing page and enquiry form capture leads (prospective clien
 - `src/app/(coach)/coach/leads/page.tsx` — leads management
 - `src/lib/db.ts` — `saveLead`, `getLeads`, `updateLeadStatus`
 - `src/lib/confirmation-pdf.ts` — branded PDF generation
-- `supabase-leads.sql` — leads table schema
+- `supabase/migrations/20250428000000_initial_schema.sql` — leads table schema

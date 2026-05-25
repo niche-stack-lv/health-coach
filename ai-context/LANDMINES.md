@@ -105,3 +105,63 @@
 ## 17. Editor UIs Must Show All Possible Options Even If DB Has Fewer
 **Rule:** When loading data from DB into an editor form, always ensure all possible options/categories are represented in the local state — even if the DB record only has some. Otherwise the user can't add to missing categories. Fill in empty defaults for anything not in the DB response.
 **Status:** ⚠️ Applies to any editor that loads partial data and needs to allow additions.
+
+## 18. food_check_ins Schema Drift — Missing Columns in Migration
+**Location:** `supabase/migrations/20250507000000_dishes_and_diet_directory.sql`, `src/lib/db.ts`
+**What breaks:** The original `food_check_ins` migration only creates basic columns (id, client_id, assignment_id, date, totals, adherence_score). The live DB has additional columns that were added directly: `weight`, `status`, `notes`, `coach_feedback`, `water_litres`, `steps`, `sleep_hours`, `energy_level`, `mood`. Also `food_check_in_items` is missing `custom_name` and `custom_calories`. A fresh `supabase db push` will fail at runtime when db.ts tries to insert/read these columns.
+**Correct handling:** Before using a fresh Supabase project, run the catch-up migration below manually (or add a new migration file):
+```sql
+ALTER TABLE food_check_ins
+  ADD COLUMN IF NOT EXISTS weight numeric,
+  ADD COLUMN IF NOT EXISTS status text DEFAULT 'submitted',
+  ADD COLUMN IF NOT EXISTS notes text,
+  ADD COLUMN IF NOT EXISTS coach_feedback text,
+  ADD COLUMN IF NOT EXISTS water_litres numeric,
+  ADD COLUMN IF NOT EXISTS steps integer,
+  ADD COLUMN IF NOT EXISTS sleep_hours numeric,
+  ADD COLUMN IF NOT EXISTS energy_level integer,
+  ADD COLUMN IF NOT EXISTS mood text;
+
+ALTER TABLE food_check_in_items
+  ADD COLUMN IF NOT EXISTS custom_name text,
+  ADD COLUMN IF NOT EXISTS custom_calories numeric;
+```
+**Status:** ⚠️ CRITICAL — migration out of sync with live DB.
+
+## 19. template_meal_slots Schema Drift — Day ID vs Template ID
+**Location:** `supabase/migrations/20250507000000_dishes_and_diet_directory.sql`, `src/lib/db.ts`
+**What breaks:** The migration creates `template_meal_slots.day_id → template_days`, but the code queries `template_meal_slots` nested under `diet_templates` directly (via `TEMPLATE_NESTED_SELECT`). This requires a direct `template_id` FK on `template_meal_slots`. The live DB was altered to add this, but the migration file was not updated. A fresh `supabase db push` creates the wrong schema — the `TEMPLATE_NESTED_SELECT` query returns no meal slots.
+**Correct handling:** After `supabase db push`, run:
+```sql
+ALTER TABLE template_meal_slots
+  ADD COLUMN IF NOT EXISTS template_id uuid REFERENCES diet_templates(id) ON DELETE CASCADE;
+-- then backfill from template_days:
+UPDATE template_meal_slots tms
+SET template_id = td.template_id
+FROM template_days td
+WHERE td.id = tms.day_id;
+```
+**Status:** ⚠️ CRITICAL — migration out of sync with live DB.
+
+## 20. Zombie Tables in Migration — workout_plans, workout_days, daily_check_ins
+**Location:** `supabase/migrations/`
+**What breaks:** Three tables exist in migrations but are never used by any code in `src/`:
+- `workout_plans` + `workout_days` (initial schema) — replaced by workout_templates system
+- `daily_check_ins` (20250506000002) — replaced by food_check_ins
+These tables exist on every Supabase project but hold no data and waste RLS policy processing.
+**Correct handling:** If setting up a new project, skip these tables or drop them after migration:
+```sql
+DROP TABLE IF EXISTS workout_days;
+DROP TABLE IF EXISTS workout_plans;
+DROP TABLE IF EXISTS daily_check_ins;
+```
+**Status:** ⚠️ Waste space but cause no runtime errors.
+
+## 21. habits table has NO unit column
+**Location:** `src/app/(client)/client/habits/page.tsx`, `supabase/migrations/20250428000000_initial_schema.sql`
+**What breaks:** The habits page checks `habit.unit` to decide whether to show a value input (e.g., "2.5L" for water habits). Demo mode uses hardcoded habits WITH a `unit` field. But the real `habits` table has no `unit` column — it only has: id, created_at, coach_id, client_id, name, emoji, target. Real habits will always have `habit.unit === undefined`, so value inputs never show for real data.
+**Correct handling:** To enable unit tracking for real data, create a migration:
+```sql
+ALTER TABLE habits ADD COLUMN IF NOT EXISTS unit text; -- e.g. 'L', 'steps', 'hrs'
+```
+**Status:** ⚠️ Feature gap — works in demo, silently absent in production.

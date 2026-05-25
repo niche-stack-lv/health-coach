@@ -87,6 +87,11 @@ function DishEditPageInner() {
   const [newTagName, setNewTagName] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [items, setItems] = useState<LocalDishItem[]>([]);
+  const [manualMacros, setManualMacros] = useState(false);
+  const [manualCalories, setManualCalories] = useState(0);
+  const [manualProtein, setManualProtein] = useState(0);
+  const [manualCarbs, setManualCarbs] = useState(0);
+  const [manualFat, setManualFat] = useState(0);
   const [loading, setLoading] = useState(!isCreateMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -132,6 +137,11 @@ function DishEditPageInner() {
     setDescription(dish.description || "");
     setMealSize((dish.mealSize as any) || "");
     setImageUrl(dish.imageUrl || "");
+    setManualMacros(dish.manualMacros || false);
+    setManualCalories(dish.totalCalories);
+    setManualProtein(dish.totalProtein);
+    setManualCarbs(dish.totalCarbs);
+    setManualFat(dish.totalFat);
     setSelectedTagIds((dish.tags || []).map((t) => t.id));
     setItems(
       dish.items.map((item) => {
@@ -167,7 +177,7 @@ function DishEditPageInner() {
   function validate(): boolean {
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = "Dish name is required";
-    if (items.length === 0) newErrors.items = "Add at least one food item";
+    if (!manualMacros && items.length === 0) newErrors.items = "Add at least one food item";
     if (!componentCategory) newErrors.category = "Select a component category";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -187,11 +197,12 @@ function DishEditPageInner() {
       description: description.trim() || undefined,
       imageUrl: imageUrl.trim() || undefined,
       mealSize: (mealSize || undefined) as "small" | "medium" | "large" | undefined,
-      totalCalories: macroTotals.calories,
-      totalProtein: macroTotals.protein,
-      totalCarbs: macroTotals.carbs,
-      totalFat: macroTotals.fat,
-      items: items.map((item, idx) => {
+      manualMacros,
+      totalCalories: manualMacros ? manualCalories : macroTotals.calories,
+      totalProtein: manualMacros ? manualProtein : macroTotals.protein,
+      totalCarbs: manualMacros ? manualCarbs : macroTotals.carbs,
+      totalFat: manualMacros ? manualFat : macroTotals.fat,
+      items: manualMacros ? [] : items.map((item, idx) => {
         // Static food database items have short IDs like "c2", "p1" — not valid UUIDs
         // Treat them as custom items with inline macros
         const isStaticFood = item.foodId && item.foodId.length < 36;
@@ -544,19 +555,87 @@ function DishEditPageInner() {
 
       {/* Food Items */}
       <Card className="p-5 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <label className="text-xs text-zinc-500">Food Items</label>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setShowCustomForm(true)}>
-              <Plus className="h-3 w-3" /> Custom
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setShowFoodPicker(true)}>
-              <Plus className="h-3 w-3" /> Add Food
-            </Button>
+        {/* Manual Macros Toggle */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <label className="text-xs text-zinc-500">Macro Entry Mode</label>
+            <p className="text-[10px] text-zinc-600 mt-0.5">
+              {manualMacros ? "Enter total macros directly" : "Calculate from food items"}
+            </p>
           </div>
+          <button
+            onClick={() => setManualMacros(!manualMacros)}
+            className={cn(
+              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+              manualMacros ? "bg-gold" : "bg-zinc-700"
+            )}
+          >
+            <span className={cn(
+              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+              manualMacros ? "translate-x-6" : "translate-x-1"
+            )} />
+          </button>
         </div>
 
-        {errors.items && <p className="text-xs text-red-400 mb-2">{errors.items}</p>}
+        {manualMacros ? (
+          /* Manual macro inputs */
+          <div>
+            <label className="block text-xs text-zinc-500 mb-2">Total Macros</label>
+            <div className="grid grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Calories</label>
+                <input
+                  type="number"
+                  value={manualCalories}
+                  onChange={(e) => setManualCalories(parseFloat(e.target.value) || 0)}
+                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Protein (g)</label>
+                <input
+                  type="number"
+                  value={manualProtein}
+                  onChange={(e) => setManualProtein(parseFloat(e.target.value) || 0)}
+                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Carbs (g)</label>
+                <input
+                  type="number"
+                  value={manualCarbs}
+                  onChange={(e) => setManualCarbs(parseFloat(e.target.value) || 0)}
+                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Fat (g)</label>
+                <input
+                  type="number"
+                  value={manualFat}
+                  onChange={(e) => setManualFat(parseFloat(e.target.value) || 0)}
+                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Food items list */
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xs text-zinc-500">Food Items</label>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setShowCustomForm(true)}>
+                  <Plus className="h-3 w-3" /> Custom
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setShowFoodPicker(true)}>
+                  <Plus className="h-3 w-3" /> Add Food
+                </Button>
+              </div>
+            </div>
+
+            {errors.items && <p className="text-xs text-red-400 mb-2">{errors.items}</p>}
 
         {items.length === 0 ? (
           <p className="text-sm text-zinc-600 text-center py-6">No food items added yet</p>
@@ -608,10 +687,12 @@ function DishEditPageInner() {
             })}
           </div>
         )}
+          </div>
+        )}
       </Card>
 
       {/* Macro Totals */}
-      {items.length > 0 && (
+      {!manualMacros && items.length > 0 && (
         <Card className="p-5 mb-6">
           <label className="block text-xs text-zinc-500 mb-2">Total Macros</label>
           <div className="grid grid-cols-4 gap-3">
@@ -709,6 +790,7 @@ function CustomItemModal({ onAdd, onClose }: {
   const [carbs, setCarbs] = useState(0);
   const [fat, setFat] = useState(0);
   const [grams, setGrams] = useState(100);
+  const [unit, setUnit] = useState("");
   const [error, setError] = useState("");
 
   function handleSubmit() {
@@ -754,7 +836,7 @@ function CustomItemModal({ onAdd, onClose }: {
 
           {error && <p className="text-xs text-red-400">{error}</p>}
 
-          <p className="text-[11px] text-zinc-500 pt-1">Macros per 100g</p>
+          <p className="text-[11px] text-zinc-500 pt-1">Macros per serving</p>
           <div className="grid grid-cols-4 gap-2">
             <NumberInput label="Calories" value={calories} onChange={setCalories} />
             <NumberInput label="Protein" value={protein} onChange={setProtein} />
@@ -762,14 +844,26 @@ function CustomItemModal({ onAdd, onClose }: {
             <NumberInput label="Fat" value={fat} onChange={setFat} />
           </div>
 
-          <div>
-            <label className="block text-[11px] text-zinc-500 mb-1">Amount (grams)</label>
-            <input
-              type="number"
-              value={grams}
-              onChange={(e) => setGrams(parseFloat(e.target.value) || 0)}
-              className="w-24 h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] text-zinc-500 mb-1">Serving unit</label>
+              <input
+                type="text"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="e.g. 1 chapati, 200g, 1 cup"
+                className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-zinc-500 mb-1">Grams per serving</label>
+              <input
+                type="number"
+                value={grams}
+                onChange={(e) => setGrams(parseFloat(e.target.value) || 0)}
+                className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+              />
+            </div>
           </div>
 
           <Button variant="gold" size="md" className="w-full mt-2" onClick={handleSubmit}>

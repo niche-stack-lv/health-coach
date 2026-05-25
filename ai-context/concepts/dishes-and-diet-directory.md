@@ -8,10 +8,16 @@ A composable nutrition system where coaches build reusable **dishes** (recipes),
 ```
 Food Items (static food-database.ts or custom)
     → Dishes (reusable recipes with fixed quantities + macros)
-        → Diet Templates (flat list of meal slots, same every day)
+        → Diet Templates
+            → Template Days (7 rows per template, day_number 1-7)
+                → Template Meal Slots (Breakfast, Lunch, etc.)
+                    → Meal Slot Components (carb, protein, fiber, complete_meal)
+                        → Meal Slot Dishes (dish alternatives per component)
             → Template Assignments (one active per client)
                 → Food Check-ins (daily meal logging by client)
 ```
+
+**IMPORTANT — Schema vs. Code divergence:** The migration schema has `template_days` as an intermediate table between `diet_templates` and `template_meal_slots`. However, the live DB was modified directly to also add a `template_id` column to `template_meal_slots`, and the code queries slots directly from templates (skipping `template_days` in the query). See the Gotchas section for full details.
 
 ## Key Concepts
 
@@ -30,13 +36,13 @@ Every dish is tagged with one category indicating its nutritional role:
 - `complete_meal` — overnight oats, smoothie, biryani (contains all macros, can go in any slot)
 
 ### Diet Template
-A flat structure with a list of meal slots (same every day):
-- Has 1-6 meal slots (Breakfast, Lunch, Snack, Dinner, etc.)
+A hierarchical structure: template → days (1-7) → meal slots → components → dishes:
+- Has 1-6 meal slots per day (Breakfast, Lunch, Snack, Dinner, etc.)
 - Each slot has component positions (carb, protein, fiber)
 - Each component can have multiple alternative dishes (client picks one)
 - Plan types: `veg`, `nonveg`, `low_carb_nonveg`, `intermittent_fasting`
 - IF plans can mark slots as "skipped" (no breakfast)
-- No day-of-week structure — same meals every day
+- The migration schema has a `template_days` intermediate table (7 rows per template, day_number 1-7). However, in practice the code treats templates as flat by always inserting slots for day 1 only or referencing a `day_id` directly — the multi-day structure is not actively used in the UI.
 
 ### Template Assignment
 Simple one-to-one link: coach assigns a template to a client.
@@ -147,8 +153,11 @@ Daily record of what the client actually ate (merged with daily check-in):
 - `food_check_ins` has a unique constraint on `(client_id, date)` — one check-in per day, upsert pattern
 - Demo mode (`?demo=true`) uses hardcoded mock data on all new pages — no Supabase calls
 - The `complete_meal` category dishes only show in the COMPLETE row picker (strict category matching)
-- `template_meal_slots` references `diet_templates` directly via `template_id` (no intermediate `template_days` table)
-- Templates are flat (same meals every day) — no day-of-week structure
+- **LANDMINE #19 — template_meal_slots schema drift:** The `template_days` table EXISTS in the migration schema between `diet_templates` and `template_meal_slots`. However, the live DB was modified directly to add a `template_id` column to `template_meal_slots` as well, allowing the code to query slots directly from templates. The migration file does NOT reflect this live DB change. This means:
+  - A fresh `supabase db push` will create a schema where the nested select in `TEMPLATE_NESTED_SELECT` will NOT work
+  - Before deploying to a new Supabase project, you must run a manual ALTER to add `template_id` directly to `template_meal_slots`
+  - See LANDMINES.md #19 for the migration SQL needed
+- The template UI currently treats templates as flat (inserting slots for day 1 only) even though the schema has a 7-day structure via `template_days`
 - The template editor always shows all 4 component categories (CARB, PROTEIN, FIBER, COMPLETE) even if empty in the DB
 - `food_check_in_items.slot_id` and `component_id` are nullable with ON DELETE SET NULL
 - "Other" selections store `custom_name` and `custom_calories` on the check-in item

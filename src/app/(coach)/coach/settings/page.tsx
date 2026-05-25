@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getProfile, updateProfile, getFoods, createFood, deleteFood, getExercises, createExercise, deleteExercise } from "@/lib/db";
 import { Check, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Food } from "@/types";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gold/50";
 const smallInputClass = "rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gold/50";
@@ -95,7 +96,7 @@ function ProfileTab({ user }: { user: { id: string } | null }) {
 
 // ─── FOODS TAB ─────────────────────────────────────────────────
 function FoodsTab() {
-  const [foods, setFoods] = useState<Array<{ id: string; name: string; category: string; emoji: string; unit: string | null; grams_per_unit: number | null; calories: number; protein: number; carbs: number; fat: number; is_default: boolean }>>([]);
+  const [foods, setFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [filter, setFilter] = useState<string>("all");
@@ -144,13 +145,13 @@ function FoodsTab() {
               <p className="text-sm font-medium text-white truncate">{food.name}</p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
                 {food.calories}cal · {food.protein}p · {food.carbs}c · {food.fat}f per 100g
-                {food.unit && ` · 1 ${food.unit} = ${food.grams_per_unit}g`}
+                {food.unit && ` · 1 ${food.unit} = ${food.gramsPerUnit}g`}
               </p>
             </div>
             <span className="text-[9px] uppercase tracking-wider text-zinc-600 border border-white/[0.06] rounded px-2 py-0.5">
               {food.category}
             </span>
-            {!food.is_default && (
+            {!food.isDefault && (
               <button onClick={() => handleDelete(food.id)} className="text-zinc-600 hover:text-red-400 transition-colors p-1">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

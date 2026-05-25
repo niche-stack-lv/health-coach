@@ -16,7 +16,7 @@ const navItems = [
   { href: "/coach", label: "Dashboard", icon: LayoutDashboard },
   { href: "/coach/leads", label: "Leads", icon: TrendingUp },
   { href: "/coach/clients", label: "Clients", icon: Users },
-  { href: "/coach/dishes", label: "Dishes", icon: UtensilsCrossed },
+  { href: "/coach/dishes", label: "Foods & Dishes", icon: UtensilsCrossed },
   { href: "/coach/diet-templates", label: "Diet Templates", icon: CalendarDays },
   { href: "/coach/workout-templates", label: "Workout Templates", icon: Dumbbell },
   { href: "/coach/daily-check-ins", label: "Daily Log", icon: CalendarCheck },

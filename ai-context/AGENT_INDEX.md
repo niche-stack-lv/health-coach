@@ -6,6 +6,7 @@
 - `ai-context/coding-standards/correct-patterns.md` — how this codebase does things
 - `ai-context/coding-standards/anti-patterns.md` — what NOT to do
 - `ai-context/TEST_FLOWS.md` — manual QA checklist (26 flows) — run after any change
+- `ai-context/BUILD_WORKFLOW.md` — 6-step build loop for any new feature, page, or DB operation
 
 ## Load by topic
 

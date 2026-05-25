@@ -101,6 +101,7 @@ export interface Dish {
   description?: string | null;
   imageUrl?: string | null;
   mealSize?: "small" | "medium" | "large" | null;
+  manualMacros?: boolean;
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -108,6 +109,22 @@ export interface Dish {
   items: DishItem[];
   tags?: DishTag[];
   createdAt: string;
+}
+
+// A food item from the foods table
+export interface Food {
+  id: string;
+  name: string;
+  category: string;
+  emoji: string;
+  unit?: string | null;
+  gramsPerUnit?: number | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  isDefault: boolean;
+  createdAt?: string;
 }
 
 // Custom tag for organizing dishes
@@ -153,8 +170,11 @@ export interface MealSlotComponent {
 export interface MealSlotDish {
   id: string;
   componentId: string;
-  dishId: string;
-  dish?: Dish;                 // populated on read
+  dishId?: string | null;
+  dish?: Dish;                 // populated on read (when dishId is set)
+  foodId?: string | null;
+  food?: Food;                 // populated on read (when foodId is set)
+  foodQuantity?: number | null;
   mealSize?: "small" | "medium" | "large" | null;
   sortOrder: number;
 }

@@ -103,7 +103,7 @@ function FoodCheckInPageInner() {
       const demoSelections: Record<string, string> = {};
       for (const slot of slots) {
         for (const comp of slot.components) {
-          if (comp.dishes.length > 0) {
+          if (comp.dishes.length > 0 && comp.dishes[0].dishId) {
             demoSelections[comp.id] = comp.dishes[0].dishId;
           }
         }
@@ -209,7 +209,7 @@ function FoodCheckInPageInner() {
       slot.components.map((comp) => ({
         componentId: comp.id,
         slotId: slot.id,
-        prescribedDishIds: comp.dishes.map((d) => d.dishId),
+        prescribedDishIds: comp.dishes.map((d) => d.dishId).filter(Boolean) as string[],
       }))
     );
 

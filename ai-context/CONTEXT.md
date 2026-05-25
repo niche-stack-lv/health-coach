@@ -137,7 +137,7 @@ No test framework is set up. No tests exist.
 │   │           ├── habits/       # Daily habit checklist with toggle
 │   │           ├── measurements/ # Log & chart body measurements
 │   │           ├── check-in/     # Submit weekly check-in (photos, weight, notes)
-│   │           ├── onboarding/   # 7-step onboarding questionnaire (40 questions)
+│   │           ├── onboarding/   # 7-step onboarding questionnaire (~21 fields)
 │   │           └── profile/      # View profile, onboarding summary, sign out
 │   ├── components/
 │   │   ├── providers.tsx         # AuthProvider + StoreProvider wrapper
@@ -236,7 +236,7 @@ CLIENT_ID env var
 - Food database and exercise database are static TypeScript arrays — not in the DB.
 - Old `daily_check_ins`, `diet_plans`, `diet_meals`, `workout_plans`, `workout_days` tables are deprecated/dropped.
 - The active system uses: dishes → diet_templates → template_assignments → food_check_ins.
-- Client onboarding questionnaire (40 questions) stored in `client_onboarding` table with individual typed columns.
+- Client onboarding questionnaire (~21 fields) stored in `client_onboarding` table with individual typed columns.
 
 ## Key constants and enums
 

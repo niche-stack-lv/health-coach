@@ -274,14 +274,27 @@ export async function getCheckInPhotoUrls(paths: string[]): Promise<string[]> {
 }
 
 // ---- Foods ----
-export async function getFoods() {
+export async function getFoods(): Promise<import("@/types").Food[]> {
   const sb = getSupabase();
   const { data } = await sb
     .from("foods")
     .select("*")
     .order("category")
     .order("name");
-  return data || [];
+  return (data || []).map((row: any) => ({
+    id: row.id as string,
+    name: row.name as string,
+    category: row.category as string,
+    emoji: row.emoji as string,
+    unit: (row.unit as string | null) || null,
+    gramsPerUnit: (row.grams_per_unit as number | null) || null,
+    calories: row.calories as number,
+    protein: row.protein as number,
+    carbs: row.carbs as number,
+    fat: row.fat as number,
+    isDefault: (row.is_default ?? true) as boolean,
+    createdAt: row.created_at as string,
+  }));
 }
 
 export async function createFood(food: {
@@ -588,6 +601,7 @@ function mapDishRow(row: any): Dish {
     description: row.description,
     imageUrl: row.image_url,
     mealSize: row.meal_size,
+    manualMacros: row.manual_macros || false,
     totalCalories: row.total_calories,
     totalProtein: row.total_protein,
     totalCarbs: row.total_carbs,
@@ -673,6 +687,7 @@ export async function createDish(input: {
   description?: string;
   imageUrl?: string;
   mealSize?: "small" | "medium" | "large";
+  manualMacros?: boolean;
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -701,6 +716,7 @@ export async function createDish(input: {
       description: input.description || null,
       image_url: input.imageUrl || null,
       meal_size: input.mealSize || null,
+      manual_macros: input.manualMacros || false,
       total_calories: input.totalCalories,
       total_protein: input.totalProtein,
       total_carbs: input.totalCarbs,
@@ -744,6 +760,7 @@ export async function updateDish(dishId: string, input: {
   description?: string;
   imageUrl?: string;
   mealSize?: "small" | "medium" | "large";
+  manualMacros?: boolean;
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -770,6 +787,7 @@ export async function updateDish(dishId: string, input: {
       description: input.description || null,
       image_url: input.imageUrl || null,
       meal_size: input.mealSize || null,
+      manual_macros: input.manualMacros || false,
       total_calories: input.totalCalories,
       total_protein: input.totalProtein,
       total_carbs: input.totalCarbs,
@@ -845,14 +863,62 @@ export async function getDishReferences(dishId: string): Promise<{ templateName:
 }
 
 
+// ---- Plan Types ----
+
+export async function getPlanTypes(coachId: string): Promise<{ id: string; name: string; isDefault: boolean }[]> {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from("plan_types")
+    .select("*")
+    .or(`coach_id.eq.${coachId},is_default.eq.true`)
+    .order("is_default", { ascending: false })
+    .order("name");
+  return (data || []).map((row: any) => ({
+    id: row.id as string,
+    name: row.name as string,
+    isDefault: row.is_default as boolean,
+  }));
+}
+
+export async function createPlanType(coachId: string, name: string): Promise<{ id: string | null; error: string | null }> {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from("plan_types")
+    .insert({ coach_id: coachId, name, is_default: false })
+    .select()
+    .single();
+  return { id: data?.id || null, error: error?.message || null };
+}
+
+export async function deletePlanType(id: string): Promise<{ error: string | null }> {
+  const sb = getSupabase();
+  const { error } = await sb.from("plan_types").delete().eq("id", id);
+  return { error: error?.message || null };
+}
+
 // ---- Diet Templates ----
 
 function mapMealSlotDishRow(row: any): MealSlotDish {
   return {
     id: row.id,
     componentId: row.component_id,
-    dishId: row.dish_id,
+    dishId: row.dish_id || null,
     dish: row.dish ? mapDishRow(row.dish) : undefined,
+    foodId: row.food_id || null,
+    food: row.food ? {
+      id: row.food.id,
+      name: row.food.name,
+      category: row.food.category,
+      emoji: row.food.emoji,
+      unit: row.food.unit || null,
+      gramsPerUnit: row.food.grams_per_unit || null,
+      calories: row.food.calories,
+      protein: row.food.protein,
+      carbs: row.food.carbs,
+      fat: row.food.fat,
+      isDefault: row.food.is_default ?? true,
+    } : undefined,
+    foodQuantity: row.food_quantity || null,
     sortOrder: row.sort_order,
   };
 }
@@ -898,7 +964,8 @@ const TEMPLATE_NESTED_SELECT = `
       *,
       meal_slot_dishes(
         *,
-        dish:dishes(*, dish_items(*))
+        dish:dishes(*, dish_items(*)),
+        food:foods(*)
       )
     )
   )
@@ -939,6 +1006,7 @@ export async function createDietTemplate(input: {
       componentCategory: ComponentCategory;
       sortOrder: number;
       dishIds: string[];
+      foodItems?: Array<{ foodId: string; quantity: number }>;
     }>;
   }>;
 }): Promise<{ error: string | null; templateId?: string }> {
@@ -986,13 +1054,19 @@ export async function createDietTemplate(input: {
       if (compError || !compData) return { error: compError?.message || "Failed to create component" };
 
       // Insert dish alternatives
-      if (component.dishIds.length > 0) {
-        const dishRows = component.dishIds.map((dishId, idx) => ({
-          component_id: compData.id,
-          dish_id: dishId,
-          sort_order: idx,
-        }));
-        const { error: dishError } = await sb.from("meal_slot_dishes").insert(dishRows);
+      const slotDishRows: any[] = [];
+      let sortIdx = 0;
+      for (const dishId of component.dishIds) {
+        slotDishRows.push({ component_id: compData.id, dish_id: dishId, food_id: null, food_quantity: null, sort_order: sortIdx++ });
+      }
+      // Insert food items
+      if (component.foodItems) {
+        for (const fi of component.foodItems) {
+          slotDishRows.push({ component_id: compData.id, dish_id: null, food_id: fi.foodId, food_quantity: fi.quantity, sort_order: sortIdx++ });
+        }
+      }
+      if (slotDishRows.length > 0) {
+        const { error: dishError } = await sb.from("meal_slot_dishes").insert(slotDishRows);
         if (dishError) return { error: dishError.message };
       }
     }
@@ -1013,6 +1087,7 @@ export async function updateDietTemplate(templateId: string, input: {
       componentCategory: ComponentCategory;
       sortOrder: number;
       dishIds: string[];
+      foodItems?: Array<{ foodId: string; quantity: number }>;
     }>;
   }>;
 }): Promise<{ error: string | null }> {
@@ -1062,13 +1137,18 @@ export async function updateDietTemplate(templateId: string, input: {
         .single();
       if (compError || !compData) return { error: compError?.message || "Failed to create component" };
 
-      if (component.dishIds.length > 0) {
-        const dishRows = component.dishIds.map((dishId, idx) => ({
-          component_id: compData.id,
-          dish_id: dishId,
-          sort_order: idx,
-        }));
-        const { error: dishError } = await sb.from("meal_slot_dishes").insert(dishRows);
+      const slotDishRows: any[] = [];
+      let sortIdx = 0;
+      for (const dishId of component.dishIds) {
+        slotDishRows.push({ component_id: compData.id, dish_id: dishId, food_id: null, food_quantity: null, sort_order: sortIdx++ });
+      }
+      if (component.foodItems) {
+        for (const fi of component.foodItems) {
+          slotDishRows.push({ component_id: compData.id, dish_id: null, food_id: fi.foodId, food_quantity: fi.quantity, sort_order: sortIdx++ });
+        }
+      }
+      if (slotDishRows.length > 0) {
+        const { error: dishError } = await sb.from("meal_slot_dishes").insert(slotDishRows);
         if (dishError) return { error: dishError.message };
       }
     }
@@ -1114,7 +1194,8 @@ export async function getClientActiveAssignment(clientId: string): Promise<Templ
             *,
             meal_slot_dishes(
               *,
-              dish:dishes(*, dish_items(*))
+              dish:dishes(*, dish_items(*)),
+              food:foods(*)
             )
           )
         )
@@ -1165,7 +1246,8 @@ export async function getCoachAssignments(coachId: string): Promise<TemplateAssi
             *,
             meal_slot_dishes(
               *,
-              dish:dishes(*, dish_items(*))
+              dish:dishes(*, dish_items(*)),
+              food:foods(*)
             )
           )
         )

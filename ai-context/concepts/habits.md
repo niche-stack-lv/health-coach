@@ -22,7 +22,7 @@ Coaches assign daily habits to clients (e.g., "Drink 3L water", "10k steps", "Ta
 
 ## Gotchas
 - In demo mode, habits are hardcoded with different IDs than the mock data in `mock-data.ts`.
-- The `habits` table doesn't have a `unit` column — the demo data uses it but real DB habits won't have it. The client habits page checks `habit.unit` which will be `undefined` for real data, so the value input won't show. If you need units, add a `unit` column to the `habits` table.
+- The `habits` table doesn't have a `unit` column — the demo data uses it but real DB habits won't have it. The client habits page checks `habit.unit` which will be `undefined` for real data, so the value input won't show. To add unit support to real habits, run: `ALTER TABLE habits ADD COLUMN IF NOT EXISTS unit text;` — see Landmine #21.
 
 ## Key files
 - `src/app/(client)/client/habits/page.tsx` — client habit checklist

@@ -11,7 +11,7 @@ import { FoodPicker } from "@/components/coach/food-picker";
 import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
-import { getDietTemplate, createDietTemplate, updateDietTemplate, deleteDietTemplate, getDishes } from "@/lib/db";
+import { getDietTemplate, createDietTemplate, updateDietTemplate, deleteDietTemplate, getDishes, getPlanTypes, createPlanType } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import type { DietTemplate, PlanType, ComponentCategory, Dish } from "@/types";
 
@@ -29,6 +29,7 @@ interface LocalComponent {
   localId: string;
   componentCategory: ComponentCategory;
   dishIds: string[];
+  foodItems: Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>;
 }
 
 interface LocalMealSlot {
@@ -40,13 +41,6 @@ interface LocalMealSlot {
 }
 
 // ---- Constants ----
-
-const PLAN_TYPE_OPTIONS: { value: PlanType; label: string }[] = [
-  { value: "veg", label: "Veg" },
-  { value: "nonveg", label: "Nonveg" },
-  { value: "low_carb_nonveg", label: "Low Carb Nonveg" },
-  { value: "intermittent_fasting", label: "Intermittent Fasting" },
-];
 
 const COMPONENT_CATEGORIES: ComponentCategory[] = ["carbohydrate", "protein", "fiber", "complete_meal"];
 
@@ -112,6 +106,7 @@ function createEmptySlot(name: string, sortOrder: number): LocalMealSlot {
       localId: crypto.randomUUID(),
       componentCategory: cat,
       dishIds: [],
+      foodItems: [],
     })),
   };
 }
@@ -131,13 +126,22 @@ function templateToLocalSlots(template: DietTemplate): LocalMealSlot[] {
           return {
             localId: existing.id || crypto.randomUUID(),
             componentCategory: existing.componentCategory,
-            dishIds: existing.dishes.map((d) => d.dishId),
+            dishIds: existing.dishes.filter((d) => d.dishId).map((d) => d.dishId!),
+            foodItems: existing.dishes
+              .filter((d) => d.foodId)
+              .map((d) => ({
+                foodId: d.foodId!,
+                quantity: d.foodQuantity || 100,
+                name: d.food?.name,
+                emoji: d.food?.emoji,
+              })),
           };
         }
         return {
           localId: crypto.randomUUID(),
           componentCategory: cat,
           dishIds: [] as string[],
+          foodItems: [] as Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>,
         };
       });
       return {
@@ -165,6 +169,9 @@ function TemplateEditPageInner() {
   // Form state
   const [name, setName] = useState("");
   const [planType, setPlanType] = useState<PlanType | null>(null);
+  const [planTypes, setPlanTypes] = useState<Array<{ id: string; name: string; isDefault: boolean }>>([]);
+  const [planTypeSearch, setPlanTypeSearch] = useState("");
+  const [showPlanTypeDropdown, setShowPlanTypeDropdown] = useState(false);
   const [mealSlots, setMealSlots] = useState<LocalMealSlot[]>(() => [
     createEmptySlot("Meal 1", 0),
     createEmptySlot("Meal 2", 1),
@@ -241,8 +248,9 @@ function TemplateEditPageInner() {
 
   async function loadDishes() {
     if (!user) return;
-    const data = await getDishes(user.id);
+    const [data, types] = await Promise.all([getDishes(user.id), getPlanTypes(user.id)]);
     setAllDishes(data);
+    setPlanTypes(types);
   }
 
   // ---- Validation ----
@@ -255,7 +263,7 @@ function TemplateEditPageInner() {
     const hasValidSlot = mealSlots.some(
       (slot) =>
         !slot.isSkipped &&
-        slot.components.some((comp) => comp.dishIds.length > 0)
+        slot.components.some((comp) => comp.dishIds.length > 0 || (comp.foodItems && comp.foodItems.length > 0))
     );
     if (!hasValidSlot) {
       newErrors.slots = "At least one non-skipped slot needs a dish assigned";
@@ -285,6 +293,7 @@ function TemplateEditPageInner() {
           componentCategory: comp.componentCategory,
           sortOrder: compIdx,
           dishIds: comp.dishIds,
+          foodItems: comp.foodItems.map((fi) => ({ foodId: fi.foodId, quantity: fi.quantity })),
         })),
       })),
     };
@@ -405,6 +414,32 @@ function TemplateEditPageInner() {
     });
   }
 
+  function addFoodToComponent(slotIdx: number, compIdx: number, foodId: string, quantity: number, name: string, emoji: string) {
+    setMealSlots((prev) => {
+      const updated = [...prev];
+      const slot = { ...updated[slotIdx], components: [...updated[slotIdx].components] };
+      const comp = { ...slot.components[compIdx], foodItems: [...(slot.components[compIdx].foodItems || [])] };
+      if (!comp.foodItems.some((fi) => fi.foodId === foodId)) {
+        comp.foodItems.push({ foodId, quantity, name, emoji });
+      }
+      slot.components[compIdx] = comp;
+      updated[slotIdx] = slot;
+      return updated;
+    });
+    setFoodPickerState(null);
+  }
+
+  function removeFoodFromComponent(slotIdx: number, compIdx: number, foodId: string) {
+    setMealSlots((prev) => {
+      const updated = [...prev];
+      const slot = { ...updated[slotIdx], components: [...updated[slotIdx].components] };
+      const comp = { ...slot.components[compIdx], foodItems: (slot.components[compIdx].foodItems || []).filter((fi) => fi.foodId !== foodId) };
+      slot.components[compIdx] = comp;
+      updated[slotIdx] = slot;
+      return updated;
+    });
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -444,25 +479,75 @@ function TemplateEditPageInner() {
         {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
       </Card>
 
-      {/* Plan Type */}
+      {/* Plan Type — searchable dropdown */}
       <Card className="p-5 mb-4">
         <label className="block text-xs text-zinc-500 mb-2">Plan Type</label>
-        <div className="grid grid-cols-2 gap-2">
-          {PLAN_TYPE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => { setPlanType(opt.value); setErrors((prev) => ({ ...prev, planType: undefined })); }}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-sm font-medium transition-all",
-                planType === opt.value
-                  ? "border-gold/50 bg-gold/10 text-gold"
-                  : "border-white/[0.06] text-zinc-500 hover:text-zinc-300 hover:border-white/[0.12]"
+        {/* Selected plan type chip */}
+        {planType && (
+          <div className="flex items-center gap-2 mb-3">
+            <span className="inline-flex items-center gap-1 rounded-lg border border-gold/30 bg-gold/10 px-3 py-1.5 text-xs text-gold font-medium">
+              {planType}
+              <button onClick={() => setPlanType(null)} className="text-gold/60 hover:text-gold ml-1">×</button>
+            </span>
+          </div>
+        )}
+        {/* Searchable input */}
+        <div className="relative">
+          <input
+            value={planTypeSearch}
+            onChange={(e) => setPlanTypeSearch(e.target.value)}
+            onFocus={() => setShowPlanTypeDropdown(true)}
+            placeholder={planType ? "Change plan type..." : "Search or create plan type..."}
+            className="w-full h-10 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+          />
+          {showPlanTypeDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-20 max-h-48 overflow-y-auto rounded-xl border border-white/[0.08] bg-[#1a1a1a] shadow-xl">
+              {planTypes
+                .filter((pt) => !planTypeSearch || pt.name.toLowerCase().includes(planTypeSearch.toLowerCase()))
+                .map((pt) => (
+                  <button
+                    key={pt.id}
+                    onClick={() => {
+                      setPlanType(pt.name as PlanType);
+                      setPlanTypeSearch("");
+                      setShowPlanTypeDropdown(false);
+                      setErrors((prev) => ({ ...prev, planType: undefined }));
+                    }}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/[0.04] transition-colors",
+                      planType === pt.name && "text-gold"
+                    )}
+                  >
+                    <span>{pt.name}</span>
+                    {pt.isDefault && <span className="text-[9px] text-zinc-600 uppercase">default</span>}
+                  </button>
+                ))}
+              {planTypeSearch.trim() && !planTypes.some((pt) => pt.name.toLowerCase() === planTypeSearch.trim().toLowerCase()) && (
+                <button
+                  onClick={async () => {
+                    if (!user) return;
+                    const { id } = await createPlanType(user.id, planTypeSearch.trim());
+                    if (id) {
+                      const newType = { id, name: planTypeSearch.trim(), isDefault: false };
+                      setPlanTypes((prev) => [...prev, newType]);
+                      setPlanType(planTypeSearch.trim() as PlanType);
+                    }
+                    setPlanTypeSearch("");
+                    setShowPlanTypeDropdown(false);
+                    setErrors((prev) => ({ ...prev, planType: undefined }));
+                  }}
+                  className="w-full px-3 py-2.5 text-sm text-gold hover:bg-gold/5 transition-colors text-left border-t border-white/[0.06]"
+                >
+                  + Create &ldquo;{planTypeSearch.trim()}&rdquo;
+                </button>
               )}
-            >
-              {opt.label}
-            </button>
-          ))}
+              {planTypes.filter((pt) => !planTypeSearch || pt.name.toLowerCase().includes(planTypeSearch.toLowerCase())).length === 0 && !planTypeSearch.trim() && (
+                <p className="px-3 py-2.5 text-xs text-zinc-600">No plan types yet.</p>
+              )}
+            </div>
+          )}
         </div>
+        {showPlanTypeDropdown && <div className="fixed inset-0 z-10" onClick={() => setShowPlanTypeDropdown(false)} />}
         {errors.planType && <p className="text-xs text-red-400 mt-2">{errors.planType}</p>}
       </Card>
 
@@ -542,7 +627,9 @@ function TemplateEditPageInner() {
                       mode="edit"
                       allDishes={allDishes}
                       onAddDish={(compIdx) => setDishPickerState({ open: true, slotIdx, compIdx })}
+                      onAddFood={(compIdx) => setFoodPickerState({ open: true, slotIdx, compIdx })}
                       onRemoveDish={(compIdx, dishId) => removeDishFromComponent(slotIdx, compIdx, dishId)}
+                      onRemoveFood={(compIdx, foodId) => removeFoodFromComponent(slotIdx, compIdx, foodId)}
                     />
                   </div>
                 )}
@@ -620,36 +707,19 @@ function TemplateEditPageInner() {
       {foodPickerState?.open && (
         <FoodPicker
           onAdd={async (food, grams) => {
-            // Create a single-ingredient dish on the fly and add it to the component
-            const { createDish } = await import("@/lib/db");
-            const isStaticFood = food.id.length < 36;
-            const { dishId } = await createDish({
-              coachId: user!.id,
-              name: `${food.name} (${grams}g)`,
-              emoji: food.emoji,
-              componentCategory: food.category === "carbs" ? "carbohydrate" : food.category === "fats" ? "fiber" : food.category === "supplements" ? "complete_meal" : food.category as any,
-              totalCalories: Math.round(food.per100g.calories * grams / 100),
-              totalProtein: Math.round(food.per100g.protein * grams / 100),
-              totalCarbs: Math.round(food.per100g.carbs * grams / 100),
-              totalFat: Math.round(food.per100g.fat * grams / 100),
-              items: [{
-                foodId: isStaticFood ? null : food.id,
-                customName: isStaticFood ? food.name : undefined,
-                customEmoji: isStaticFood ? food.emoji : undefined,
-                customCalories: isStaticFood ? food.per100g.calories : undefined,
-                customProtein: isStaticFood ? food.per100g.protein : undefined,
-                customCarbs: isStaticFood ? food.per100g.carbs : undefined,
-                customFat: isStaticFood ? food.per100g.fat : undefined,
-                grams,
-                sortOrder: 0,
-              }],
-            });
-            if (dishId) {
-              addDishToComponent(foodPickerState.slotIdx, foodPickerState.compIdx, dishId);
-              // Refresh dishes list
-              loadDishes();
+            // Only allow DB foods (UUID ids) — static foods have short ids like "p1"
+            if (food.id.length < 36) {
+              alert("This food item needs to be added to the database first. Go to Foods & Dishes → Foods tab to add it.");
+              return;
             }
-            setFoodPickerState(null);
+            addFoodToComponent(
+              foodPickerState.slotIdx,
+              foodPickerState.compIdx,
+              food.id,
+              grams,
+              food.name,
+              food.emoji
+            );
           }}
           onClose={() => setFoodPickerState(null)}
         />

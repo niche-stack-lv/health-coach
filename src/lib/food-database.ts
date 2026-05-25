@@ -84,6 +84,20 @@ export function formatFoodAmount(food: FoodItem, grams: number): string {
 export function getQuickAmounts(food: FoodItem): { label: string; grams: number }[] {
   if (food.unit && food.gramsPerUnit) {
     const g = food.gramsPerUnit;
+    // If unit contains 'g' (like "150g", "200g", "60g raw"), use gram-based increments
+    const isGramUnit = /^\d+g/.test(food.unit) || /~\d+g/.test(food.unit);
+    if (isGramUnit) {
+      // Show gram multiples based on the serving size
+      return [
+        { label: `${g}g`, grams: g },
+        { label: `${Math.round(g * 1.5)}g`, grams: Math.round(g * 1.5) },
+        { label: `${g * 2}g`, grams: g * 2 },
+        { label: `${Math.round(g * 2.5)}g`, grams: Math.round(g * 2.5) },
+        { label: `${g * 3}g`, grams: g * 3 },
+        { label: `${g * 4}g`, grams: g * 4 },
+      ];
+    }
+    // For countable units (chapati, idli, scoop, etc.), show 1-6 multiples
     return [
       { label: `1 ${food.unit}`, grams: g },
       { label: `2 ${food.unit}s`, grams: g * 2 },

@@ -42,7 +42,7 @@ export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerP
         category: f.category,
         emoji: f.emoji || "🍽️",
         unit: f.unit || undefined,
-        gramsPerUnit: f.grams_per_unit || undefined,
+        gramsPerUnit: f.gramsPerUnit || undefined,
         per100g: { calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat },
       }));
       setDbFoods(mapped);
@@ -129,7 +129,7 @@ export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerP
                     <p className="text-sm text-white truncate">{food.name}</p>
                     <p className="text-[11px] text-zinc-500">
                       {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f
-                      {food.unit ? ` / 100g · 1 ${food.unit} = ${food.gramsPerUnit}g` : " /100g"}
+                      {food.unit ? ` · ${food.unit} (${food.gramsPerUnit}g)` : " /100g"}
                     </p>
                   </div>
                   <Plus className="h-4 w-4 text-zinc-500 shrink-0" />

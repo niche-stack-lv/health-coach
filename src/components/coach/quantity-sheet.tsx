@@ -36,7 +36,10 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
             <span className="text-xl">{food.emoji}</span>
             <div>
               <p className="font-semibold text-white">{food.name}</p>
-              <p className="text-xs text-zinc-500">{food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f per 100g</p>
+              <p className="text-xs text-zinc-500">
+                {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f
+                {food.unit ? ` per ${food.unit}` : " per 100g"}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-white/[0.06]">

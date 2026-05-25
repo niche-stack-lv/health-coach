@@ -33,6 +33,7 @@ export interface EditableComponent {
   localId: string;
   componentCategory: ComponentCategory;
   dishIds: string[];
+  foodItems?: Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>;
 }
 
 export interface EditableMealSlot {
@@ -57,8 +58,12 @@ export interface MealSlotViewProps {
   isSlotSkipped?: boolean;
   /** Edit mode: open dish picker for a component */
   onAddDish?: (compIdx: number) => void;
+  /** Edit mode: open food picker for a component */
+  onAddFood?: (compIdx: number) => void;
   /** Edit mode: remove a dish from a component */
   onRemoveDish?: (compIdx: number, dishId: string) => void;
+  /** Edit mode: remove a food from a component */
+  onRemoveFood?: (compIdx: number, foodId: string) => void;
   /** Select mode: select a dish for a component */
   onSelectDish?: (componentId: string, dishId: string) => void;
   /** Select mode: select "Other" for a component */
@@ -94,7 +99,9 @@ export function MealSlotView({
   selections = {},
   isSlotSkipped = false,
   onAddDish,
+  onAddFood,
   onRemoveDish,
+  onRemoveFood,
   onSelectDish,
   onSelectOther,
   onSkipSlot,
@@ -148,7 +155,9 @@ export function MealSlotView({
         slot={slot}
         allDishes={allDishes}
         onAddDish={onAddDish}
+        onAddFood={onAddFood}
         onRemoveDish={onRemoveDish}
+        onRemoveFood={onRemoveFood}
       />
     );
   }
@@ -309,12 +318,12 @@ function MealSlotSelectMode({
                 </span>
                 {/* Dish options — stacked vertically */}
                 <div className="space-y-1.5">
-                  {comp.dishes.map((msd) => {
+                  {comp.dishes.filter((msd) => msd.dishId).map((msd) => {
                     const isSelected = selections[comp.id] === msd.dishId;
                     return (
                       <button
                         key={msd.id}
-                        onClick={() => onSelectDish?.(comp.id, msd.dishId)}
+                        onClick={() => onSelectDish?.(comp.id, msd.dishId!)}
                         disabled={disabled}
                         className={cn(
                           "w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 min-h-[44px] text-left transition-all",
@@ -397,12 +406,16 @@ function MealSlotEditMode({
   slot,
   allDishes,
   onAddDish,
+  onAddFood,
   onRemoveDish,
+  onRemoveFood,
 }: {
   slot: EditableMealSlot;
   allDishes: Dish[];
   onAddDish?: (compIdx: number) => void;
+  onAddFood?: (compIdx: number) => void;
   onRemoveDish?: (compIdx: number, dishId: string) => void;
+  onRemoveFood?: (compIdx: number, foodId: string) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -432,12 +445,37 @@ function MealSlotEditMode({
                 </span>
               );
             })}
+            {/* Food items */}
+            {comp.foodItems?.map((fi) => (
+              <span
+                key={fi.foodId}
+                className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2 py-0.5 text-[11px] text-emerald-300 cursor-default"
+              >
+                {fi.emoji || "🥗"} {fi.name || "Food"} ({fi.quantity}g)
+                {onRemoveFood && (
+                  <button
+                    onClick={() => onRemoveFood(compIdx, fi.foodId)}
+                    className="ml-0.5 text-emerald-600 hover:text-red-400"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
+            ))}
             {onAddDish && (
               <button
                 onClick={() => onAddDish(compIdx)}
                 className="inline-flex items-center gap-0.5 rounded-lg border border-dashed border-white/[0.1] px-2 py-0.5 text-[11px] text-zinc-600 hover:text-zinc-400 hover:border-white/[0.2] transition-colors"
               >
-                <Plus className="h-3 w-3" /> Add Dish
+                <Plus className="h-3 w-3" /> Dish
+              </button>
+            )}
+            {onAddFood && (
+              <button
+                onClick={() => onAddFood(compIdx)}
+                className="inline-flex items-center gap-0.5 rounded-lg border border-dashed border-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-600 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors"
+              >
+                <Plus className="h-3 w-3" /> Food
               </button>
             )}
           </div>

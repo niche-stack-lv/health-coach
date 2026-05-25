@@ -82,7 +82,7 @@ function templateToLocalSlots(template: DietTemplate): LocalMealSlot[] {
           return {
             localId: crypto.randomUUID(),
             componentCategory: existing.componentCategory,
-            dishIds: existing.dishes.map((d) => d.dishId),
+            dishIds: existing.dishes.filter((d) => d.dishId).map((d) => d.dishId!) as string[],
           };
         }
         return {

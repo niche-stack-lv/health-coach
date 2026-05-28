@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { foodDatabase as staticFoodDatabase, type FoodItem } from "@/lib/food-database";
+import { mapDbFoodToFoodItem, type FoodItem } from "@/lib/food-utils";
 import { getFoods } from "@/lib/db";
 import { QuantitySheet } from "@/components/coach/quantity-sheet";
 
@@ -38,25 +38,14 @@ export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerP
   useEffect(() => {
     if (externalFoods) return;
     getFoods().then((data) => {
-      const mapped: FoodItem[] = data.map((f: any) => ({
-        id: f.id,
-        name: f.name,
-        category: f.category,
-        emoji: f.emoji || "🍽️",
-        unit: f.unit || undefined,
-        gramsPerUnit: f.gramsPerUnit || undefined,
-        per100g: { calories: f.calories, protein: f.protein, carbs: f.carbs, fat: f.fat },
-      }));
-      setDbFoods(mapped);
+      setDbFoods(data.map(mapDbFoodToFoodItem));
     });
   }, [externalFoods]);
 
-  // Merge static + DB foods (DB foods take priority by name)
+  // Use DB foods directly (no static fallback)
   const allFoods = useMemo(() => {
     if (externalFoods) return externalFoods;
-    const dbNames = new Set(dbFoods.map((f) => f.name.toLowerCase()));
-    const staticFiltered = staticFoodDatabase.filter((f) => !dbNames.has(f.name.toLowerCase()));
-    return [...dbFoods, ...staticFiltered];
+    return dbFoods;
   }, [externalFoods, dbFoods]);
 
   // Derive unique categories from actual food data

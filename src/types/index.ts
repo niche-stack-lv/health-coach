@@ -217,11 +217,23 @@ export interface WorkoutSlotExercise {
   sortOrder: number;
 }
 
-export interface WorkoutTemplateSlot {
+export interface WorkoutTemplatePhase {
   id: string;
   templateId: string;
   name: string;
   sortOrder: number;
+  weekStart?: number | null;
+  weekEnd?: number | null;
+  description?: string | null;
+}
+
+export interface WorkoutTemplateSlot {
+  id: string;
+  templateId: string;
+  phaseId?: string | null;
+  name: string;
+  sortOrder: number;
+  warmupNotes?: string | null;
   exercises: WorkoutSlotExercise[];
 }
 
@@ -229,7 +241,11 @@ export interface WorkoutTemplate {
   id: string;
   coachId: string;
   name: string;
+  description?: string | null;
+  level?: string | null;
+  location?: string | null;
   isTemplate: boolean;
+  phases: WorkoutTemplatePhase[];
   slots: WorkoutTemplateSlot[];
   createdAt: string;
 }

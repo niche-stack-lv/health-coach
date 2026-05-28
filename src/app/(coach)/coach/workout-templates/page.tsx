@@ -19,21 +19,21 @@ export default function WorkoutTemplatesPage() {
 }
 
 const demoTemplates: WorkoutTemplate[] = [
-  { id: "demo-ppl", coachId: "demo", name: "Push Pull Legs", isTemplate: true, slots: [
-    { id: "s1", templateId: "demo-ppl", name: "Push", sortOrder: 0, exercises: [] },
-    { id: "s2", templateId: "demo-ppl", name: "Pull", sortOrder: 1, exercises: [] },
-    { id: "s3", templateId: "demo-ppl", name: "Legs", sortOrder: 2, exercises: [] },
+  { id: "demo-ppl", coachId: "demo", name: "Push Pull Legs", isTemplate: true, phases: [], slots: [
+    { id: "s1", templateId: "demo-ppl", name: "Push", sortOrder: 0, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s2", templateId: "demo-ppl", name: "Pull", sortOrder: 1, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s3", templateId: "demo-ppl", name: "Legs", sortOrder: 2, phaseId: null, warmupNotes: null, exercises: [] },
   ], createdAt: new Date().toISOString() },
-  { id: "demo-upper-lower", coachId: "demo", name: "Upper Lower Split", isTemplate: true, slots: [
-    { id: "s4", templateId: "demo-upper-lower", name: "Upper A", sortOrder: 0, exercises: [] },
-    { id: "s5", templateId: "demo-upper-lower", name: "Lower A", sortOrder: 1, exercises: [] },
-    { id: "s6", templateId: "demo-upper-lower", name: "Upper B", sortOrder: 2, exercises: [] },
-    { id: "s7", templateId: "demo-upper-lower", name: "Lower B", sortOrder: 3, exercises: [] },
+  { id: "demo-upper-lower", coachId: "demo", name: "Upper Lower Split", isTemplate: true, phases: [], slots: [
+    { id: "s4", templateId: "demo-upper-lower", name: "Upper A", sortOrder: 0, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s5", templateId: "demo-upper-lower", name: "Lower A", sortOrder: 1, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s6", templateId: "demo-upper-lower", name: "Upper B", sortOrder: 2, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s7", templateId: "demo-upper-lower", name: "Lower B", sortOrder: 3, phaseId: null, warmupNotes: null, exercises: [] },
   ], createdAt: new Date().toISOString() },
-  { id: "demo-fullbody", coachId: "demo", name: "Full Body 3x", isTemplate: true, slots: [
-    { id: "s8", templateId: "demo-fullbody", name: "Workout 1", sortOrder: 0, exercises: [] },
-    { id: "s9", templateId: "demo-fullbody", name: "Workout 2", sortOrder: 1, exercises: [] },
-    { id: "s10", templateId: "demo-fullbody", name: "Workout 3", sortOrder: 2, exercises: [] },
+  { id: "demo-fullbody", coachId: "demo", name: "Full Body 3x", isTemplate: true, phases: [], slots: [
+    { id: "s8", templateId: "demo-fullbody", name: "Workout 1", sortOrder: 0, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s9", templateId: "demo-fullbody", name: "Workout 2", sortOrder: 1, phaseId: null, warmupNotes: null, exercises: [] },
+    { id: "s10", templateId: "demo-fullbody", name: "Workout 3", sortOrder: 2, phaseId: null, warmupNotes: null, exercises: [] },
   ], createdAt: new Date().toISOString() },
 ];
 

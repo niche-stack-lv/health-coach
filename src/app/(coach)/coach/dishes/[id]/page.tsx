@@ -10,7 +10,7 @@ import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
 import { getDish, createDish, updateDish, deleteDish, getDishReferences, createFood, getDishTags, createDishTag, setDishTags, deleteDishTag } from "@/lib/db";
 import { calculateDishMacros, calculateItemMacros, roundMacros } from "@/lib/macro-calc";
-import { foodDatabase, type FoodItem } from "@/lib/food-database";
+import { type FoodItem } from "@/lib/food-utils";
 import { FoodPickerSheet } from "@/components/coach/food-picker-sheet";
 import { cn } from "@/lib/utils";
 import type { Dish, DishItem, ComponentCategory } from "@/types";
@@ -149,21 +149,20 @@ function DishEditPageInner() {
     setSelectedTagIds((dish.tags || []).map((t) => t.id));
     setItems(
       dish.items.map((item) => {
-        const food = item.foodId ? foodDatabase.find((f) => f.id === item.foodId) : null;
+        // DB items carry customName/customEmoji/customCalories populated by the mapper
+        // (even for food_id references, the mapper joins the food row)
         return {
           localId: item.id || crypto.randomUUID(),
           foodId: item.foodId,
-          foodName: food?.name || item.customName || "Unknown",
-          foodEmoji: food?.emoji || item.customEmoji || "🍽️",
+          foodName: item.customName || "Unknown",
+          foodEmoji: item.customEmoji || "🍽️",
           grams: item.grams,
-          per100g: food
-            ? food.per100g
-            : {
-                calories: item.customCalories || 0,
-                protein: item.customProtein || 0,
-                carbs: item.customCarbs || 0,
-                fat: item.customFat || 0,
-              },
+          per100g: {
+            calories: item.customCalories || 0,
+            protein: item.customProtein || 0,
+            carbs: item.customCarbs || 0,
+            fat: item.customFat || 0,
+          },
           isCustom: !item.foodId,
         };
       })
@@ -207,18 +206,14 @@ function DishEditPageInner() {
       totalCarbs: manualMacros ? manualCarbs : macroTotals.carbs,
       totalFat: manualMacros ? manualFat : macroTotals.fat,
       items: manualMacros ? [] : items.map((item, idx) => {
-        // Static food database items have short IDs like "c2", "p1" — not valid UUIDs
-        // Treat them as custom items with inline macros
-        const isStaticFood = item.foodId && item.foodId.length < 36;
-        const isCustomOrStatic = item.isCustom || isStaticFood;
         return {
-          foodId: isCustomOrStatic ? null : item.foodId,
-          customName: isCustomOrStatic ? item.foodName : undefined,
-          customEmoji: isCustomOrStatic ? item.foodEmoji : undefined,
-          customCalories: isCustomOrStatic ? item.per100g.calories : undefined,
-          customProtein: isCustomOrStatic ? item.per100g.protein : undefined,
-          customCarbs: isCustomOrStatic ? item.per100g.carbs : undefined,
-          customFat: isCustomOrStatic ? item.per100g.fat : undefined,
+          foodId: item.isCustom ? null : item.foodId,
+          customName: item.isCustom ? item.foodName : undefined,
+          customEmoji: item.isCustom ? item.foodEmoji : undefined,
+          customCalories: item.isCustom ? item.per100g.calories : undefined,
+          customProtein: item.isCustom ? item.per100g.protein : undefined,
+          customCarbs: item.isCustom ? item.per100g.carbs : undefined,
+          customFat: item.isCustom ? item.per100g.fat : undefined,
           grams: item.grams,
           sortOrder: idx,
         };

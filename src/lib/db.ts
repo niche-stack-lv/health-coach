@@ -13,6 +13,7 @@ import type {
   FoodCheckInItem,
   PlanType,
   WorkoutTemplate,
+  WorkoutTemplatePhase,
   WorkoutTemplateSlot,
   WorkoutSlotExercise,
   WorkoutAssignment,
@@ -1463,8 +1464,9 @@ function mapWorkoutSlotExerciseRow(row: any): WorkoutSlotExercise {
     id: row.id,
     slotId: row.slot_id,
     exerciseId: row.exercise_id,
-    customName: row.custom_name ?? undefined,
-    customEmoji: row.custom_emoji ?? undefined,
+    // If exercise_id is set, pull name/emoji from joined exercise row; else use custom fields
+    customName: row.custom_name ?? row.exercise?.name ?? undefined,
+    customEmoji: row.custom_emoji ?? row.exercise?.emoji ?? undefined,
     sets: row.sets,
     reps: row.reps,
     restSeconds: row.rest_seconds,
@@ -1477,9 +1479,13 @@ function mapWorkoutTemplateSlotRow(row: any): WorkoutTemplateSlot {
   return {
     id: row.id,
     templateId: row.template_id,
+    phaseId: row.phase_id ?? null,
     name: row.name,
     sortOrder: row.sort_order,
-    exercises: (row.workout_slot_exercises || []).map(mapWorkoutSlotExerciseRow),
+    warmupNotes: row.warmup_notes ?? null,
+    exercises: (row.workout_slot_exercises || [])
+      .sort((a: any, b: any) => a.sort_order - b.sort_order)
+      .map(mapWorkoutSlotExerciseRow),
   };
 }
 
@@ -1488,17 +1494,37 @@ function mapWorkoutTemplateRow(row: any): WorkoutTemplate {
     id: row.id,
     coachId: row.coach_id,
     name: row.name,
+    description: row.description ?? null,
+    level: row.level ?? null,
+    location: row.location ?? null,
     isTemplate: row.is_template,
-    slots: (row.workout_template_slots || []).map(mapWorkoutTemplateSlotRow),
+    phases: (row.workout_template_phases || [])
+      .sort((a: any, b: any) => a.sort_order - b.sort_order)
+      .map((p: any): WorkoutTemplatePhase => ({
+        id: p.id,
+        templateId: p.template_id,
+        name: p.name,
+        sortOrder: p.sort_order,
+        weekStart: p.week_start ?? null,
+        weekEnd: p.week_end ?? null,
+        description: p.description ?? null,
+      })),
+    slots: (row.workout_template_slots || [])
+      .sort((a: any, b: any) => a.sort_order - b.sort_order)
+      .map(mapWorkoutTemplateSlotRow),
     createdAt: row.created_at,
   };
 }
 
 const WORKOUT_TEMPLATE_NESTED_SELECT = `
   *,
+  workout_template_phases(*),
   workout_template_slots(
     *,
-    workout_slot_exercises(*)
+    workout_slot_exercises(
+      *,
+      exercise:exercises(name, emoji, video_id)
+    )
   )
 `;
 
@@ -1526,10 +1552,22 @@ export async function getWorkoutTemplate(templateId: string): Promise<WorkoutTem
 export async function createWorkoutTemplate(input: {
   coachId: string;
   name: string;
+  description?: string;
+  level?: string;
+  location?: string;
   isTemplate?: boolean;
+  phases?: Array<{
+    name: string;
+    sortOrder: number;
+    weekStart?: number;
+    weekEnd?: number;
+    description?: string;
+  }>;
   slots: Array<{
     name: string;
     sortOrder: number;
+    phaseIndex?: number; // index into phases array
+    warmupNotes?: string;
     exercises: Array<{
       exerciseId: string | null;
       customName?: string;
@@ -1550,20 +1588,47 @@ export async function createWorkoutTemplate(input: {
     .insert({
       coach_id: input.coachId,
       name: input.name,
+      description: input.description || null,
+      level: input.level || null,
+      location: input.location || null,
       is_template: input.isTemplate !== false,
     })
     .select()
     .single();
   if (templateError || !template) return { error: templateError?.message || "Failed to create workout template" };
 
+  // Insert phases and build index → id map
+  const phaseIdMap: Record<number, string> = {};
+  if (input.phases && input.phases.length > 0) {
+    for (const phase of input.phases) {
+      const { data: phaseData, error: phaseError } = await sb
+        .from("workout_template_phases")
+        .insert({
+          template_id: template.id,
+          name: phase.name,
+          sort_order: phase.sortOrder,
+          week_start: phase.weekStart ?? null,
+          week_end: phase.weekEnd ?? null,
+          description: phase.description ?? null,
+        })
+        .select()
+        .single();
+      if (phaseError || !phaseData) return { error: phaseError?.message || "Failed to create phase" };
+      phaseIdMap[phase.sortOrder] = phaseData.id;
+    }
+  }
+
   // Insert slots and exercises
   for (const slot of input.slots) {
+    const phaseId = slot.phaseIndex !== undefined ? (phaseIdMap[slot.phaseIndex] ?? null) : null;
     const { data: slotData, error: slotError } = await sb
       .from("workout_template_slots")
       .insert({
         template_id: template.id,
         name: slot.name,
         sort_order: slot.sortOrder,
+        phase_id: phaseId,
+        warmup_notes: slot.warmupNotes ?? null,
       })
       .select()
       .single();
@@ -1591,9 +1656,21 @@ export async function createWorkoutTemplate(input: {
 
 export async function updateWorkoutTemplate(templateId: string, input: {
   name: string;
+  description?: string;
+  level?: string;
+  location?: string;
+  phases?: Array<{
+    name: string;
+    sortOrder: number;
+    weekStart?: number;
+    weekEnd?: number;
+    description?: string;
+  }>;
   slots: Array<{
     name: string;
     sortOrder: number;
+    phaseIndex?: number;
+    warmupNotes?: string;
     exercises: Array<{
       exerciseId: string | null;
       customName?: string;
@@ -1611,25 +1688,51 @@ export async function updateWorkoutTemplate(templateId: string, input: {
   // Update template row
   const { error: updateError } = await sb
     .from("workout_templates")
-    .update({ name: input.name })
+    .update({
+      name: input.name,
+      description: input.description ?? null,
+      level: input.level ?? null,
+      location: input.location ?? null,
+    })
     .eq("id", templateId);
   if (updateError) return { error: updateError.message };
 
-  // Delete all slots (cascade deletes exercises)
-  const { error: deleteError } = await sb
-    .from("workout_template_slots")
-    .delete()
-    .eq("template_id", templateId);
-  if (deleteError) return { error: deleteError.message };
+  // Delete all phases (cascade nulls phase_id on slots) and slots (cascade deletes exercises)
+  await sb.from("workout_template_phases").delete().eq("template_id", templateId);
+  await sb.from("workout_template_slots").delete().eq("template_id", templateId);
+
+  // Re-insert phases
+  const phaseIdMap: Record<number, string> = {};
+  if (input.phases && input.phases.length > 0) {
+    for (const phase of input.phases) {
+      const { data: phaseData, error: phaseError } = await sb
+        .from("workout_template_phases")
+        .insert({
+          template_id: templateId,
+          name: phase.name,
+          sort_order: phase.sortOrder,
+          week_start: phase.weekStart ?? null,
+          week_end: phase.weekEnd ?? null,
+          description: phase.description ?? null,
+        })
+        .select()
+        .single();
+      if (phaseError || !phaseData) return { error: phaseError?.message || "Failed to create phase" };
+      phaseIdMap[phase.sortOrder] = phaseData.id;
+    }
+  }
 
   // Re-insert slots and exercises
   for (const slot of input.slots) {
+    const phaseId = slot.phaseIndex !== undefined ? (phaseIdMap[slot.phaseIndex] ?? null) : null;
     const { data: slotData, error: slotError } = await sb
       .from("workout_template_slots")
       .insert({
         template_id: templateId,
         name: slot.name,
         sort_order: slot.sortOrder,
+        phase_id: phaseId,
+        warmup_notes: slot.warmupNotes ?? null,
       })
       .select()
       .single();
@@ -1672,9 +1775,13 @@ export async function getWorkoutAssignments(coachId: string): Promise<WorkoutAss
       *,
       template:workout_templates(
         *,
+        workout_template_phases(*),
         workout_template_slots(
           *,
-          workout_slot_exercises(*)
+          workout_slot_exercises(
+            *,
+            exercise:exercises(name, emoji, video_id)
+          )
         )
       ),
       client:profiles!workout_assignments_client_id_fkey(name, email)
@@ -1701,9 +1808,13 @@ export async function getClientActiveWorkoutAssignment(clientId: string): Promis
       *,
       template:workout_templates(
         *,
+        workout_template_phases(*),
         workout_template_slots(
           *,
-          workout_slot_exercises(*)
+          workout_slot_exercises(
+            *,
+            exercise:exercises(name, emoji, video_id)
+          )
         )
       )
     `)

@@ -17,7 +17,22 @@ import type {
   PlanType,
 } from "@/types";
 import { calculateDishMacros, roundMacros } from "@/lib/macro-calc";
-import { foodDatabase } from "@/lib/food-database";
+
+// Inline per100g macros for the foods used in seed data (previously from food-database.ts)
+const SEED_FOOD_MACROS: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {
+  p1: { calories: 165, protein: 31, carbs: 0,    fat: 3.6 },  // Chicken Breast
+  p2: { calories: 155, protein: 13, carbs: 1.1,  fat: 11  },  // Eggs (whole)
+  p3: { calories: 52,  protein: 11, carbs: 0.7,  fat: 0.2 },  // Egg Whites
+  p4: { calories: 265, protein: 18, carbs: 1.2,  fat: 21  },  // Paneer
+  p5: { calories: 400, protein: 80, carbs: 10,   fat: 5   },  // Whey Protein
+  p6: { calories: 97,  protein: 9,  carbs: 3.6,  fat: 5   },  // Greek Yogurt
+  p7: { calories: 208, protein: 20, carbs: 0,    fat: 13  },  // Salmon
+  c2: { calories: 130, protein: 2.7,carbs: 28,   fat: 0.3 },  // White Rice
+  c3: { calories: 389, protein: 17, carbs: 66,   fat: 7   },  // Oats
+  c5: { calories: 297, protein: 9,  carbs: 50,   fat: 7   },  // Whole Wheat Roti
+  c6: { calories: 89,  protein: 1.1,carbs: 23,   fat: 0.3 },  // Banana
+  f7: { calories: 160, protein: 2,  carbs: 9,    fat: 15  },  // Avocado
+};
 
 // ============================================================
 // HELPERS
@@ -27,9 +42,9 @@ const COACH_ID = "seed-coach-001";
 const CREATED_AT = "2025-01-01T00:00:00Z";
 
 function getFoodPer100g(foodId: string) {
-  const food = foodDatabase.find((f) => f.id === foodId);
-  if (!food) throw new Error(`Food not found: ${foodId}`);
-  return food.per100g;
+  const macros = SEED_FOOD_MACROS[foodId];
+  if (!macros) throw new Error(`Food not found in seed macros: ${foodId}`);
+  return macros;
 }
 
 /** Build a DishItem from a food database reference */

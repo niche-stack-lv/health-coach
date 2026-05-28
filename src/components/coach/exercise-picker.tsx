@@ -3,9 +3,28 @@
 import { useState, useEffect } from "react";
 import { X, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { exerciseDatabase, muscleGroups, type Exercise } from "@/lib/exercise-database";
 import { getExercises } from "@/lib/db";
 import { cn } from "@/lib/utils";
+
+// Exercise type sourced entirely from DB
+export interface Exercise {
+  id: string;
+  name: string;
+  category: "chest" | "back" | "shoulders" | "arms" | "legs" | "core" | "cardio";
+  emoji: string;
+  equipment?: string;
+  videoId?: string;
+}
+
+const MUSCLE_GROUPS = [
+  { key: "chest" as const,     label: "Chest",     emoji: "🏋️" },
+  { key: "back" as const,      label: "Back",      emoji: "💪" },
+  { key: "shoulders" as const, label: "Shoulders", emoji: "🔥" },
+  { key: "arms" as const,      label: "Arms",      emoji: "💪" },
+  { key: "legs" as const,      label: "Legs",      emoji: "🦵" },
+  { key: "core" as const,      label: "Core",      emoji: "🎯" },
+  { key: "cardio" as const,    label: "Cardio",    emoji: "🏃" },
+];
 
 interface ExercisePickerProps {
   onSelect: (exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string) => void;
@@ -13,35 +32,29 @@ interface ExercisePickerProps {
 }
 
 export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
-  const [activeGroup, setActiveGroup] = useState<string>(muscleGroups[0].key);
+  const [activeGroup, setActiveGroup] = useState<string>(MUSCLE_GROUPS[0].key);
   const [search, setSearch] = useState("");
-  const [dbExercises, setDbExercises] = useState<Exercise[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
-  // Load DB exercises and merge with static
   useEffect(() => {
     getExercises().then((data) => {
-      const mapped: Exercise[] = data.map((e: any) => ({
-        id: e.id,
-        name: e.name,
-        category: e.category,
-        emoji: e.emoji || "🏋️",
-        equipment: e.equipment || undefined,
-        videoId: e.video_id || undefined,
-      }));
-      setDbExercises(mapped);
+      setExercises(
+        data.map((e: any) => ({
+          id: e.id,
+          name: e.name,
+          category: e.category,
+          emoji: e.emoji || "🏋️",
+          equipment: e.equipment || undefined,
+          videoId: e.video_id || undefined,
+        }))
+      );
+      setLoading(false);
     });
   }, []);
 
-  // Merge static + DB exercises, deduplicate by name
-  const allExercises = [...exerciseDatabase];
-  for (const dbEx of dbExercises) {
-    if (!allExercises.find((e) => e.name.toLowerCase() === dbEx.name.toLowerCase())) {
-      allExercises.push(dbEx);
-    }
-  }
-
-  const filtered = allExercises.filter((e) => {
+  const filtered = exercises.filter((e) => {
     const matchesGroup = e.category === activeGroup;
     const matchesSearch = !search || e.name.toLowerCase().includes(search.toLowerCase());
     return matchesGroup && matchesSearch;
@@ -88,7 +101,7 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
 
         {/* Muscle group tabs */}
         <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-5 px-5 mb-3">
-          {muscleGroups.map((g) => (
+          {MUSCLE_GROUPS.map((g) => (
             <button
               key={g.key}
               onClick={() => setActiveGroup(g.key)}
@@ -106,36 +119,51 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
 
         {/* Exercise list */}
         <div className="flex-1 overflow-y-auto space-y-2">
-          {filtered.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => setSelectedExercise(ex)}
-              className="w-full flex items-center gap-3 rounded-xl border border-white/[0.06] px-4 py-3 text-left hover:bg-white/[0.04] transition-all active:scale-[0.98]"
-            >
-              <span className="text-xl">{ex.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white">{ex.name}</p>
-                {ex.equipment && <p className="text-xs text-zinc-500">{ex.equipment}</p>}
-              </div>
-              <Plus className="h-4 w-4 text-zinc-500 shrink-0" />
-            </button>
-          ))}
-          {filtered.length === 0 && (
-            <p className="text-center text-sm text-zinc-600 py-8">No exercises found</p>
-          )}
-
-          {/* Custom exercise option */}
-          <button
-            onClick={() => setSelectedExercise({ id: "custom-" + crypto.randomUUID(), name: "Custom Exercise", category: activeGroup as any, emoji: "✏️" })}
-            className="w-full flex items-center gap-3 rounded-xl border border-dashed border-gold/30 px-4 py-3 text-left hover:bg-gold/5 transition-all active:scale-[0.98]"
-          >
-            <span className="text-xl">✏️</span>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gold">Add Custom Exercise</p>
-              <p className="text-xs text-zinc-500">Not in the list? Add your own</p>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="h-6 w-6 rounded-full border-2 border-gold border-t-transparent animate-spin" />
             </div>
-            <Plus className="h-4 w-4 text-gold shrink-0" />
-          </button>
+          ) : (
+            <>
+              {filtered.map((ex) => (
+                <button
+                  key={ex.id}
+                  onClick={() => setSelectedExercise(ex)}
+                  className="w-full flex items-center gap-3 rounded-xl border border-white/[0.06] px-4 py-3 text-left hover:bg-white/[0.04] transition-all active:scale-[0.98]"
+                >
+                  <span className="text-xl">{ex.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{ex.name}</p>
+                    {ex.equipment && <p className="text-xs text-zinc-500">{ex.equipment}</p>}
+                  </div>
+                  <Plus className="h-4 w-4 text-zinc-500 shrink-0" />
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <p className="text-center text-sm text-zinc-600 py-8">No exercises found</p>
+              )}
+
+              {/* Custom exercise option */}
+              <button
+                onClick={() =>
+                  setSelectedExercise({
+                    id: "custom-" + crypto.randomUUID(),
+                    name: "Custom Exercise",
+                    category: activeGroup as Exercise["category"],
+                    emoji: "✏️",
+                  })
+                }
+                className="w-full flex items-center gap-3 rounded-xl border border-dashed border-gold/30 px-4 py-3 text-left hover:bg-gold/5 transition-all active:scale-[0.98]"
+              >
+                <span className="text-xl">✏️</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gold">Add Custom Exercise</p>
+                  <p className="text-xs text-zinc-500">Not in the list? Add your own</p>
+                </div>
+                <Plus className="h-4 w-4 text-gold shrink-0" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -242,9 +270,10 @@ function ExerciseDetailSheet({
           className="w-full h-12 text-base rounded-2xl"
           disabled={isCustom && !customName.trim()}
           onClick={() => {
-            // For custom exercises, override the exercise name
+            const finalName = isCustom ? customName.trim() : exercise.name;
+            // For custom exercises, pass the typed name back via the exercise object
             if (isCustom) {
-              exercise = { ...exercise, name: customName.trim() };
+              (exercise as any).name = finalName;
             }
             onAdd(Number(sets) || 3, reps || "10", Number(rest) || 60, notes);
           }}

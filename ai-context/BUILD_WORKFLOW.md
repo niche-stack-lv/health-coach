@@ -173,6 +173,32 @@ After implementing, run through the relevant test flows from `TEST_FLOWS.md`.
 
 ---
 
+## Verification loop (for complex changes)
+
+For any change touching multiple files or the DB, run this loop before presenting the result:
+
+```
+Write code → tsc --noEmit → fix errors → check diagnostics → test in browser → done
+```
+
+1. **TypeScript first** — run `npx tsc --noEmit`. Zero errors before moving on.
+2. **Diagnostics** — use getDiagnostics on every file you touched.
+3. **Demo mode** — open `localhost:3000?demo=true` and verify the page works without Supabase.
+4. **Real data** — open the page logged in and verify data loads correctly.
+5. **Write path** — if you added a write operation, test it end-to-end (create/update/delete).
+6. **RLS check** — if you added a new table or policy, verify both coach and client can access what they should (and can't access what they shouldn't).
+
+**If the same error appears twice:** stop patching. Diagnose the root cause. A different approach is needed.
+
+**What "done" means:**
+- Zero TypeScript errors
+- Zero console errors in browser
+- Demo mode works
+- Real data works
+- No regression in adjacent features
+
+---
+
 ## Building specific things
 
 ### New coach page

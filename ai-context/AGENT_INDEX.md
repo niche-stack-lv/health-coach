@@ -5,6 +5,7 @@
 - `ai-context/LANDMINES.md` — dangerous patterns that will break things
 - `ai-context/coding-standards/correct-patterns.md` — how this codebase does things
 - `ai-context/coding-standards/anti-patterns.md` — what NOT to do
+- `ai-context/coding-standards/architecture.md` — layer responsibilities, constraints, bundler, state management
 - `ai-context/TEST_FLOWS.md` — manual QA checklist (26 flows) — run after any change
 - `ai-context/BUILD_WORKFLOW.md` — 6-step build loop for any new feature, page, or DB operation
 
@@ -31,6 +32,13 @@
 | Database, auth, storage, RLS, queries | `integrations/supabase.md` |
 | WhatsApp messages, wa.me links | `integrations/whatsapp.md` |
 | UPI payments, QR codes, payment screenshots | `integrations/upi-payments.md` |
+
+### Code quality
+| If the task involves... | Load |
+|------------------------|------|
+| Reviewing code before merge | `coding-standards/code-review.md` |
+| Auth, RLS, secrets, input handling | `coding-standards/security.md` |
+| System design, new feature architecture | `coding-standards/architecture.md` |
 
 ## How to work on this codebase
 

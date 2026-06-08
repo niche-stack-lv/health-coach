@@ -21,6 +21,9 @@ export default defineConfig({
     reuseExistingServer: true,
     env: {
       CLIENT_ID: "arsh-sandhu",
+      // Dummy Supabase credentials to prevent the Supabase client from throwing
+      // at import time. Tests use ?demo=true which bypasses all Supabase calls,
+      // so no real backend connection is needed.
       NEXT_PUBLIC_SUPABASE_URL: "http://localhost:54321",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder-key-for-e2e-tests",
     },

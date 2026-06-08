@@ -45,13 +45,11 @@ test.describe("F16 - Client Home", () => {
     ).toBeVisible();
   });
 
-  test("coach feedback text is visible", async ({ page }) => {
-    // The demo data includes coach_feedback text - it renders in the weekly check-in card
-    // or as part of the daily check-in display. Look for "progress" keyword anywhere.
-    // In demo, the "Submit Weekly Check-in" link appears since no date is set,
-    // but we check that at minimum the feedback-related UI exists
+  test("weekly check-in link is visible when no submission date exists", async ({ page }) => {
+    // Demo data has coach_feedback but no date/created_at, so the feedback card
+    // does not render. Instead the "Submit Weekly Check-in" link appears.
     await expect(
-      page.getByText(/check-in/i).first()
+      page.getByText("Submit Weekly Check-in")
     ).toBeVisible();
   });
 

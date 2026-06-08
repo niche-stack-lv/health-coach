@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-001",
+  "type": "chore",
+  "description": "Install and configure Playwright for E2E testing. Set up the test infrastructure so subsequent features can write and run tests.",
+  "status": "in_progress",
+  "steps": [
+    "Run `npm install -D @playwright/test` to add Playwright as a dev dependency",
+    "Run `npx playwright install chromium` to download the Chromium browser binary",
+    "Create `playwright.config.ts` at the project root with: baseURL 'http://localhost:3000', webServer config to run `npm run dev` (auto-start before tests, wait for port 3000, reuseExistingServer true, set env CLIENT_ID=arsh-sandhu), single project 'chromium', output folder 'playwright-report/', testDir 'tests/e2e', set use.actionTimeout to 10000, timeout per test to 30000",
+    "Add `\"test:e2e\": \"playwright test\"` to package.json scripts",
+    "Create the `tests/e2e/` directory",
+    "Add `/playwright-report/`, `/test-results/`, and `/playwright/.cache/` to .gitignore",
+    "Create a minimal smoke test file `tests/e2e/smoke.spec.ts` that just navigates to '/' and asserts the page title or brand name is visible - this validates the infrastructure works",
+    "Run `npm run test:e2e` to confirm the smoke test passes with the dev server auto-starting"
+  ],
+  "acceptance_criteria": [
+    "`npm run test:e2e` script exists and runs Playwright",
+    "playwright.config.ts exists with correct baseURL, webServer, chromium project, and output settings",
+    "The smoke test passes (page loads and brand name is visible)",
+    "`npm run build` still succeeds with no TS errors from the new config file"
+  ],
+  "verification": [
+    "Run `npm run test:e2e` and confirm all tests pass",
+    "Run `npm run build` and confirm no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

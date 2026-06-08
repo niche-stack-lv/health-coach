@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "feat",
   "description": "Write E2E tests for the Client Portal in demo mode (F16-F22 from TEST_FLOWS.md) and Config Verification tests (F23-F24). All client portal tests use ?demo=true. Config tests verify config values render on correct pages.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create `tests/e2e/client-portal.spec.ts` with imports from '@playwright/test' and config from '../../site.config'",
     "F16 - Client Home tests (`/client?demo=true`): Assert navbar shows config.brand.name. Assert 'DEMO' badge is visible. Assert current plan card shows 'Fat Loss Phase 1'. Assert weight stat shows '83.2 kg'. Assert quick action buttons exist (Check-in, Log Body or similar). Assert quick links (Diet Plan, Workout) exist. Assert latest coach feedback renders (text about 'progress'). Assert today's meals preview shows meals.",
@@ -31,5 +31,5 @@
     "Run `npm run build` and confirm no TypeScript errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "1. The client profile page (/client/profile) does NOT support demo mode - it requires a real user and stays in loading state. Test verifies the navbar renders within the layout instead. 2. The client home page coach_feedback demo data does not display on the home dashboard because the check-in object lacks a date/created_at field, so the weekly check-in card condition evaluates to false. The 'Submit Weekly Check-in' link appears instead. 3. The home page shows '4 meals/day' count in the plan card rather than individual meal names. 4. No PDF export button exists on client diet-plan or workout pages - this was a planner assumption that doesn't match the codebase. 5. The habits page 'Steps' text matches multiple elements (habit name, target '10,000 steps', unit 'steps') requiring exact/first() usage. 6. The pricing page shows coach.firstName only inside plan feature descriptions (step 3) which requires selecting a program first. 7. ThemeVars injects --gold CSS variable confirmed via evaluate. Recharts chart renders SVG elements. 8. All 34 tests pass in ~25s. Full E2E suite of 94 tests passes."
 }

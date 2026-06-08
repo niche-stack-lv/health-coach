@@ -47,36 +47,12 @@ export function formatFoodAmount(food: FoodItem, grams: number): string {
   return `${grams}g`;
 }
 
-/** Get quick amount options for the quantity sheet */
+/** Get quick amount options — always 1x, 1.5x, 2x of the serving size */
 export function getQuickAmounts(food: FoodItem): { label: string; grams: number }[] {
-  if (food.unit && food.gramsPerUnit) {
-    const g = food.gramsPerUnit;
-    const isGramUnit = /^\d+g/.test(food.unit) || /~\d+g/.test(food.unit);
-    if (isGramUnit) {
-      return [
-        { label: `${g}g`, grams: g },
-        { label: `${Math.round(g * 1.5)}g`, grams: Math.round(g * 1.5) },
-        { label: `${g * 2}g`, grams: g * 2 },
-        { label: `${Math.round(g * 2.5)}g`, grams: Math.round(g * 2.5) },
-        { label: `${g * 3}g`, grams: g * 3 },
-        { label: `${g * 4}g`, grams: g * 4 },
-      ];
-    }
-    return [
-      { label: `1 ${food.unit}`, grams: g },
-      { label: `2 ${food.unit}s`, grams: g * 2 },
-      { label: `3 ${food.unit}s`, grams: g * 3 },
-      { label: `4 ${food.unit}s`, grams: g * 4 },
-      { label: `5 ${food.unit}s`, grams: g * 5 },
-      { label: `6 ${food.unit}s`, grams: g * 6 },
-    ];
-  }
+  const g = food.gramsPerUnit ?? 100;
   return [
-    { label: "50g",  grams: 50  },
-    { label: "100g", grams: 100 },
-    { label: "150g", grams: 150 },
-    { label: "200g", grams: 200 },
-    { label: "250g", grams: 250 },
-    { label: "300g", grams: 300 },
+    { label: "1",   grams: g },
+    { label: "1.5", grams: Math.round(g * 1.5) },
+    { label: "2",   grams: g * 2 },
   ];
 }

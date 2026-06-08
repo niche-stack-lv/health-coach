@@ -22,7 +22,9 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
   const [grams, setGrams] = useState("");
   const quickOpts = getQuickAmounts(food);
   const g = Number(grams) || 0;
-  const m = g / 100;
+  // If food has a unit, macros are stored per-unit (gramsPerUnit), not per 100g
+  const divisor = food.gramsPerUnit ?? 100;
+  const m = g / divisor;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center" onClick={onClose}>
@@ -38,7 +40,7 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
               <p className="font-semibold text-white">{food.name}</p>
               <p className="text-xs text-zinc-500">
                 {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f
-                {food.unit ? ` per ${food.unit}` : " per 100g"}
+                {food.unit && food.gramsPerUnit ? ` per ${food.unit} (${food.gramsPerUnit}g)` : " per 100g"}
               </p>
             </div>
           </div>
@@ -47,20 +49,31 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
           </button>
         </div>
 
-        {/* Quick amount buttons */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        {/* Serving size reference */}
+        <div className="mb-3 px-1">
+          <p className="text-xs text-zinc-500">
+            1 serving = <span className="text-zinc-300 font-medium">{food.gramsPerUnit ?? 100}g</span>
+            {food.unit ? <span className="text-zinc-500"> ({food.unit})</span> : ""}
+          </p>
+        </div>
+
+        {/* Quick amount buttons — 1x, 1.5x, 2x */}
+        <div className="flex gap-2 mb-4">
           {quickOpts.map((opt) => (
             <button
               key={opt.grams}
               onClick={() => setGrams(String(opt.grams))}
               className={cn(
-                "rounded-xl py-2.5 text-sm font-medium transition-all border",
+                "flex-1 rounded-xl py-2.5 text-left px-3 transition-all border",
                 Number(grams) === opt.grams
-                  ? "border-gold bg-gold/10 text-gold"
+                  ? "border-gold bg-gold/10"
                   : "border-white/[0.06] text-zinc-400 hover:bg-white/[0.04]"
               )}
             >
-              {opt.label}
+              <p className={cn("text-sm font-semibold", Number(grams) === opt.grams ? "text-gold" : "text-white")}>
+                {opt.label}×
+              </p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">{opt.grams}g</p>
             </button>
           ))}
         </div>

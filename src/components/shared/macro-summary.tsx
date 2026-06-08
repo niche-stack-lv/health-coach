@@ -10,6 +10,11 @@ interface MacroSummaryProps {
   size?: "sm" | "md" | "lg";
 }
 
+// Helper: format a macro value — calories as integer, others to 1 decimal
+function fmt(val: number, isCalories = false): string {
+  return isCalories ? Math.round(val).toString() : (Math.round(val * 10) / 10).toString();
+}
+
 /**
  * Shared macro summary component.
  * - sm: inline text (used in slot headers)
@@ -20,10 +25,10 @@ export function MacroSummary({ calories, protein, carbs, fat, size = "md" }: Mac
   if (size === "sm") {
     return (
       <div className="flex items-center gap-3 text-[11px] text-zinc-500">
-        <span>{Math.round(calories)} cal</span>
-        <span>{Math.round(protein)}p</span>
-        <span>{Math.round(carbs)}c</span>
-        <span>{Math.round(fat)}f</span>
+        <span>{fmt(calories, true)} cal</span>
+        <span>{fmt(protein)}p</span>
+        <span>{fmt(carbs)}c</span>
+        <span>{fmt(fat)}f</span>
       </div>
     );
   }
@@ -35,19 +40,19 @@ export function MacroSummary({ calories, protein, carbs, fat, size = "md" }: Mac
       size === "lg" && "gap-4"
     )}>
       <div className="rounded-xl bg-white/[0.03] py-2.5 px-3">
-        <p className={cn("font-bold text-white", size === "lg" ? "text-xl" : "text-lg")}>{Math.round(calories)}</p>
+        <p className={cn("font-bold text-white", size === "lg" ? "text-xl" : "text-lg")}>{fmt(calories, true)}</p>
         <p className="text-[10px] text-zinc-500 uppercase mt-0.5">kcal</p>
       </div>
       <div className="rounded-xl bg-white/[0.03] py-2.5 px-3">
-        <p className={cn("font-bold text-emerald-400", size === "lg" ? "text-xl" : "text-lg")}>{Math.round(protein)}g</p>
+        <p className={cn("font-bold text-emerald-400", size === "lg" ? "text-xl" : "text-lg")}>{fmt(protein)}g</p>
         <p className="text-[10px] text-zinc-500 uppercase mt-0.5">protein</p>
       </div>
       <div className="rounded-xl bg-white/[0.03] py-2.5 px-3">
-        <p className={cn("font-bold text-sky-400", size === "lg" ? "text-xl" : "text-lg")}>{Math.round(carbs)}g</p>
+        <p className={cn("font-bold text-sky-400", size === "lg" ? "text-xl" : "text-lg")}>{fmt(carbs)}g</p>
         <p className="text-[10px] text-zinc-500 uppercase mt-0.5">carbs</p>
       </div>
       <div className="rounded-xl bg-white/[0.03] py-2.5 px-3">
-        <p className={cn("font-bold text-amber-400", size === "lg" ? "text-xl" : "text-lg")}>{Math.round(fat)}g</p>
+        <p className={cn("font-bold text-amber-400", size === "lg" ? "text-xl" : "text-lg")}>{fmt(fat)}g</p>
         <p className="text-[10px] text-zinc-500 uppercase mt-0.5">fat</p>
       </div>
     </div>

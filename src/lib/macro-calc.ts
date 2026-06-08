@@ -46,14 +46,15 @@ export function calculateDishMacros(
 }
 
 /**
- * Round each macro field to the nearest integer for display.
+ * Round macro fields for display.
+ * Calories: nearest integer. Protein/carbs/fat: 1 decimal place.
  */
 export function roundMacros(macros: MacroValues): MacroValues {
   return {
     calories: Math.round(macros.calories),
-    protein: Math.round(macros.protein),
-    carbs: Math.round(macros.carbs),
-    fat: Math.round(macros.fat),
+    protein: Math.round(macros.protein * 10) / 10,
+    carbs: Math.round(macros.carbs * 10) / 10,
+    fat: Math.round(macros.fat * 10) / 10,
   };
 }
 

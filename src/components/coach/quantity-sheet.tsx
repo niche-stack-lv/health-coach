@@ -102,15 +102,15 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
               <p className="text-[10px] text-zinc-500">kcal</p>
             </div>
             <div className="rounded-lg bg-red-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-red-400">{Math.round(food.per100g.protein * m)}g</p>
+              <p className="text-sm font-bold text-red-400">{+(food.per100g.protein * m).toFixed(1)}g</p>
               <p className="text-[10px] text-zinc-500">protein</p>
             </div>
             <div className="rounded-lg bg-amber-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-amber-400">{Math.round(food.per100g.carbs * m)}g</p>
+              <p className="text-sm font-bold text-amber-400">{+(food.per100g.carbs * m).toFixed(1)}g</p>
               <p className="text-[10px] text-zinc-500">carbs</p>
             </div>
             <div className="rounded-lg bg-emerald-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-emerald-400">{Math.round(food.per100g.fat * m)}g</p>
+              <p className="text-sm font-bold text-emerald-400">{+(food.per100g.fat * m).toFixed(1)}g</p>
               <p className="text-[10px] text-zinc-500">fat</p>
             </div>
           </div>

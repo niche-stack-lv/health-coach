@@ -39,10 +39,10 @@ export function mapDbFoodToFoodItem(f: any): FoodItem {
 
 /** Get display label for a food amount */
 export function formatFoodAmount(food: FoodItem, grams: number): string {
-  if (food.unit && food.gramsPerUnit) {
-    const units = Math.round((grams / food.gramsPerUnit) * 10) / 10;
-    const plural = units !== 1 && !["tbsp", "tsp"].includes(food.unit);
-    return `${units} ${food.unit}${plural ? "s" : ""}`;
+  if (food.gramsPerUnit) {
+    const units = grams / food.gramsPerUnit;
+    const label = units % 1 === 0 ? units.toString() : units.toFixed(1);
+    return `${label} × ${food.gramsPerUnit}g${food.unit ? ` (${food.unit})` : ""}`;
   }
   return `${grams}g`;
 }

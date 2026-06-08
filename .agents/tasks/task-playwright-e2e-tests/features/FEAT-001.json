@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "chore",
   "description": "Install and configure Playwright for E2E testing. Set up the test infrastructure so subsequent features can write and run tests.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Run `npm install -D @playwright/test` to add Playwright as a dev dependency",
     "Run `npx playwright install chromium` to download the Chromium browser binary",
@@ -24,5 +24,5 @@
     "Run `npm run build` and confirm no TypeScript errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "1. Chromium requires system libraries (libnspr4, libnss3, etc.) that are not pre-installed on this Amazon Linux sandbox. Had to install via dnf + manual rpm extraction for nss (read-only /etc/pki blocked normal install). 2. The Supabase client throws if NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set, even on the landing page. Added dummy placeholder values in webServer env to prevent crashes. 3. Brand name 'SHREDCODE' appears multiple times on the landing page, so the smoke test uses .first() to avoid strict mode violations."
 }

@@ -1,0 +1,35 @@
+{
+  "id": "FEAT-004",
+  "type": "feat",
+  "description": "Write E2E tests for the Client Portal in demo mode (F16-F22 from TEST_FLOWS.md) and Config Verification tests (F23-F24). All client portal tests use ?demo=true. Config tests verify config values render on correct pages.",
+  "status": "in_progress",
+  "steps": [
+    "Create `tests/e2e/client-portal.spec.ts` with imports from '@playwright/test' and config from '../../site.config'",
+    "F16 - Client Home tests (`/client?demo=true`): Assert navbar shows config.brand.name. Assert 'DEMO' badge is visible. Assert current plan card shows 'Fat Loss Phase 1'. Assert weight stat shows '83.2 kg'. Assert quick action buttons exist (Check-in, Log Body or similar). Assert quick links (Diet Plan, Workout) exist. Assert latest coach feedback renders (text about 'progress'). Assert today's meals preview shows meals.",
+    "F17 - Client Diet Plan tests (`/client/diet-plan?demo=true`): Assert plan title renders. Assert daily macro totals visible (calories, protein, carbs, fat). Assert multiple meals render with items. Assert PDF export button is present.",
+    "F18 - Client Workout tests (`/client/workout?demo=true`): Assert plan title renders. Assert day tabs are clickable (Day 1, Day 2, Day 3 or similar). Assert exercises show with details (sets, reps). Assert summary stats render (exercises count, total sets). Assert PDF export button present.",
+    "F19 - Client Habits tests (`/client/habits?demo=true`): Assert 'Daily Checklist' heading visible. Assert progress bar renders. Assert 4 habits render with emoji and name ('Drink Water', 'Sleep', 'Steps', 'No Sugar'). Assert checkbox toggles work (click one, verify visual state change). Assert value inputs show for habits with units (L, hrs, steps).",
+    "F20 - Client Measurements tests (`/client/measurements?demo=true`): Assert measurement cards are visible (weight or similar). Assert chart/trend section renders. Assert history list shows entries.",
+    "F21 - Client Check-in tests (`/client/check-in?demo=true`): Assert photo upload areas visible (Front, Side, Back). Assert weight input with kg visible. Assert notes textarea present. Assert 'Submit Check-in' button exists. Click submit and assert success state appears in demo mode.",
+    "F22 - Client Profile tests (`/client/profile?demo=true`): Assert page loads (may show loading state or profile content).",
+    "Create `tests/e2e/config-verification.spec.ts` with imports from '@playwright/test' and config from '../../site.config'",
+    "F23 - White-Label Config Check: Test that config.brand.name appears on the landing page. Test that config.coach.name appears on pricing page. Test that config.pricing.callPrice appears on book-call page. Test that config.brand.name appears in the sidebar (/coach?demo=true). Test that config.brand.name appears in client navbar (/client?demo=true). Test that config.brand.copyrightHolder appears in footer.",
+    "F24 - Color Theme Check: Verify the page loads with theme CSS variables applied (check that gold/primary color class or CSS variable is present in the DOM). This can be a basic assertion that theme-vars component injects the primary color."
+  ],
+  "acceptance_criteria": [
+    "tests/e2e/client-portal.spec.ts exists with test cases for F16-F22",
+    "tests/e2e/config-verification.spec.ts exists with test cases for F23-F24",
+    "Client home test asserts specific demo values: 'Fat Loss Phase 1', '83.2 kg'",
+    "Client habits test verifies checkbox toggle interaction",
+    "Client check-in test verifies submit flow in demo mode",
+    "Config verification tests import values from site.config.ts dynamically",
+    "All tests pass with `npm run test:e2e`"
+  ],
+  "verification": [
+    "Run `npx playwright test tests/e2e/client-portal.spec.ts` and confirm all tests pass",
+    "Run `npx playwright test tests/e2e/config-verification.spec.ts` and confirm all tests pass",
+    "Run `npm run build` and confirm no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

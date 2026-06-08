@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Write E2E tests for all public pages (F1-F8 from TEST_FLOWS.md): Landing, Login, Signup, Forgot Password, Pricing, Enquiry, Book Call, About Platform. These pages require no auth. Tests must import config values from site.config.ts dynamically.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Create `tests/e2e/public-pages.spec.ts` with proper imports: `import { test, expect } from '@playwright/test'` and import config from `../../site.config`",
     "F1 - Landing Page tests (`/`): Assert nav shows config.brand.name. Assert hero section renders (heading text). Assert about section shows config.coach.name. Assert achievements grid shows 4 items. Assert testimonials section renders. Assert programs grid shows all programs from config. Assert footer shows brand name. Assert footer copyright shows current year + config.brand.copyrightHolder. Assert 'Send Enquiry' button links to /enquiry. Assert 'Start Your Transformation' CTA links to /pricing. Assert demo footer links exist (coach demo, client demo).",
@@ -27,5 +27,5 @@
     "Run `npm run build` and confirm no TypeScript errors"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "1. The enquiry form uses labels without 'for' attributes, so getByLabel does not work. Used getByPlaceholder instead. 2. Next.js dev tools adds a button with 'Next' in its aria-label, causing strict mode violations. Used exact: true for the Next button selector. 3. All 37 tests pass in ~40s. 4. UPI ID is empty in arsh-sandhu config, so the F7 UPI ID test is conditional."
 }

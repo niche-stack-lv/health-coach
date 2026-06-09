@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Add tests for all untested client portal pages (food-check-in, onboarding, change-password, faq)",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Create new test file tests/e2e/client-pages-extended.spec.ts for untested client pages:",
 
@@ -45,5 +45,5 @@
     "Run npm run build and confirm build succeeds"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "FAQ page has Google Drive iframes that prevent networkidle from resolving - used domcontentloaded + explicit heading waitFor instead. Onboarding page renders fully in demo mode (no user check on render). Change-password page shows spinner since it checks if(!user). The (client) layout hides ClientNavbar on gate pages (onboarding, change-password). All 18 new tests pass; 180 total tests pass with 3 skipped."
 }

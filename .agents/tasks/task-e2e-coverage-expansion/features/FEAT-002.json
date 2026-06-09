@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "feat",
   "description": "Add tests for all untested client portal pages (food-check-in, onboarding, change-password, faq)",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Step 1: Create new test file tests/e2e/client-pages-extended.spec.ts for untested client pages:",
 

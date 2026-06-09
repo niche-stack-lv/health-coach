@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "feat",
   "description": "Fill spec coverage gaps in existing test files (F1-F24) and add tests for all untested coach portal pages",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Step 1: Expand tests/e2e/public-pages.spec.ts with missing F1-F8 assertions:",
     "  - F1: Add test for hero image loads (img with alt containing coach name), about image loads, social link icons in footer (Instagram, YouTube links in footer)",
@@ -48,5 +48,5 @@
     "Run npm run build and confirm build succeeds"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Playwright browsers needed reinstallation and system dependencies (nspr, nss, libxkbcommon) had to be installed on Amazon Linux 2023. Select option elements are not 'visible' in Playwright - use toHaveValue() instead. Sidebar nav links share text-zinc-500 class and match loosely - use more specific selectors. Generic text patterns like /C/ or /P/ match brand name in sidebar. The enquiry form submit uses window.open() for WhatsApp, not a link element. Test count grew from 94 to 162 (68 new tests added)."
 }

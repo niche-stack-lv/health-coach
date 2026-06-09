@@ -83,4 +83,22 @@ test.describe("F24 - Color Theme Check", () => {
     const goldElements = page.locator(".gradient-gold");
     await expect(goldElements.first()).toBeVisible();
   });
+
+  test("text-gradient-gold elements exist on landing page", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+
+    // The landing page uses text-gradient-gold class for headings
+    const textGradientElements = page.locator(".text-gradient-gold");
+    await expect(textGradientElements.first()).toBeVisible();
+  });
+
+  test("gold color is used in active nav items on coach sidebar", async ({ page }) => {
+    await page.goto("/coach?demo=true");
+    await page.waitForLoadState("networkidle");
+
+    // Active nav link in sidebar uses text-gold class
+    const goldNavItems = page.locator("aside .text-gold");
+    await expect(goldNavItems.first()).toBeVisible();
+  });
 });

@@ -1,0 +1,52 @@
+{
+  "id": "FEAT-001",
+  "type": "feat",
+  "description": "Fill spec coverage gaps in existing test files (F1-F24) and add tests for all untested coach portal pages",
+  "status": "in_progress",
+  "steps": [
+    "Step 1: Expand tests/e2e/public-pages.spec.ts with missing F1-F8 assertions:",
+    "  - F1: Add test for hero image loads (img with alt containing coach name), about image loads, social link icons in footer (Instagram, YouTube links in footer)",
+    "  - F5: Add test for name/phone/email fields on payment step, Step 3b One-Time sub-options (when One-Time plan is selected), Confirm Payment button disabled until screenshot+fields filled",
+    "  - F6: Add test for Step 3 assertions (Diet Preference, gym/injuries fields visible), submit opens WhatsApp (check href contains wa.me or whatsapp)",
+    "  - F7: Add test for UPI QR image loads (img element in book-call page), success state shows coach name after form submit",
+    "  - F8: Add test for live demo iframes load (check iframe elements exist), 'How firstName Works With You' section text from config",
+    "  Note: F2 'valid credentials redirects' and F3 'creates account' and F4 'sends reset email' require real Supabase - skip these (add .skip or comment noting why)",
+
+    "Step 2: Expand tests/e2e/client-portal.spec.ts with missing F16-F19 assertions:",
+    "  - F16: Add test for check-in count showing '1' (from mockCheckIns), quick action buttons (Check-in, Log Body text), latest coach feedback text ('Great progress this week!'), today's meals preview showing correct count",
+    "  - F17: Add test for PDF export button (getByRole button with /pdf|export|download/i), per-meal macros visible (cal text per meal section), daily macro totals calculate (verify total calories number is visible)",
+    "  - F18: Add test for 'Watch Demo' YouTube links (check for youtube links or video elements), summary stats (exercises count, total sets, est. time), PDF export button",
+    "  - F19: Add test for progress bar element, completing all habits shows 'All done for today!' card (click all toggles then check for completion message)",
+
+    "Step 3: Expand tests/e2e/config-verification.spec.ts with missing F24 assertions:",
+    "  - F24: Add test for gradient buttons use gold color (check computed background includes gold), text-gradient elements exist, active nav items use gold color (check .text-gold or computed color on active nav link)",
+
+    "Step 4: Create new test file tests/e2e/coach-pages-extended.spec.ts for untested coach pages:",
+    "  - /coach/daily-check-ins?demo=true: heading 'Daily Check-ins', stats cards (Checked In, Missed, Rate), filter buttons (All, Checked In, Missed), demo check-in cards show client names (Keerthana, Anil), macros visible (cal, P, C, F), wellness indicators (water, steps, sleep), feedback/review buttons",
+    "  - /coach/diet-templates?demo=true: heading 'Diet Templates', template count text, Create Template button with correct href, template cards show names (Veg Plan, Nonveg Plan, Low Carb Nonveg, Intermittent Fasting), plan type badges visible",
+    "  - /coach/diet-templates/demo-veg?demo=true: heading shows 'Edit Template' or template name, Template Name input with 'Demo Veg Plan', meal slots section with Breakfast/Lunch/Dinner, demo mode warning banner visible",
+    "  - /coach/diet-templates/assign?demo=true: heading 'Assign Template to Client', template selector with demo templates, client selector with demo clients, 'Demo Mode' assign button disabled",
+    "  - /coach/dishes?demo=true: heading 'Foods & Dishes', tab switcher (dishes/foods), search input, category filter buttons (All, Protein, Carbs, Fats, Fiber, Complete, Supps), demo dish cards (Overnight Oats, Palak Paneer, Steamed Broccoli, Chicken Biryani), macro badges on dishes",
+    "  - /coach/dishes/demo-1?demo=true: page loads with dish edit form, name input, category selector, demo mode warning",
+    "  - /coach/clients/c1?demo=true: NOTE - this page does NOT use demo mode (it requires real auth and fetches from DB). Skip or just verify it does not crash (sidebar visible within coach layout)",
+    "  - /coach/clients/c1/adherence?demo=true: heading 'Diet Adherence', client name 'Alex Rivera', check-in count text, weekly average score, individual check-in scores with color coding",
+    "  - /coach/workout-templates?demo=true: heading 'Workout Templates', template count text, Create Template button, template cards (Push Pull Legs, Upper Lower Split, Full Body 3x), slot counts visible",
+    "  - /coach/workout-templates/demo-ppl?demo=true: page loads with template edit form, name input 'Demo PPL Template', workout slots (Push, Pull, Legs), demo mode warning",
+    "  - /coach/plans/create?demo=true: heading 'New Diet Plan', Plan Name input, Client selector, Template selector, Meal Slots section with 4 default slots",
+    "  - /coach/workouts/create?demo=true: heading 'Assign Workout Plan', Client selector, Workout Template selector, demo client option visible"
+  ],
+  "acceptance_criteria": [
+    "All new tests pass when running npx playwright test",
+    "No existing tests are broken",
+    "Each untested coach page has at least 3-5 meaningful assertions",
+    "F1-F8 spec gaps are filled where technically feasible (skip real-Supabase-only items)",
+    "F16-F19 spec gaps are filled with assertions matching actual demo data",
+    "F24 color theme assertions are added"
+  ],
+  "verification": [
+    "Run npx playwright test and confirm all tests pass",
+    "Run npm run build and confirm build succeeds"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

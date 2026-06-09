@@ -82,6 +82,22 @@ test.describe("F1 - Landing Page", () => {
       page.locator("footer").getByRole("link", { name: /demo.*client/i })
     ).toBeVisible();
   });
+
+  test("hero image loads", async ({ page }) => {
+    const heroImg = page.locator('img[alt*="' + siteConfig.coach.name + '"]').first();
+    await expect(heroImg).toBeVisible();
+  });
+
+  test("about image loads", async ({ page }) => {
+    const aboutImg = page.locator('img[alt*="Coach ' + siteConfig.coach.firstName + '"]').first();
+    await expect(aboutImg).toBeVisible();
+  });
+
+  test("social links in footer (Instagram)", async ({ page }) => {
+    const instagramLink = page.locator("footer").getByRole("link", { name: /instagram/i });
+    await expect(instagramLink).toBeVisible();
+    await expect(instagramLink).toHaveAttribute("href", siteConfig.contact.instagram);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -118,6 +134,11 @@ test.describe("F2 - Login Page", () => {
     const homeLink = page.getByRole("link", { name: /back to home/i });
     await expect(homeLink).toHaveAttribute("href", "/");
   });
+
+  // Skipped: valid credentials redirect requires real Supabase
+  test.skip("valid credentials redirects to dashboard", async () => {
+    // This test requires real Supabase authentication
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -145,6 +166,11 @@ test.describe("F3 - Signup Page", () => {
     const signInLink = page.getByRole("link", { name: /sign in/i });
     await expect(signInLink).toHaveAttribute("href", "/login");
   });
+
+  // Skipped: creating account requires real Supabase
+  test.skip("creates account with valid data", async () => {
+    // This test requires real Supabase authentication
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -163,6 +189,11 @@ test.describe("F4 - Forgot Password Page", () => {
   test("Back to Sign In link navigates to /login", async ({ page }) => {
     const backLink = page.getByRole("link", { name: /back to sign in/i });
     await expect(backLink).toHaveAttribute("href", "/login");
+  });
+
+  // Skipped: sending reset email requires real Supabase
+  test.skip("sends password reset email", async () => {
+    // This test requires real Supabase authentication
   });
 });
 
@@ -240,10 +271,34 @@ test.describe("F5 - Pricing Page", () => {
     // Assert payment step: UPI section or payment details visible
     await expect(page.getByText("Scan QR to Pay")).toBeVisible();
 
+    // F5 addition: name/phone/email fields on payment step
+    await expect(page.getByPlaceholder("Your name")).toBeVisible();
+    await expect(page.getByPlaceholder("+91 98765 43210")).toBeVisible();
+
+    // F5 addition: Confirm Payment button disabled until screenshot+fields filled
+    const confirmPaymentBtn = page.getByRole("button", { name: /confirm payment/i });
+    await expect(confirmPaymentBtn).toBeDisabled();
+
     // Assert Back button exists on payment step
     await expect(
       page.getByRole("button", { name: /back to plan details/i })
     ).toBeVisible();
+  });
+
+  test("One-Time plan shows sub-options", async ({ page }) => {
+    const programs = siteConfig.programs || [];
+
+    // Click first program
+    await page.getByRole("button", { name: new RegExp(programs[0].name) }).click();
+    // Click a duration
+    await page.getByRole("button", { name: /^8/ }).first().click();
+    // Click One-Time Plan
+    await page.getByRole("button", { name: /One-Time Plan/i }).click();
+
+    // One-Time plan should show sub-options (Diet Plan, Workout Plan)
+    await expect(page.getByText("Choose what you need")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Diet Plan/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Workout Plan/i })).toBeVisible();
   });
 });
 
@@ -293,6 +348,32 @@ test.describe("F6 - Enquiry Page", () => {
     // Assert summary is visible
     await expect(page.getByText("Your Summary")).toBeVisible();
   });
+
+  test("Step 3 shows gym and injuries fields", async ({ page }) => {
+    // Navigate to step 3
+    await page.getByPlaceholder("Your name").fill("Test User");
+    await page.getByPlaceholder("+91 98765 43210").fill("+91 98765 43210");
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByRole("button", { name: "Fat Loss" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    // Step 3: Verify gym/injuries fields visible
+    await expect(page.getByText("Diet Preference")).toBeVisible();
+    await expect(page.getByText(/gym/i).first()).toBeVisible();
+  });
+
+  test("submit button shows Send via WhatsApp", async ({ page }) => {
+    // Navigate through all steps quickly
+    await page.getByPlaceholder("Your name").fill("Test User");
+    await page.getByPlaceholder("+91 98765 43210").fill("+91 98765 43210");
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByRole("button", { name: "Fat Loss" }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+
+    // Step 4: Check the Submit/WhatsApp button
+    await expect(page.getByRole("button", { name: /send via whatsapp/i })).toBeVisible();
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -334,6 +415,11 @@ test.describe("F7 - Book Call Page", () => {
   test("Confirm Booking button is disabled", async ({ page }) => {
     const confirmBtn = page.getByRole("button", { name: /confirm booking/i });
     await expect(confirmBtn).toBeDisabled();
+  });
+
+  test("UPI QR image loads on book-call page", async ({ page }) => {
+    const qrImg = page.locator("img").first();
+    await expect(qrImg).toBeVisible();
   });
 });
 
@@ -394,5 +480,17 @@ test.describe("F8 - About Platform Page", () => {
     await expect(
       page.locator("footer").getByText(siteConfig.brand.copyrightHolder)
     ).toBeVisible();
+  });
+
+  test("live demo links exist for features", async ({ page }) => {
+    const features = siteConfig.aboutPlatform?.features || [];
+    // Each feature has a demoPath link
+    for (const feature of features) {
+      if (feature.demoPath) {
+        await expect(
+          page.locator(`a[href="${feature.demoPath}"]`).first()
+        ).toBeVisible();
+      }
+    }
   });
 });

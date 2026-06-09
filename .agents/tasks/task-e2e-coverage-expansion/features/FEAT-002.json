@@ -1,0 +1,49 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Add tests for all untested client portal pages (food-check-in, onboarding, change-password, faq)",
+  "status": "pending",
+  "steps": [
+    "Step 1: Create new test file tests/e2e/client-pages-extended.spec.ts for untested client pages:",
+
+    "  /client/food-check-in?demo=true:",
+    "  - Page heading 'Daily Check-in' visible",
+    "  - Running macro summary visible (shows cal, protein, carbs, fat)",
+    "  - Weight input field present with placeholder 'e.g. 72.5'",
+    "  - Meal slots render (Breakfast, Lunch, Dinner sections from demo data)",
+    "  - Dish options are pre-selected in demo mode (first option per component)",
+    "  - Submit button present (may be disabled in demo mode)",
+    "  - Demo dishes visible: 'Overnight Oats', 'Smoothie', 'Chicken Breast 150g', 'Palak Paneer 60g', 'Mixed Salad'",
+
+    "  /client/onboarding?demo=true:",
+    "  - NOTE: onboarding page does NOT check for demo mode - it requires auth (useAuth). When accessed with demo=true but no real user, it may show loading or require user. Test what actually renders:",
+    "  - If the page renders: heading 'Let's Get to Know You' visible, step indicator 'Step 1 of 7: Profile', progress bar (7 segments), name/age/height/city/weight fields on step 0",
+    "  - If page requires auth and shows spinner/blank: just verify layout renders (header with brand name from client layout)",
+
+    "  /client/change-password?demo=true:",
+    "  - NOTE: This page requires auth (useAuth) and shows spinner if no user. When accessed with demo=true:",
+    "  - If renders: heading 'Set Your Password', New Password and Confirm Password inputs, Set Password button",
+    "  - If requires auth: verify the page at least loads without crashing (client layout header visible)",
+
+    "  /client/faq?demo=true:",
+    "  - Heading 'Video Tutorials' visible",
+    "  - Subtitle 'Watch helpful guides about diet, nutrition, and fat loss' visible",
+    "  - Video tutorial cards render with titles: 'How Fat Loss Actually Works', 'Can I Have a Cheat Meal?', 'How Many Calories Should I Eat?', etc.",
+    "  - Each video card has a Video icon (from lucide)",
+    "  - Google Drive iframe elements present (src contains drive.google.com)",
+    "  - At least 10 video tutorials rendered (check count of video cards)"
+  ],
+  "acceptance_criteria": [
+    "All new tests pass when running npx playwright test",
+    "No existing tests are broken",
+    "Each untested client page has at least 3-5 meaningful assertions",
+    "Tests are resilient to auth-required pages (use conditional checks or verify page doesn't crash)",
+    "Food check-in page tests verify demo data rendering correctly"
+  ],
+  "verification": [
+    "Run npx playwright test and confirm all tests pass",
+    "Run npm run build and confirm build succeeds"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

@@ -1,0 +1,7 @@
+{
+  "task_id": "task-e2e-coverage-expansion",
+  "task_description": "Expand E2E test coverage to 100% of TEST_FLOWS.md spec and add tests for all 16 untested pages. Fill gaps in existing F1-F24 tests and write new tests for coach and client portal pages that have zero coverage.",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

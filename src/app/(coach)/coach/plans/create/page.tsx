@@ -36,7 +36,8 @@ export default function CreatePlanPage() {
 interface LocalComponent {
   localId: string;
   componentCategory: ComponentCategory;
-  dishIds: string[];
+  dishes: Array<{ dishId: string; multiplier: 1 | 1.5 | 2 }>;
+  foodItems: Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>;
 }
 
 interface LocalMealSlot {
@@ -64,7 +65,8 @@ function createEmptySlot(name: string): LocalMealSlot {
     components: COMPONENT_CATEGORIES.map((cat) => ({
       localId: crypto.randomUUID(),
       componentCategory: cat,
-      dishIds: [],
+      dishes: [],
+      foodItems: [],
     })),
   };
 }
@@ -82,13 +84,27 @@ function templateToLocalSlots(template: DietTemplate): LocalMealSlot[] {
           return {
             localId: crypto.randomUUID(),
             componentCategory: existing.componentCategory,
-            dishIds: existing.dishes.filter((d) => d.dishId).map((d) => d.dishId!) as string[],
+            dishes: existing.dishes
+              .filter((d) => d.dishId)
+              .map((d) => ({
+                dishId: d.dishId!,
+                multiplier: (d.mealSize === "large" ? 2 : d.mealSize === "medium" ? 1.5 : 1) as 1 | 1.5 | 2,
+              })),
+            foodItems: existing.dishes
+              .filter((d) => d.foodId)
+              .map((d) => ({
+                foodId: d.foodId!,
+                quantity: d.foodQuantity || 100,
+                name: d.food?.name,
+                emoji: d.food?.emoji,
+              })),
           };
         }
         return {
           localId: crypto.randomUUID(),
           componentCategory: cat,
-          dishIds: [] as string[],
+          dishes: [] as Array<{ dishId: string; multiplier: 1 | 1.5 | 2 }>,
+          foodItems: [] as Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>,
         };
       });
       return {
@@ -198,12 +214,14 @@ function CreatePlanPageInner() {
 
   // ---- Dish management ----
 
-  function addDish(slotIdx: number, compIdx: number, dishId: string) {
+  function addDish(slotIdx: number, compIdx: number, dishId: string, multiplier: 1 | 1.5 | 2 = 1) {
     setMealSlots((prev) => {
       const u = [...prev];
       const slot = { ...u[slotIdx], components: [...u[slotIdx].components] };
-      const comp = { ...slot.components[compIdx], dishIds: [...slot.components[compIdx].dishIds] };
-      if (!comp.dishIds.includes(dishId)) comp.dishIds.push(dishId);
+      const comp = { ...slot.components[compIdx], dishes: [...slot.components[compIdx].dishes] };
+      if (!comp.dishes.some((d) => d.dishId === dishId)) {
+        comp.dishes.push({ dishId, multiplier });
+      }
       slot.components[compIdx] = comp;
       u[slotIdx] = slot;
       return u;
@@ -215,7 +233,10 @@ function CreatePlanPageInner() {
     setMealSlots((prev) => {
       const u = [...prev];
       const slot = { ...u[slotIdx], components: [...u[slotIdx].components] };
-      slot.components[compIdx] = { ...slot.components[compIdx], dishIds: slot.components[compIdx].dishIds.filter((id) => id !== dishId) };
+      slot.components[compIdx] = {
+        ...slot.components[compIdx],
+        dishes: slot.components[compIdx].dishes.filter((d) => d.dishId !== dishId),
+      };
       u[slotIdx] = slot;
       return u;
     });
@@ -241,7 +262,11 @@ function CreatePlanPageInner() {
         components: slot.components.map((comp, ci) => ({
           componentCategory: comp.componentCategory,
           sortOrder: ci,
-          dishIds: comp.dishIds,
+          dishIds: comp.dishes.map((d) => d.dishId),
+          dishMealSizes: comp.dishes.map((d) =>
+            d.multiplier === 2 ? "large" : d.multiplier === 1.5 ? "medium" : "small"
+          ),
+          foodItems: comp.foodItems.map((fi) => ({ foodId: fi.foodId, quantity: fi.quantity })),
         })),
       })),
     });
@@ -363,8 +388,8 @@ function CreatePlanPageInner() {
         <DishPickerModal
           dishes={allDishes}
           componentCategory={mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].componentCategory}
-          existingDishIds={mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].dishIds}
-          onSelect={(dishId) => addDish(dishPickerState.slotIdx, dishPickerState.compIdx, dishId)}
+          existingDishIds={mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].dishes.map((d) => d.dishId)}
+          onSelect={(dishId, multiplier) => addDish(dishPickerState.slotIdx, dishPickerState.compIdx, dishId, multiplier)}
           onClose={() => setDishPickerState(null)}
         />
       )}

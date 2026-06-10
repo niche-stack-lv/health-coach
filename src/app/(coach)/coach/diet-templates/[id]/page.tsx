@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy, RotateCcw } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DishPickerModal } from "@/components/coach/dish-picker-modal";
@@ -28,7 +28,7 @@ export default function TemplateEditPage() {
 interface LocalComponent {
   localId: string;
   componentCategory: ComponentCategory;
-  dishIds: string[];
+  dishes: Array<{ dishId: string; multiplier: 1 | 1.5 | 2 }>;
   foodItems: Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>;
 }
 
@@ -105,7 +105,7 @@ function createEmptySlot(name: string, sortOrder: number): LocalMealSlot {
     components: COMPONENT_CATEGORIES.map((cat) => ({
       localId: crypto.randomUUID(),
       componentCategory: cat,
-      dishIds: [],
+      dishes: [],
       foodItems: [],
     })),
   };
@@ -126,7 +126,12 @@ function templateToLocalSlots(template: DietTemplate): LocalMealSlot[] {
           return {
             localId: existing.id || crypto.randomUUID(),
             componentCategory: existing.componentCategory,
-            dishIds: existing.dishes.filter((d) => d.dishId).map((d) => d.dishId!),
+            dishes: existing.dishes
+              .filter((d) => d.dishId)
+              .map((d) => ({
+                dishId: d.dishId!,
+                multiplier: (d.mealSize === "large" ? 2 : d.mealSize === "medium" ? 1.5 : 1) as 1 | 1.5 | 2,
+              })),
             foodItems: existing.dishes
               .filter((d) => d.foodId)
               .map((d) => ({
@@ -140,7 +145,7 @@ function templateToLocalSlots(template: DietTemplate): LocalMealSlot[] {
         return {
           localId: crypto.randomUUID(),
           componentCategory: cat,
-          dishIds: [] as string[],
+          dishes: [] as Array<{ dishId: string; multiplier: 1 | 1.5 | 2 }>,
           foodItems: [] as Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>,
         };
       });
@@ -198,6 +203,23 @@ function TemplateEditPageInner() {
     slotIdx: number;
     compIdx: number;
   } | null>(null);
+
+  // Track which slots have manually-overridden calories (not auto-calculated)
+  const [manualCaloriesSlots, setManualCaloriesSlots] = useState<Set<string>>(new Set());
+
+  // Calculate total calories for a slot from its dish assignments
+  const calcSlotCalories = useCallback((slot: LocalMealSlot): number => {
+    let total = 0;
+    for (const comp of slot.components) {
+      for (const { dishId, multiplier } of comp.dishes) {
+        const dish = allDishes.find((d) => d.id === dishId);
+        if (dish) {
+          total += dish.totalCalories * multiplier;
+        }
+      }
+    }
+    return Math.round(total);
+  }, [allDishes]);
 
   // Load template in edit mode
   useEffect(() => {
@@ -263,7 +285,7 @@ function TemplateEditPageInner() {
     const hasValidSlot = mealSlots.some(
       (slot) =>
         !slot.isSkipped &&
-        slot.components.some((comp) => comp.dishIds.length > 0 || (comp.foodItems && comp.foodItems.length > 0))
+        slot.components.some((comp) => comp.dishes.length > 0 || (comp.foodItems && comp.foodItems.length > 0))
     );
     if (!hasValidSlot) {
       newErrors.slots = "At least one non-skipped slot needs a dish assigned";
@@ -292,7 +314,10 @@ function TemplateEditPageInner() {
         components: slot.components.map((comp, compIdx) => ({
           componentCategory: comp.componentCategory,
           sortOrder: compIdx,
-          dishIds: comp.dishIds,
+          dishIds: comp.dishes.map((d) => d.dishId),
+          dishMealSizes: comp.dishes.map((d) =>
+            d.multiplier === 2 ? "large" : d.multiplier === 1.5 ? "medium" : "small"
+          ),
           foodItems: comp.foodItems.map((fi) => ({ foodId: fi.foodId, quantity: fi.quantity })),
         })),
       })),
@@ -373,7 +398,7 @@ function TemplateEditPageInner() {
       components: source.components.map((comp) => ({
         localId: crypto.randomUUID(),
         componentCategory: comp.componentCategory,
-        dishIds: [...comp.dishIds],
+        dishes: comp.dishes.map((d) => ({ ...d })),
         foodItems: comp.foodItems.map((fi) => ({ ...fi })),
       })),
     };
@@ -399,6 +424,25 @@ function TemplateEditPageInner() {
       updated[slotIdx] = { ...updated[slotIdx], targetCalories: value };
       return updated;
     });
+    // Mark as manual override
+    const slotId = mealSlots[slotIdx].localId;
+    setManualCaloriesSlots((prev) => new Set([...prev, slotId]));
+  }
+
+  function resetSlotCalories(slotIdx: number) {
+    const slot = mealSlots[slotIdx];
+    const autoCalc = calcSlotCalories(slot);
+    setMealSlots((prev) => {
+      const updated = [...prev];
+      updated[slotIdx] = { ...updated[slotIdx], targetCalories: autoCalc > 0 ? String(autoCalc) : "" };
+      return updated;
+    });
+    // Remove from manual set
+    setManualCaloriesSlots((prev) => {
+      const next = new Set(prev);
+      next.delete(slot.localId);
+      return next;
+    });
   }
 
   function toggleSlotSkipped(slotIdx: number) {
@@ -411,16 +455,25 @@ function TemplateEditPageInner() {
 
   // ---- Dish management ----
 
-  function addDishToComponent(slotIdx: number, compIdx: number, dishId: string) {
+  function addDishToComponent(slotIdx: number, compIdx: number, dishId: string, multiplier: 1 | 1.5 | 2 = 1) {
     setMealSlots((prev) => {
       const updated = [...prev];
       const slot = { ...updated[slotIdx], components: [...updated[slotIdx].components] };
-      const comp = { ...slot.components[compIdx], dishIds: [...slot.components[compIdx].dishIds] };
-      if (!comp.dishIds.includes(dishId)) {
-        comp.dishIds.push(dishId);
+      const comp = { ...slot.components[compIdx], dishes: [...slot.components[compIdx].dishes] };
+      if (!comp.dishes.some((d) => d.dishId === dishId)) {
+        comp.dishes.push({ dishId, multiplier });
       }
       slot.components[compIdx] = comp;
       updated[slotIdx] = slot;
+
+      // Auto-update calories if this slot isn't manually overridden
+      if (!manualCaloriesSlots.has(slot.localId)) {
+        const newCalories = calcSlotCalories({ ...slot, components: slot.components });
+        if (newCalories > 0) {
+          updated[slotIdx] = { ...updated[slotIdx], targetCalories: String(newCalories) };
+        }
+      }
+
       return updated;
     });
     setDishPickerState(null);
@@ -430,9 +483,19 @@ function TemplateEditPageInner() {
     setMealSlots((prev) => {
       const updated = [...prev];
       const slot = { ...updated[slotIdx], components: [...updated[slotIdx].components] };
-      const comp = { ...slot.components[compIdx], dishIds: slot.components[compIdx].dishIds.filter((id) => id !== dishId) };
+      const comp = { ...slot.components[compIdx], dishes: slot.components[compIdx].dishes.filter((d) => d.dishId !== dishId) };
       slot.components[compIdx] = comp;
       updated[slotIdx] = slot;
+
+      // Auto-update calories if this slot isn't manually overridden
+      if (!manualCaloriesSlots.has(slot.localId)) {
+        const newCalories = calcSlotCalories({ ...slot, components: slot.components });
+        updated[slotIdx] = {
+          ...updated[slotIdx],
+          targetCalories: newCalories > 0 ? String(newCalories) : "",
+        };
+      }
+
       return updated;
     });
   }
@@ -607,14 +670,34 @@ function TemplateEditPageInner() {
                       placeholder="Meal name"
                       className="flex-1 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
                     />
-                    <input
-                      type="number"
-                      value={slot.targetCalories}
-                      onChange={(e) => updateSlotCalories(slotIdx, e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      placeholder="kcal"
-                      className="w-20 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
-                    />
+                    {/* Calories: auto-calculated unless manually overridden */}
+                    {(() => {
+                      const isManual = manualCaloriesSlots.has(slot.localId);
+                      const autoCalc = calcSlotCalories(slot);
+                      return (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          {!isManual && autoCalc > 0 && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-gold flex-shrink-0" title="Auto-calculated" />
+                          )}
+                          <input
+                            type="number"
+                            value={isManual ? slot.targetCalories : autoCalc > 0 ? String(autoCalc) : slot.targetCalories}
+                            onChange={(e) => updateSlotCalories(slotIdx, e.target.value)}
+                            placeholder={!isManual && autoCalc > 0 ? String(autoCalc) : "kcal"}
+                            className="w-20 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+                          />
+                          {isManual && (
+                            <button
+                              onClick={() => resetSlotCalories(slotIdx)}
+                              title="Reset to auto-calculated"
+                              className="p-1 text-zinc-600 hover:text-gold transition-colors"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   {planType === "intermittent_fasting" && (
                     <button
@@ -725,10 +808,10 @@ function TemplateEditPageInner() {
             mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].componentCategory
           }
           existingDishIds={
-            mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].dishIds
+            mealSlots[dishPickerState.slotIdx].components[dishPickerState.compIdx].dishes.map((d) => d.dishId)
           }
-          onSelect={(dishId) =>
-            addDishToComponent(dishPickerState.slotIdx, dishPickerState.compIdx, dishId)
+          onSelect={(dishId, multiplier) =>
+            addDishToComponent(dishPickerState.slotIdx, dishPickerState.compIdx, dishId, multiplier)
           }
           onClose={() => setDishPickerState(null)}
         />

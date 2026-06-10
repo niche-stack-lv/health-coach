@@ -38,7 +38,7 @@ export const categoryBadgeColors: Record<ComponentCategory, string> = {
 export interface EditableComponent {
   localId: string;
   componentCategory: ComponentCategory;
-  dishIds: string[];
+  dishes: Array<{ dishId: string; multiplier: 1 | 1.5 | 2 }>;
   foodItems?: Array<{ foodId: string; quantity: number; name?: string; emoji?: string }>;
 }
 
@@ -244,7 +244,6 @@ function MealSlotViewMode({ slot, onDishClick }: { slot: TemplateMealSlot; onDis
                   const itemEmoji = isDish ? msd.dish!.emoji : isFood ? msd.food!.emoji : "🍽️";
                   const itemCal = isDish ? msd.dish!.totalCalories : isFood && msd.foodQuantity ? Math.round(msd.food!.calories * msd.foodQuantity / 100) : 0;
                   const itemImage = isDish ? msd.dish!.imageUrl : null;
-                  const itemMealSize = isDish ? msd.dish!.mealSize : null;
 
                   return (
                     <div key={msd.id}>
@@ -268,9 +267,6 @@ function MealSlotViewMode({ slot, onDishClick }: { slot: TemplateMealSlot; onDis
                         )}
                         <div className="flex-1 min-w-0">
                           <span className="text-sm text-white font-medium truncate block">{itemName}</span>
-                          {itemMealSize && (
-                            <span className="text-[10px] text-zinc-600 capitalize">{itemMealSize}</span>
-                          )}
                         </div>
                         {itemCal > 0 && (
                           <span className="text-xs text-zinc-500 shrink-0">{itemCal} cal</span>
@@ -364,9 +360,6 @@ function MealSlotSelectMode({
                         )}
                         <div className="flex-1 min-w-0">
                           <span className={cn("text-sm font-medium truncate block", isSelected ? "text-gold" : "text-white")}>{msd.dish?.name || "Unknown"}</span>
-                          {msd.dish?.mealSize && (
-                            <span className={cn("text-[10px] capitalize", isSelected ? "text-gold/60" : "text-zinc-600")}>{msd.dish.mealSize}</span>
-                          )}
                         </div>
                         {msd.dish && (
                           <div className="flex items-center gap-1.5 shrink-0">
@@ -478,15 +471,26 @@ function MealSlotEditMode({
             {categoryLabels[comp.componentCategory]}
           </span>
           <div className="flex-1 flex flex-wrap gap-1 items-center min-h-[28px]">
-            {comp.dishIds.map((dishId) => {
+            {comp.dishes.map(({ dishId, multiplier }) => {
               const dish = allDishes.find((d) => d.id === dishId);
+              const calDisplay = multiplier === 1
+                ? dish?.totalCalories
+                : multiplier === 1.5
+                ? dish ? Math.round(dish.totalCalories * 1.5) : null
+                : dish ? dish.totalCalories * 2 : null;
               return (
                 <span
                   key={dishId}
-                  title={dish ? `${dish.totalCalories} cal · ${dish.totalProtein}p · ${dish.totalCarbs}c · ${dish.totalFat}f` : undefined}
+                  title={dish ? `${calDisplay} cal · ${dish.totalProtein}p · ${dish.totalCarbs}c · ${dish.totalFat}f` : undefined}
                   className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] text-zinc-300 cursor-default"
                 >
                   {dish?.emoji || "🍽️"} {dish?.name || "Unknown"}
+                  {multiplier !== 1 && (
+                    <span className="text-gold text-[10px] font-semibold ml-0.5">{multiplier}×</span>
+                  )}
+                  {calDisplay != null && (
+                    <span className="text-zinc-500 ml-0.5">{calDisplay}cal</span>
+                  )}
                   {onRemoveDish && (
                     <button
                       onClick={() => onRemoveDish(compIdx, dishId)}

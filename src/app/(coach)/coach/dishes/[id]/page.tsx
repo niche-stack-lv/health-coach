@@ -84,7 +84,6 @@ function DishEditPageInner() {
   const [emoji, setEmoji] = useState("🍽️");
   const [componentCategory, setComponentCategory] = useState<ComponentCategory | null>(null);
   const [description, setDescription] = useState("");
-  const [mealSize, setMealSize] = useState<"small" | "medium" | "large" | "">("");
   const [imageUrl, setImageUrl] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<any[]>([]);
@@ -139,7 +138,6 @@ function DishEditPageInner() {
     setEmoji(dish.emoji);
     setComponentCategory(dish.componentCategory);
     setDescription(dish.description || "");
-    setMealSize((dish.mealSize as any) || "");
     setImageUrl(dish.imageUrl || "");
     setManualMacros(dish.manualMacros || false);
     setManualCalories(dish.totalCalories);
@@ -199,7 +197,6 @@ function DishEditPageInner() {
       componentCategory: componentCategory!,
       description: description.trim() || undefined,
       imageUrl: imageUrl.trim() || undefined,
-      mealSize: (mealSize || undefined) as "small" | "medium" | "large" | undefined,
       manualMacros,
       totalCalories: manualMacros ? manualCalories : macroTotals.calories,
       totalProtein: manualMacros ? manualProtein : macroTotals.protein,
@@ -407,25 +404,6 @@ function DishEditPageInner() {
             placeholder="Brief description of this dish..."
             className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 px-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50 min-h-[60px] resize-none"
           />
-        </div>
-        <div>
-          <label className="block text-xs text-zinc-500 mb-1.5">Meal Size (optional)</label>
-          <div className="flex gap-2">
-            {(["small", "medium", "large"] as const).map((size) => (
-              <button
-                key={size}
-                onClick={() => setMealSize(mealSize === size ? "" : size)}
-                className={cn(
-                  "rounded-xl border px-4 py-2 text-xs font-medium capitalize transition-all",
-                  mealSize === size
-                    ? "border-gold/50 bg-gold/10 text-gold"
-                    : "border-white/[0.06] text-zinc-500 hover:text-zinc-300"
-                )}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
         </div>
         <div>
           <label className="block text-xs text-zinc-500 mb-1.5">Image (optional)</label>

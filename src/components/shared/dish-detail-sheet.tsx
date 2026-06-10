@@ -40,9 +40,6 @@ export function DishDetailSheet({ dish, onClose }: DishDetailSheetProps) {
               <span className="text-2xl">{dish.emoji}</span>
               <h2 className="text-lg font-bold text-white">{dish.name}</h2>
             </div>
-            {dish.mealSize && (
-              <span className="inline-flex mt-1.5 rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] text-zinc-400 capitalize">{dish.mealSize} meal</span>
-            )}
           </div>
 
           {/* Description */}

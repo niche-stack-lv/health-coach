@@ -998,6 +998,7 @@ export async function createDietTemplate(input: {
       componentCategory: ComponentCategory;
       sortOrder: number;
       dishIds: string[];
+      dishMealSizes?: Array<"small" | "medium" | "large">;
       foodItems?: Array<{ foodId: string; quantity: number }>;
     }>;
   }>;
@@ -1048,13 +1049,15 @@ export async function createDietTemplate(input: {
       // Insert dish alternatives
       const slotDishRows: any[] = [];
       let sortIdx = 0;
-      for (const dishId of component.dishIds) {
-        slotDishRows.push({ component_id: compData.id, dish_id: dishId, food_id: null, food_quantity: null, sort_order: sortIdx++ });
+      for (let i = 0; i < component.dishIds.length; i++) {
+        const dishId = component.dishIds[i];
+        const mealSize = component.dishMealSizes?.[i] || null;
+        slotDishRows.push({ component_id: compData.id, dish_id: dishId, food_id: null, food_quantity: null, meal_size: mealSize, sort_order: sortIdx++ });
       }
       // Insert food items
       if (component.foodItems) {
         for (const fi of component.foodItems) {
-          slotDishRows.push({ component_id: compData.id, dish_id: null, food_id: fi.foodId, food_quantity: fi.quantity, sort_order: sortIdx++ });
+          slotDishRows.push({ component_id: compData.id, dish_id: null, food_id: fi.foodId, food_quantity: fi.quantity, meal_size: null, sort_order: sortIdx++ });
         }
       }
       if (slotDishRows.length > 0) {
@@ -1131,12 +1134,14 @@ export async function updateDietTemplate(templateId: string, input: {
 
       const slotDishRows: any[] = [];
       let sortIdx = 0;
-      for (const dishId of component.dishIds) {
-        slotDishRows.push({ component_id: compData.id, dish_id: dishId, food_id: null, food_quantity: null, sort_order: sortIdx++ });
+      for (let i = 0; i < component.dishIds.length; i++) {
+        const dishId = component.dishIds[i];
+        const mealSize = (component as any).dishMealSizes?.[i] || null;
+        slotDishRows.push({ component_id: compData.id, dish_id: dishId, food_id: null, food_quantity: null, meal_size: mealSize, sort_order: sortIdx++ });
       }
       if (component.foodItems) {
         for (const fi of component.foodItems) {
-          slotDishRows.push({ component_id: compData.id, dish_id: null, food_id: fi.foodId, food_quantity: fi.quantity, sort_order: sortIdx++ });
+          slotDishRows.push({ component_id: compData.id, dish_id: null, food_id: fi.foodId, food_quantity: fi.quantity, meal_size: null, sort_order: sortIdx++ });
         }
       }
       if (slotDishRows.length > 0) {

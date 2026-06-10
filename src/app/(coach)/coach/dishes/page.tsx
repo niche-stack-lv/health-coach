@@ -280,9 +280,6 @@ function DishesTab({
                         {dish.componentCategory.replace("_", " ")}
                       </span>
                     </div>
-                    {dish.mealSize && (
-                      <span className="text-[9px] text-zinc-600 capitalize border border-white/[0.06] rounded px-1.5 py-0.5 shrink-0">{dish.mealSize}</span>
-                    )}
                   </div>
                   {dish.description && (
                     <p className="text-[11px] text-zinc-500 mt-2 line-clamp-2">{dish.description}</p>

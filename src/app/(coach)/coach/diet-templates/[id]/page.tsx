@@ -659,9 +659,10 @@ function TemplateEditPageInner() {
                     : "border-white/[0.06] bg-white/[0.02]"
                 )}
               >
-                {/* Slot header — always visible */}
-                <div className="flex items-center gap-2 p-4 cursor-pointer" onClick={() => toggleSlotExpanded(slot.localId)}>
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                {/* Slot header — always visible, two-row layout for mobile */}
+                <div className="p-3 cursor-pointer" onClick={() => toggleSlotExpanded(slot.localId)}>
+                  {/* Row 1: name + chevron */}
+                  <div className="flex items-center gap-2 mb-2">
                     <input
                       type="text"
                       value={slot.name}
@@ -670,26 +671,33 @@ function TemplateEditPageInner() {
                       placeholder="Meal name"
                       className="flex-1 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
                     />
-                    {/* Calories: auto-calculated unless manually overridden */}
+                    <div className="text-zinc-600 shrink-0">
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
+                  </div>
+                  {/* Row 2: kcal + action buttons */}
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {/* Calories */}
                     {(() => {
                       const isManual = manualCaloriesSlots.has(slot.localId);
                       const autoCalc = calcSlotCalories(slot);
                       return (
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1 flex-1 min-w-0">
                           {!isManual && autoCalc > 0 && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-gold flex-shrink-0" title="Auto-calculated" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-gold shrink-0" title="Auto-calculated" />
                           )}
                           <input
                             type="number"
                             value={isManual ? slot.targetCalories : autoCalc > 0 ? String(autoCalc) : slot.targetCalories}
                             onChange={(e) => updateSlotCalories(slotIdx, e.target.value)}
-                            placeholder={!isManual && autoCalc > 0 ? String(autoCalc) : "kcal"}
-                            className="w-20 h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+                            placeholder="kcal"
+                            className="w-16 h-7 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold/50"
                           />
+                          <span className="text-[10px] text-zinc-600 shrink-0">kcal</span>
                           {isManual && (
                             <button
                               onClick={() => resetSlotCalories(slotIdx)}
-                              title="Reset to auto-calculated"
+                              title="Reset to auto"
                               className="p-1 text-zinc-600 hover:text-gold transition-colors"
                             >
                               <RotateCcw className="h-3 w-3" />
@@ -698,38 +706,36 @@ function TemplateEditPageInner() {
                         </div>
                       );
                     })()}
-                  </div>
-                  {planType === "intermittent_fasting" && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleSlotSkipped(slotIdx); }}
-                      title={slot.isSkipped ? "Unskip" : "Skip (IF)"}
-                      className={cn(
-                        "p-1.5 rounded-lg transition-colors",
-                        slot.isSkipped
-                          ? "bg-purple-500/20 text-purple-400"
-                          : "text-zinc-600 hover:text-purple-400 hover:bg-purple-500/10"
+                    {/* Actions */}
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {planType === "intermittent_fasting" && (
+                        <button
+                          onClick={() => toggleSlotSkipped(slotIdx)}
+                          title={slot.isSkipped ? "Unskip" : "Skip (IF)"}
+                          className={cn(
+                            "p-1.5 rounded-lg transition-colors",
+                            slot.isSkipped ? "bg-purple-500/20 text-purple-400" : "text-zinc-600 hover:text-purple-400 hover:bg-purple-500/10"
+                          )}
+                        >
+                          <SkipForward className="h-3.5 w-3.5" />
+                        </button>
                       )}
-                    >
-                      <SkipForward className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); copySlot(slotIdx); }}
-                    disabled={mealSlots.length >= 6}
-                    title="Duplicate this meal slot"
-                    className="p-1.5 rounded-lg text-zinc-600 hover:text-gold hover:bg-gold/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removeSlot(slotIdx); }}
-                    disabled={mealSlots.length <= 1}
-                    className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="text-zinc-600">
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      <button
+                        onClick={() => copySlot(slotIdx)}
+                        disabled={mealSlots.length >= 6}
+                        title="Duplicate slot"
+                        className="p-1.5 rounded-lg text-zinc-600 hover:text-gold hover:bg-gold/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => removeSlot(slotIdx)}
+                        disabled={mealSlots.length <= 1}
+                        className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 

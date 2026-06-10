@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DishPickerModal } from "@/components/coach/dish-picker-modal";
@@ -205,21 +205,8 @@ function TemplateEditPageInner() {
   } | null>(null);
 
   // Track which slots have manually-overridden calories (not auto-calculated)
-  const [manualCaloriesSlots, setManualCaloriesSlots] = useState<Set<string>>(new Set());
-
-  // Calculate total calories for a slot from its dish assignments
-  const calcSlotCalories = useCallback((slot: LocalMealSlot): number => {
-    let total = 0;
-    for (const comp of slot.components) {
-      for (const { dishId, multiplier } of comp.dishes) {
-        const dish = allDishes.find((d) => d.id === dishId);
-        if (dish) {
-          total += dish.totalCalories * multiplier;
-        }
-      }
-    }
-    return Math.round(total);
-  }, [allDishes]);
+  // Which slot's copy dropdown is open (by slotIdx)
+  const [copyDropdownOpen, setCopyDropdownOpen] = useState<number | null>(null);
 
   // Load template in edit mode
   useEffect(() => {
@@ -387,27 +374,24 @@ function TemplateEditPageInner() {
     setMealSlots((prev) => prev.filter((_, i) => i !== slotIdx));
   }
 
-  function copySlot(slotIdx: number) {
-    if (mealSlots.length >= 6) return;
-    const source = mealSlots[slotIdx];
-    const copy: LocalMealSlot = {
-      localId: crypto.randomUUID(),
-      name: source.name + " (copy)",
-      targetCalories: source.targetCalories,
-      isSkipped: source.isSkipped,
-      components: source.components.map((comp) => ({
-        localId: crypto.randomUUID(),
-        componentCategory: comp.componentCategory,
-        dishes: comp.dishes.map((d) => ({ ...d })),
-        foodItems: comp.foodItems.map((fi) => ({ ...fi })),
-      })),
-    };
+  // Copy FROM another slot INTO slotIdx (replaces contents)
+  function copyFromSlot(targetIdx: number, sourceIdx: number) {
+    const source = mealSlots[sourceIdx];
     setMealSlots((prev) => {
       const updated = [...prev];
-      updated.splice(slotIdx + 1, 0, copy);
+      updated[targetIdx] = {
+        ...updated[targetIdx],
+        components: source.components.map((comp) => ({
+          localId: crypto.randomUUID(),
+          componentCategory: comp.componentCategory,
+          dishes: comp.dishes.map((d) => ({ ...d })),
+          foodItems: comp.foodItems.map((fi) => ({ ...fi })),
+        })),
+        targetCalories: source.targetCalories,
+      };
       return updated;
     });
-    setExpandedSlots((prev) => new Set([...prev, copy.localId]));
+    setExpandedSlots((prev) => new Set([...prev, mealSlots[targetIdx].localId]));
   }
 
   function updateSlotName(slotIdx: number, value: string) {
@@ -423,25 +407,6 @@ function TemplateEditPageInner() {
       const updated = [...prev];
       updated[slotIdx] = { ...updated[slotIdx], targetCalories: value };
       return updated;
-    });
-    // Mark as manual override
-    const slotId = mealSlots[slotIdx].localId;
-    setManualCaloriesSlots((prev) => new Set([...prev, slotId]));
-  }
-
-  function resetSlotCalories(slotIdx: number) {
-    const slot = mealSlots[slotIdx];
-    const autoCalc = calcSlotCalories(slot);
-    setMealSlots((prev) => {
-      const updated = [...prev];
-      updated[slotIdx] = { ...updated[slotIdx], targetCalories: autoCalc > 0 ? String(autoCalc) : "" };
-      return updated;
-    });
-    // Remove from manual set
-    setManualCaloriesSlots((prev) => {
-      const next = new Set(prev);
-      next.delete(slot.localId);
-      return next;
     });
   }
 
@@ -465,15 +430,6 @@ function TemplateEditPageInner() {
       }
       slot.components[compIdx] = comp;
       updated[slotIdx] = slot;
-
-      // Auto-update calories if this slot isn't manually overridden
-      if (!manualCaloriesSlots.has(slot.localId)) {
-        const newCalories = calcSlotCalories({ ...slot, components: slot.components });
-        if (newCalories > 0) {
-          updated[slotIdx] = { ...updated[slotIdx], targetCalories: String(newCalories) };
-        }
-      }
-
       return updated;
     });
     setDishPickerState(null);
@@ -486,16 +442,6 @@ function TemplateEditPageInner() {
       const comp = { ...slot.components[compIdx], dishes: slot.components[compIdx].dishes.filter((d) => d.dishId !== dishId) };
       slot.components[compIdx] = comp;
       updated[slotIdx] = slot;
-
-      // Auto-update calories if this slot isn't manually overridden
-      if (!manualCaloriesSlots.has(slot.localId)) {
-        const newCalories = calcSlotCalories({ ...slot, components: slot.components });
-        updated[slotIdx] = {
-          ...updated[slotIdx],
-          targetCalories: newCalories > 0 ? String(newCalories) : "",
-        };
-      }
-
       return updated;
     });
   }
@@ -677,35 +623,17 @@ function TemplateEditPageInner() {
                   </div>
                   {/* Row 2: kcal + action buttons */}
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {/* Calories */}
-                    {(() => {
-                      const isManual = manualCaloriesSlots.has(slot.localId);
-                      const autoCalc = calcSlotCalories(slot);
-                      return (
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          {!isManual && autoCalc > 0 && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-gold shrink-0" title="Auto-calculated" />
-                          )}
-                          <input
-                            type="number"
-                            value={isManual ? slot.targetCalories : autoCalc > 0 ? String(autoCalc) : slot.targetCalories}
-                            onChange={(e) => updateSlotCalories(slotIdx, e.target.value)}
-                            placeholder="kcal"
-                            className="w-16 h-7 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold/50"
-                          />
-                          <span className="text-[10px] text-zinc-600 shrink-0">kcal</span>
-                          {isManual && (
-                            <button
-                              onClick={() => resetSlotCalories(slotIdx)}
-                              title="Reset to auto"
-                              className="p-1 text-zinc-600 hover:text-gold transition-colors"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {/* Calories — manual input only */}
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                      <input
+                        type="number"
+                        value={slot.targetCalories}
+                        onChange={(e) => updateSlotCalories(slotIdx, e.target.value)}
+                        placeholder="kcal"
+                        className="w-16 h-7 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                      />
+                      <span className="text-[10px] text-zinc-600 shrink-0">kcal</span>
+                    </div>
                     {/* Actions */}
                     <div className="flex items-center gap-0.5 shrink-0">
                       {planType === "intermittent_fasting" && (
@@ -720,14 +648,45 @@ function TemplateEditPageInner() {
                           <SkipForward className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button
-                        onClick={() => copySlot(slotIdx)}
-                        disabled={mealSlots.length >= 6}
-                        title="Duplicate slot"
-                        className="p-1.5 rounded-lg text-zinc-600 hover:text-gold hover:bg-gold/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
+                      {/* Copy FROM dropdown */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setCopyDropdownOpen(copyDropdownOpen === slotIdx ? null : slotIdx)}
+                          title="Copy dishes from another slot"
+                          className="p-1.5 rounded-lg text-zinc-600 hover:text-gold hover:bg-gold/10 transition-colors"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        {copyDropdownOpen === slotIdx && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setCopyDropdownOpen(null)} />
+                            <div className="absolute right-0 top-full mt-1 z-20 min-w-[160px] rounded-xl border border-white/[0.08] bg-[#1a1a1a] shadow-xl overflow-hidden">
+                              <p className="px-3 pt-2.5 pb-1 text-[10px] text-zinc-500 uppercase tracking-wider font-medium">Copy from</p>
+                              {mealSlots.map((otherSlot, otherIdx) => {
+                                if (otherIdx === slotIdx) return null;
+                                const hasContent = otherSlot.components.some(
+                                  (c) => c.dishes.length > 0 || c.foodItems.length > 0
+                                );
+                                return (
+                                  <button
+                                    key={otherSlot.localId}
+                                    onClick={() => {
+                                      copyFromSlot(slotIdx, otherIdx);
+                                      setCopyDropdownOpen(null);
+                                    }}
+                                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-zinc-300 hover:bg-white/[0.04] transition-colors text-left"
+                                  >
+                                    <span className="truncate">{otherSlot.name || `Meal ${otherIdx + 1}`}</span>
+                                    {!hasContent && (
+                                      <span className="text-[10px] text-zinc-600 shrink-0">empty</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
+                      </div>
                       <button
                         onClick={() => removeSlot(slotIdx)}
                         disabled={mealSlots.length <= 1}

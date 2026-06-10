@@ -202,10 +202,20 @@ function FAQPageInner() {
                   <iframe
                     src={`https://drive.google.com/file/d/${video.driveId}/preview`}
                     className="absolute top-0 left-0 w-full h-full"
-                    allow="autoplay"
+                    allow="autoplay; encrypted-media"
                     allowFullScreen
+                    referrerPolicy="no-referrer-when-downgrade"
+                    loading="lazy"
                   />
                 </div>
+                <a
+                  href={`https://drive.google.com/file/d/${video.driveId}/view`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-gold font-medium"
+                >
+                  <Video className="h-3 w-3" /> Open in Google Drive
+                </a>
               </div>
             </Card>
           ))

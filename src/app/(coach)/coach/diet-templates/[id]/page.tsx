@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DishPickerModal } from "@/components/coach/dish-picker-modal";
@@ -362,6 +362,29 @@ function TemplateEditPageInner() {
     setMealSlots((prev) => prev.filter((_, i) => i !== slotIdx));
   }
 
+  function copySlot(slotIdx: number) {
+    if (mealSlots.length >= 6) return;
+    const source = mealSlots[slotIdx];
+    const copy: LocalMealSlot = {
+      localId: crypto.randomUUID(),
+      name: source.name + " (copy)",
+      targetCalories: source.targetCalories,
+      isSkipped: source.isSkipped,
+      components: source.components.map((comp) => ({
+        localId: crypto.randomUUID(),
+        componentCategory: comp.componentCategory,
+        dishIds: [...comp.dishIds],
+        foodItems: comp.foodItems.map((fi) => ({ ...fi })),
+      })),
+    };
+    setMealSlots((prev) => {
+      const updated = [...prev];
+      updated.splice(slotIdx + 1, 0, copy);
+      return updated;
+    });
+    setExpandedSlots((prev) => new Set([...prev, copy.localId]));
+  }
+
   function updateSlotName(slotIdx: number, value: string) {
     setMealSlots((prev) => {
       const updated = [...prev];
@@ -607,6 +630,14 @@ function TemplateEditPageInner() {
                       <SkipForward className="h-3.5 w-3.5" />
                     </button>
                   )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); copySlot(slotIdx); }}
+                    disabled={mealSlots.length >= 6}
+                    title="Duplicate this meal slot"
+                    className="p-1.5 rounded-lg text-zinc-600 hover:text-gold hover:bg-gold/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); removeSlot(slotIdx); }}
                     disabled={mealSlots.length <= 1}

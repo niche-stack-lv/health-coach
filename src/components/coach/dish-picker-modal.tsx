@@ -219,7 +219,7 @@ export function DishPickerModal({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate">{dish.name}</p>
                         <p className="text-[11px] text-zinc-500">
-                          {dish.totalCalories} cal · {dish.totalProtein}p · {dish.totalCarbs}c · {dish.totalFat}f
+                          {dish.totalCalories} cal · {dish.totalProtein}p · {dish.totalCarbs}c · {dish.totalFat}f · {dish.totalFiber}fib
                         </p>
                       </div>
                       <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase shrink-0", categoryBadgeColors[dish.componentCategory])}>

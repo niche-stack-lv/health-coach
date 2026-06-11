@@ -39,7 +39,7 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
             <div>
               <p className="font-semibold text-white">{food.name}</p>
               <p className="text-xs text-zinc-500">
-                {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f
+                {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f · {food.per100g.fiber}fib
                 {food.unit && food.gramsPerUnit ? ` per ${food.unit} (${food.gramsPerUnit}g)` : " per 100g"}
               </p>
             </div>
@@ -96,22 +96,28 @@ export function QuantitySheet({ food, onConfirm, onClose }: QuantitySheetProps) 
           <div className="mb-1 text-center text-xs text-gold font-medium">{formatFoodAmount(food, g)}</div>
         )}
         {g > 0 && (
-          <div className="grid grid-cols-4 gap-2 mb-4">
-            <div className="rounded-lg bg-white/[0.03] p-2 text-center">
-              <p className="text-sm font-bold text-gold">{Math.round(food.per100g.calories * m)}</p>
-              <p className="text-[10px] text-zinc-500">kcal</p>
+          <div className="space-y-2 mb-4">
+            <div className="grid grid-cols-4 gap-2">
+              <div className="rounded-lg bg-white/[0.03] p-2 text-center">
+                <p className="text-sm font-bold text-gold">{Math.round(food.per100g.calories * m)}</p>
+                <p className="text-[10px] text-zinc-500">kcal</p>
+              </div>
+              <div className="rounded-lg bg-red-500/5 p-2 text-center">
+                <p className="text-sm font-bold text-red-400">{+(food.per100g.protein * m).toFixed(1)}g</p>
+                <p className="text-[10px] text-zinc-500">protein</p>
+              </div>
+              <div className="rounded-lg bg-amber-500/5 p-2 text-center">
+                <p className="text-sm font-bold text-amber-400">{+(food.per100g.carbs * m).toFixed(1)}g</p>
+                <p className="text-[10px] text-zinc-500">carbs</p>
+              </div>
+              <div className="rounded-lg bg-emerald-500/5 p-2 text-center">
+                <p className="text-sm font-bold text-emerald-400">{+(food.per100g.fat * m).toFixed(1)}g</p>
+                <p className="text-[10px] text-zinc-500">fat</p>
+              </div>
             </div>
-            <div className="rounded-lg bg-red-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-red-400">{+(food.per100g.protein * m).toFixed(1)}g</p>
-              <p className="text-[10px] text-zinc-500">protein</p>
-            </div>
-            <div className="rounded-lg bg-amber-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-amber-400">{+(food.per100g.carbs * m).toFixed(1)}g</p>
-              <p className="text-[10px] text-zinc-500">carbs</p>
-            </div>
-            <div className="rounded-lg bg-emerald-500/5 p-2 text-center">
-              <p className="text-sm font-bold text-emerald-400">{+(food.per100g.fat * m).toFixed(1)}g</p>
-              <p className="text-[10px] text-zinc-500">fat</p>
+            <div className="rounded-lg bg-lime-500/5 py-1.5 px-2 flex items-center justify-center gap-2">
+              <p className="text-sm font-bold text-lime-400">{+(food.per100g.fiber * m).toFixed(1)}g</p>
+              <p className="text-[10px] text-zinc-500">fiber</p>
             </div>
           </div>
         )}

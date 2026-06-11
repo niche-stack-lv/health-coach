@@ -64,6 +64,7 @@ export interface DishItem {
   customProtein?: number;      // per 100g, only for custom items
   customCarbs?: number;        // per 100g, only for custom items
   customFat?: number;          // per 100g, only for custom items
+  customFiber?: number;        // per 100g, only for custom items
   grams: number;
   sortOrder: number;
 }
@@ -83,6 +84,7 @@ export interface Dish {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  totalFiber: number;
   items: DishItem[];
   tags?: DishTag[];
   createdAt: string;
@@ -100,6 +102,7 @@ export interface Food {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
   isDefault: boolean;
   createdAt?: string;
 }

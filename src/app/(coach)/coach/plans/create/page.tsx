@@ -410,6 +410,7 @@ function CreatePlanPageInner() {
               totalProtein: Math.round(food.per100g.protein * grams / 100),
               totalCarbs: Math.round(food.per100g.carbs * grams / 100),
               totalFat: Math.round(food.per100g.fat * grams / 100),
+              totalFiber: Math.round(food.per100g.fiber * grams / 100 * 10) / 10,
               items: [{
                 foodId: isStaticFood ? null : food.id,
                 customName: isStaticFood ? food.name : undefined,
@@ -418,6 +419,7 @@ function CreatePlanPageInner() {
                 customProtein: isStaticFood ? food.per100g.protein : undefined,
                 customCarbs: isStaticFood ? food.per100g.carbs : undefined,
                 customFat: isStaticFood ? food.per100g.fat : undefined,
+                customFiber: isStaticFood ? food.per100g.fiber : undefined,
                 grams,
                 sortOrder: 0,
               }],

@@ -202,7 +202,7 @@ export function FoodPicker({ foods: externalFoods, onAdd, onClose }: FoodPickerP
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate">{food.name}</p>
                         <p className="text-[11px] text-zinc-500">
-                          {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f
+                          {food.per100g.calories} kcal · {food.per100g.protein}p · {food.per100g.carbs}c · {food.per100g.fat}f · {food.per100g.fiber}fib
                           {food.unit && food.gramsPerUnit ? ` per ${food.unit}` : " per 100g"}
                         </p>
                       </div>

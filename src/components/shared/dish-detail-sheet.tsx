@@ -47,24 +47,33 @@ export function DishDetailSheet({ dish, onClose }: DishDetailSheetProps) {
             <p className="text-sm text-zinc-400 leading-relaxed">{dish.description}</p>
           )}
 
-          {/* Macros */}
-          <div className="grid grid-cols-4 gap-2">
-            <div className="rounded-xl bg-white/[0.04] p-3 text-center">
-              <p className="text-base font-bold text-white">{dish.totalCalories}</p>
-              <p className="text-[9px] text-zinc-500 uppercase mt-0.5">kcal</p>
+          {/* Macros — row 1: cal, protein, carbs, fat */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-2">
+              <div className="rounded-xl bg-white/[0.04] p-3 text-center">
+                <p className="text-base font-bold text-white">{dish.totalCalories}</p>
+                <p className="text-[9px] text-zinc-500 uppercase mt-0.5">kcal</p>
+              </div>
+              <div className="rounded-xl bg-white/[0.04] p-3 text-center">
+                <p className="text-base font-bold text-emerald-400">{dish.totalProtein}g</p>
+                <p className="text-[9px] text-zinc-500 uppercase mt-0.5">protein</p>
+              </div>
+              <div className="rounded-xl bg-white/[0.04] p-3 text-center">
+                <p className="text-base font-bold text-sky-400">{dish.totalCarbs}g</p>
+                <p className="text-[9px] text-zinc-500 uppercase mt-0.5">carbs</p>
+              </div>
+              <div className="rounded-xl bg-white/[0.04] p-3 text-center">
+                <p className="text-base font-bold text-amber-400">{dish.totalFat}g</p>
+                <p className="text-[9px] text-zinc-500 uppercase mt-0.5">fat</p>
+              </div>
             </div>
-            <div className="rounded-xl bg-white/[0.04] p-3 text-center">
-              <p className="text-base font-bold text-emerald-400">{dish.totalProtein}g</p>
-              <p className="text-[9px] text-zinc-500 uppercase mt-0.5">protein</p>
-            </div>
-            <div className="rounded-xl bg-white/[0.04] p-3 text-center">
-              <p className="text-base font-bold text-sky-400">{dish.totalCarbs}g</p>
-              <p className="text-[9px] text-zinc-500 uppercase mt-0.5">carbs</p>
-            </div>
-            <div className="rounded-xl bg-white/[0.04] p-3 text-center">
-              <p className="text-base font-bold text-amber-400">{dish.totalFat}g</p>
-              <p className="text-[9px] text-zinc-500 uppercase mt-0.5">fat</p>
-            </div>
+            {/* Row 2: fiber */}
+            {dish.totalFiber > 0 && (
+              <div className="rounded-xl bg-white/[0.04] py-2 px-3 flex items-center justify-center gap-2">
+                <p className="text-base font-bold text-lime-400">{dish.totalFiber}g</p>
+                <p className="text-[9px] text-zinc-500 uppercase">fiber</p>
+              </div>
+            )}
           </div>
 
           {/* Ingredients */}

@@ -21,12 +21,12 @@ export default function ClientDietPlanPage() {
 
 // Demo mock data
 const demoDishes: Dish[] = [
-  { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, items: [], createdAt: "" },
-  { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbs", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, items: [], createdAt: "" },
-  { id: "d3", coachId: "demo", name: "Chicken Breast 150g", emoji: "🍗", componentCategory: "protein", totalCalories: 248, totalProtein: 46, totalCarbs: 0, totalFat: 5, items: [], createdAt: "" },
-  { id: "d4", coachId: "demo", name: "Palak Paneer 60g", emoji: "🥬", componentCategory: "protein", totalCalories: 180, totalProtein: 12, totalCarbs: 6, totalFat: 12, items: [], createdAt: "" },
-  { id: "d5", coachId: "demo", name: "Mixed Salad", emoji: "🥗", componentCategory: "fiber", totalCalories: 45, totalProtein: 2, totalCarbs: 8, totalFat: 1, items: [], createdAt: "" },
-  { id: "d6", coachId: "demo", name: "Brown Rice 150g", emoji: "🍚", componentCategory: "carbs", totalCalories: 170, totalProtein: 4, totalCarbs: 36, totalFat: 1, items: [], createdAt: "" },
+  { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, totalFiber: 5, items: [], createdAt: "" },
+  { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbs", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, totalFiber: 3, items: [], createdAt: "" },
+  { id: "d3", coachId: "demo", name: "Chicken Breast 150g", emoji: "🍗", componentCategory: "protein", totalCalories: 248, totalProtein: 46, totalCarbs: 0, totalFat: 5, totalFiber: 0, items: [], createdAt: "" },
+  { id: "d4", coachId: "demo", name: "Palak Paneer 60g", emoji: "🥬", componentCategory: "protein", totalCalories: 180, totalProtein: 12, totalCarbs: 6, totalFat: 12, totalFiber: 2, items: [], createdAt: "" },
+  { id: "d5", coachId: "demo", name: "Mixed Salad", emoji: "🥗", componentCategory: "fiber", totalCalories: 45, totalProtein: 2, totalCarbs: 8, totalFat: 1, totalFiber: 4, items: [], createdAt: "" },
+  { id: "d6", coachId: "demo", name: "Brown Rice 150g", emoji: "🍚", componentCategory: "carbs", totalCalories: 170, totalProtein: 4, totalCarbs: 36, totalFat: 1, totalFiber: 2, items: [], createdAt: "" },
 ];
 
 function buildDemoAssignment(): TemplateAssignment {
@@ -203,7 +203,7 @@ function ClientDietPlanPageInner() {
 
       {/* Daily macro totals */}
       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-        <MacroSummary calories={dayMacros.calories} protein={dayMacros.protein} carbs={dayMacros.carbs} fat={dayMacros.fat} />
+        <MacroSummary calories={dayMacros.calories} protein={dayMacros.protein} carbs={dayMacros.carbs} fat={dayMacros.fat} fiber={dayMacros.fiber} />
       </div>
 
       {/* Meal slots — each is its own card */}

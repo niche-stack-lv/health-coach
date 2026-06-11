@@ -23,10 +23,10 @@ export default function DishesPage() {
 type PageTab = "dishes" | "foods";
 
 const demoDishes: Dish[] = [
-  { id: "demo-1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 380, totalProtein: 35, totalCarbs: 45, totalFat: 8, items: [], createdAt: "" },
-  { id: "demo-2", coachId: "demo", name: "Palak Paneer", emoji: "🧀", componentCategory: "protein", totalCalories: 265, totalProtein: 18, totalCarbs: 5, totalFat: 21, items: [], createdAt: "" },
-  { id: "demo-3", coachId: "demo", name: "Steamed Broccoli", emoji: "🥦", componentCategory: "fiber", totalCalories: 55, totalProtein: 4, totalCarbs: 11, totalFat: 0, items: [], createdAt: "" },
-  { id: "demo-4", coachId: "demo", name: "Chicken Biryani", emoji: "🍚", componentCategory: "complete_meal", totalCalories: 450, totalProtein: 28, totalCarbs: 55, totalFat: 12, items: [], createdAt: "" },
+  { id: "demo-1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 380, totalProtein: 35, totalCarbs: 45, totalFat: 8, totalFiber: 6, items: [], createdAt: "" },
+  { id: "demo-2", coachId: "demo", name: "Palak Paneer", emoji: "🧀", componentCategory: "protein", totalCalories: 265, totalProtein: 18, totalCarbs: 5, totalFat: 21, totalFiber: 3, items: [], createdAt: "" },
+  { id: "demo-3", coachId: "demo", name: "Steamed Broccoli", emoji: "🥦", componentCategory: "fiber", totalCalories: 55, totalProtein: 4, totalCarbs: 11, totalFat: 0, totalFiber: 5, items: [], createdAt: "" },
+  { id: "demo-4", coachId: "demo", name: "Chicken Biryani", emoji: "🍚", componentCategory: "complete_meal", totalCalories: 450, totalProtein: 28, totalCarbs: 55, totalFat: 12, totalFiber: 2, items: [], createdAt: "" },
 ];
 
 const dishCategories: { value: ComponentCategory | "all"; label: string }[] = [
@@ -296,6 +296,7 @@ function DishesTab({
                     <MacroBadge label="P" value={dish.totalProtein} />
                     <MacroBadge label="C" value={dish.totalCarbs} />
                     <MacroBadge label="F" value={dish.totalFat} />
+                    <MacroBadge label="Fib" value={dish.totalFiber} />
                   </div>
                 </div>
               </Card>
@@ -379,7 +380,7 @@ function FoodsTab({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{food.name}</p>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
-                  {food.calories} cal · {food.protein}g P · {food.carbs}g C · {food.fat}g F
+                  {food.calories} cal · {food.protein}g P · {food.carbs}g C · {food.fat}g F · {food.fiber}g Fib
                   {food.unit
                     ? ` — per ${food.unit} (${food.gramsPerUnit}g)`
                     : " — per 100g"}
@@ -427,6 +428,7 @@ function FoodFormModal({ food, onClose, onSaved }: {
   const [protein, setProtein] = useState(food?.protein || 0);
   const [carbs, setCarbs] = useState(food?.carbs || 0);
   const [fat, setFat] = useState(food?.fat || 0);
+  const [fiber, setFiber] = useState(food?.fiber || 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -445,6 +447,7 @@ function FoodFormModal({ food, onClose, onSaved }: {
         protein,
         carbs,
         fat,
+        fiber,
       });
       if (err) { setError(err); setSaving(false); return; }
     } else {
@@ -458,6 +461,7 @@ function FoodFormModal({ food, onClose, onSaved }: {
         protein,
         carbs,
         fat,
+        fiber,
       });
       if (err) { setError(err); setSaving(false); return; }
     }
@@ -506,28 +510,37 @@ function FoodFormModal({ food, onClose, onSaved }: {
             </div>
           </div>
 
-          {/* Macros per serving */}
+          {/* Macros per serving — row 1: kcal/protein/carbs/fat, row 2: fiber */}
           <p className="text-[11px] text-zinc-500 pt-1">Macros per serving</p>
-          <div className="grid grid-cols-4 gap-2">
-            <div>
-              <label className="block text-[10px] text-zinc-600 mb-1">Calories</label>
-              <input type="number" value={calories} onChange={(e) => setCalories(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Calories</label>
+                <input type="number" value={calories} onChange={(e) => setCalories(parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Protein</label>
+                <input type="number" value={protein} onChange={(e) => setProtein(parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Carbs</label>
+                <input type="number" value={carbs} onChange={(e) => setCarbs(parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Fat</label>
+                <input type="number" value={fat} onChange={(e) => setFat(parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+              </div>
             </div>
-            <div>
-              <label className="block text-[10px] text-zinc-600 mb-1">Protein</label>
-              <input type="number" value={protein} onChange={(e) => setProtein(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
-            </div>
-            <div>
-              <label className="block text-[10px] text-zinc-600 mb-1">Carbs</label>
-              <input type="number" value={carbs} onChange={(e) => setCarbs(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
-            </div>
-            <div>
-              <label className="block text-[10px] text-zinc-600 mb-1">Fat</label>
-              <input type="number" value={fat} onChange={(e) => setFat(parseFloat(e.target.value) || 0)}
-                className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <label className="block text-[10px] text-zinc-600 mb-1">Fiber</label>
+                <input type="number" value={fiber} onChange={(e) => setFiber(parseFloat(e.target.value) || 0)}
+                  className="w-full h-8 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50" />
+              </div>
             </div>
           </div>
 

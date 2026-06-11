@@ -16,6 +16,7 @@ export interface FoodItem {
     protein: number;
     carbs: number;
     fat: number;
+    fiber: number;
   };
 }
 
@@ -33,6 +34,7 @@ export function mapDbFoodToFoodItem(f: any): FoodItem {
       protein: f.protein,
       carbs: f.carbs,
       fat: f.fat,
+      fiber: f.fiber ?? 0,
     },
   };
 }

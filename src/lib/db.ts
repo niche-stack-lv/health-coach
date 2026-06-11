@@ -284,6 +284,7 @@ export async function getFoods(): Promise<import("@/types").Food[]> {
     protein: row.protein as number,
     carbs: row.carbs as number,
     fat: row.fat as number,
+    fiber: (row.fiber ?? 0) as number,
     isDefault: (row.is_default ?? true) as boolean,
     createdAt: row.created_at as string,
   }));
@@ -299,9 +300,10 @@ export async function createFood(food: {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
 }) {
   const sb = getSupabase();
-  const { error } = await sb.from("foods").insert({ ...food, is_default: false });
+  const { error } = await sb.from("foods").insert({ ...food, fiber: food.fiber ?? 0, is_default: false });
   return { error: error?.message || null };
 }
 
@@ -315,6 +317,7 @@ export async function updateFood(id: string, updates: {
   protein?: number;
   carbs?: number;
   fat?: number;
+  fiber?: number;
 }) {
   const sb = getSupabase();
   const { error } = await sb.from("foods").update(updates).eq("id", id);
@@ -578,6 +581,7 @@ function mapDishItemRow(row: any): DishItem {
     customProtein: row.custom_protein ?? (food ? Number(food.protein) : undefined),
     customCarbs: row.custom_carbs ?? (food ? Number(food.carbs) : undefined),
     customFat: row.custom_fat ?? (food ? Number(food.fat) : undefined),
+    customFiber: row.custom_fiber ?? (food ? Number(food.fiber ?? 0) : undefined),
     grams: row.grams,
     sortOrder: row.sort_order,
   };
@@ -598,6 +602,7 @@ function mapDishRow(row: any): Dish {
     totalProtein: row.total_protein,
     totalCarbs: row.total_carbs,
     totalFat: row.total_fat,
+    totalFiber: row.total_fiber ?? 0,
     items: (row.dish_items || []).map(mapDishItemRow),
     tags: (row.dish_tag_links || []).map((link: any) => link.tag).filter(Boolean),
     createdAt: row.created_at,
@@ -684,6 +689,7 @@ export async function createDish(input: {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  totalFiber: number;
   items: Array<{
     foodId: string | null;
     customName?: string;
@@ -692,6 +698,7 @@ export async function createDish(input: {
     customProtein?: number;
     customCarbs?: number;
     customFat?: number;
+    customFiber?: number;
     grams: number;
     sortOrder: number;
   }>;
@@ -713,6 +720,7 @@ export async function createDish(input: {
       total_protein: input.totalProtein,
       total_carbs: input.totalCarbs,
       total_fat: input.totalFat,
+      total_fiber: input.totalFiber,
     })
     .select()
     .single();
@@ -727,6 +735,7 @@ export async function createDish(input: {
     custom_protein: item.customProtein ?? null,
     custom_carbs: item.customCarbs ?? null,
     custom_fat: item.customFat ?? null,
+    custom_fiber: item.customFiber ?? null,
     grams: item.grams,
     sort_order: item.sortOrder,
   }));
@@ -757,6 +766,7 @@ export async function updateDish(dishId: string, input: {
   totalProtein: number;
   totalCarbs: number;
   totalFat: number;
+  totalFiber: number;
   items: Array<{
     foodId: string | null;
     customName?: string;
@@ -765,6 +775,7 @@ export async function updateDish(dishId: string, input: {
     customProtein?: number;
     customCarbs?: number;
     customFat?: number;
+    customFiber?: number;
     grams: number;
     sortOrder: number;
   }>;
@@ -784,6 +795,7 @@ export async function updateDish(dishId: string, input: {
       total_protein: input.totalProtein,
       total_carbs: input.totalCarbs,
       total_fat: input.totalFat,
+      total_fiber: input.totalFiber,
     })
     .eq("id", dishId);
   if (updateError) return { error: updateError.message };
@@ -805,6 +817,7 @@ export async function updateDish(dishId: string, input: {
       custom_protein: item.customProtein ?? null,
       custom_carbs: item.customCarbs ?? null,
       custom_fat: item.customFat ?? null,
+      custom_fiber: item.customFiber ?? null,
       grams: item.grams,
       sort_order: item.sortOrder,
     }));
@@ -908,6 +921,7 @@ function mapMealSlotDishRow(row: any): MealSlotDish {
       protein: row.food.protein,
       carbs: row.food.carbs,
       fat: row.food.fat,
+      fiber: row.food.fiber ?? 0,
       isDefault: row.food.is_default ?? true,
     } : undefined,
     foodQuantity: row.food_quantity || null,

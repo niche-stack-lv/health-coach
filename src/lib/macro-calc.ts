@@ -8,6 +8,7 @@ export interface MacroValues {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
 }
 
 /**
@@ -21,12 +22,12 @@ export function calculateItemMacros(per100g: MacroValues, grams: number): MacroV
     protein: per100g.protein * factor,
     carbs: per100g.carbs * factor,
     fat: per100g.fat * factor,
+    fiber: per100g.fiber * factor,
   };
 }
 
 /**
  * Sum macros across multiple items to get a dish total.
- * Each item provides its per-100g values and gram amount.
  */
 export function calculateDishMacros(
   items: { per100g: MacroValues; grams: number }[]
@@ -39,15 +40,16 @@ export function calculateDishMacros(
         protein: total.protein + contribution.protein,
         carbs: total.carbs + contribution.carbs,
         fat: total.fat + contribution.fat,
+        fiber: total.fiber + contribution.fiber,
       };
     },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
 }
 
 /**
  * Round macro fields for display.
- * Calories: nearest integer. Protein/carbs/fat: 1 decimal place.
+ * Calories: nearest integer. Protein/carbs/fat/fiber: 1 decimal place.
  */
 export function roundMacros(macros: MacroValues): MacroValues {
   return {
@@ -55,6 +57,7 @@ export function roundMacros(macros: MacroValues): MacroValues {
     protein: Math.round(macros.protein * 10) / 10,
     carbs: Math.round(macros.carbs * 10) / 10,
     fat: Math.round(macros.fat * 10) / 10,
+    fiber: Math.round(macros.fiber * 10) / 10,
   };
 }
 
@@ -68,6 +71,7 @@ export function calculateDailyMacros(
     totalProtein: number;
     totalCarbs: number;
     totalFat: number;
+    totalFiber?: number;
   }[]
 ): MacroValues {
   return selectedDishes.reduce<MacroValues>(
@@ -76,8 +80,9 @@ export function calculateDailyMacros(
       protein: total.protein + dish.totalProtein,
       carbs: total.carbs + dish.totalCarbs,
       fat: total.fat + dish.totalFat,
+      fiber: total.fiber + (dish.totalFiber ?? 0),
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
 }
 

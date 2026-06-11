@@ -29,7 +29,7 @@ interface LocalDishItem {
   foodName: string;
   foodEmoji: string;
   grams: number;
-  per100g: { calories: number; protein: number; carbs: number; fat: number };
+  per100g: { calories: number; protein: number; carbs: number; fat: number; fiber: number };
   isCustom: boolean;
 }
 
@@ -61,6 +61,7 @@ const demoDish: Dish = {
   totalProtein: 35,
   totalCarbs: 45,
   totalFat: 8,
+  totalFiber: 6,
   items: [
     { id: "di-1", dishId: "demo-1", foodId: "c3", grams: 28, sortOrder: 0 },
     { id: "di-2", dishId: "demo-1", foodId: "p6", grams: 30, sortOrder: 1 },
@@ -95,6 +96,7 @@ function DishEditPageInner() {
   const [manualProtein, setManualProtein] = useState(0);
   const [manualCarbs, setManualCarbs] = useState(0);
   const [manualFat, setManualFat] = useState(0);
+  const [manualFiber, setManualFiber] = useState(0);
   const [loading, setLoading] = useState(!isCreateMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -144,6 +146,7 @@ function DishEditPageInner() {
     setManualProtein(dish.totalProtein);
     setManualCarbs(dish.totalCarbs);
     setManualFat(dish.totalFat);
+    setManualFiber(dish.totalFiber);
     setSelectedTagIds((dish.tags || []).map((t) => t.id));
     setItems(
       dish.items.map((item) => {
@@ -160,6 +163,7 @@ function DishEditPageInner() {
             protein: item.customProtein || 0,
             carbs: item.customCarbs || 0,
             fat: item.customFat || 0,
+            fiber: item.customFiber || 0,
           },
           isCustom: !item.foodId,
         };
@@ -202,6 +206,7 @@ function DishEditPageInner() {
       totalProtein: manualMacros ? manualProtein : macroTotals.protein,
       totalCarbs: manualMacros ? manualCarbs : macroTotals.carbs,
       totalFat: manualMacros ? manualFat : macroTotals.fat,
+      totalFiber: manualMacros ? manualFiber : macroTotals.fiber,
       items: manualMacros ? [] : items.map((item, idx) => {
         return {
           foodId: item.isCustom ? null : item.foodId,
@@ -211,6 +216,7 @@ function DishEditPageInner() {
           customProtein: item.isCustom ? item.per100g.protein : undefined,
           customCarbs: item.isCustom ? item.per100g.carbs : undefined,
           customFat: item.isCustom ? item.per100g.fat : undefined,
+          customFiber: item.isCustom ? item.per100g.fiber : undefined,
           grams: item.grams,
           sortOrder: idx,
         };
@@ -280,7 +286,7 @@ function DishEditPageInner() {
     setErrors((prev) => ({ ...prev, items: undefined }));
   }
 
-  function addCustomItem(custom: { name: string; emoji: string; calories: number; protein: number; carbs: number; fat: number; grams: number }) {
+  function addCustomItem(custom: { name: string; emoji: string; calories: number; protein: number; carbs: number; fat: number; fiber: number; grams: number }) {
     // Also save to foods table so it's reusable in future dishes
     if (!isDemo) {
       createFood({
@@ -291,6 +297,7 @@ function DishEditPageInner() {
         protein: custom.protein,
         carbs: custom.carbs,
         fat: custom.fat,
+        fiber: custom.fiber,
       });
     }
 
@@ -302,7 +309,7 @@ function DishEditPageInner() {
         foodName: custom.name,
         foodEmoji: custom.emoji,
         grams: custom.grams,
-        per100g: { calories: custom.calories, protein: custom.protein, carbs: custom.carbs, fat: custom.fat },
+        per100g: { calories: custom.calories, protein: custom.protein, carbs: custom.carbs, fat: custom.fat, fiber: custom.fiber },
         isCustom: true,
       },
     ]);
@@ -555,45 +562,58 @@ function DishEditPageInner() {
         </div>
 
         {manualMacros ? (
-          /* Manual macro inputs */
+          /* Manual macro inputs — row 1: kcal/protein/carbs/fat, row 2: fiber */
           <div>
             <label className="block text-xs text-zinc-500 mb-2">Total Macros</label>
-            <div className="grid grid-cols-4 gap-3">
-              <div>
-                <label className="block text-[10px] text-zinc-600 mb-1">Calories</label>
-                <input
-                  type="number"
-                  value={manualCalories}
-                  onChange={(e) => setManualCalories(parseFloat(e.target.value) || 0)}
-                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
-                />
+            <div className="space-y-3">
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[10px] text-zinc-600 mb-1">Calories</label>
+                  <input
+                    type="number"
+                    value={manualCalories}
+                    onChange={(e) => setManualCalories(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-600 mb-1">Protein (g)</label>
+                  <input
+                    type="number"
+                    value={manualProtein}
+                    onChange={(e) => setManualProtein(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-600 mb-1">Carbs (g)</label>
+                  <input
+                    type="number"
+                    value={manualCarbs}
+                    onChange={(e) => setManualCarbs(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-600 mb-1">Fat (g)</label>
+                  <input
+                    type="number"
+                    value={manualFat}
+                    onChange={(e) => setManualFat(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-[10px] text-zinc-600 mb-1">Protein (g)</label>
-                <input
-                  type="number"
-                  value={manualProtein}
-                  onChange={(e) => setManualProtein(parseFloat(e.target.value) || 0)}
-                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-zinc-600 mb-1">Carbs (g)</label>
-                <input
-                  type="number"
-                  value={manualCarbs}
-                  onChange={(e) => setManualCarbs(parseFloat(e.target.value) || 0)}
-                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] text-zinc-600 mb-1">Fat (g)</label>
-                <input
-                  type="number"
-                  value={manualFat}
-                  onChange={(e) => setManualFat(parseFloat(e.target.value) || 0)}
-                  className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
-                />
+              <div className="grid grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[10px] text-zinc-600 mb-1">Fiber (g)</label>
+                  <input
+                    type="number"
+                    value={manualFiber}
+                    onChange={(e) => setManualFiber(parseFloat(e.target.value) || 0)}
+                    className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-gold/50"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -641,7 +661,7 @@ function DishEditPageInner() {
                       )}
                     </div>
                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                      {itemMacros.calories} cal · {itemMacros.protein}p · {itemMacros.carbs}c · {itemMacros.fat}f
+                      {itemMacros.calories} cal · {itemMacros.protein}p · {itemMacros.carbs}c · {itemMacros.fat}f · {itemMacros.fiber}fib
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -672,11 +692,16 @@ function DishEditPageInner() {
       {!manualMacros && items.length > 0 && (
         <Card className="p-5 mb-6">
           <label className="block text-xs text-zinc-500 mb-2">Total Macros</label>
-          <div className="grid grid-cols-4 gap-3">
-            <MacroTotal label="Calories" value={macroTotals.calories} unit="kcal" />
-            <MacroTotal label="Protein" value={macroTotals.protein} unit="g" />
-            <MacroTotal label="Carbs" value={macroTotals.carbs} unit="g" />
-            <MacroTotal label="Fat" value={macroTotals.fat} unit="g" />
+          <div className="space-y-3">
+            <div className="grid grid-cols-4 gap-3">
+              <MacroTotal label="Calories" value={macroTotals.calories} unit="kcal" />
+              <MacroTotal label="Protein" value={macroTotals.protein} unit="g" />
+              <MacroTotal label="Carbs" value={macroTotals.carbs} unit="g" />
+              <MacroTotal label="Fat" value={macroTotals.fat} unit="g" />
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              <MacroTotal label="Fiber" value={macroTotals.fiber} unit="g" />
+            </div>
           </div>
         </Card>
       )}
@@ -757,7 +782,7 @@ function MacroTotal({ label, value, unit }: { label: string; value: number; unit
 
 // ---- Custom Item Modal ----
 function CustomItemModal({ onAdd, onClose }: {
-  onAdd: (item: { name: string; emoji: string; calories: number; protein: number; carbs: number; fat: number; grams: number }) => void;
+  onAdd: (item: { name: string; emoji: string; calories: number; protein: number; carbs: number; fat: number; fiber: number; grams: number }) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState("");
@@ -766,6 +791,7 @@ function CustomItemModal({ onAdd, onClose }: {
   const [protein, setProtein] = useState(0);
   const [carbs, setCarbs] = useState(0);
   const [fat, setFat] = useState(0);
+  const [fiber, setFiber] = useState(0);
   const [grams, setGrams] = useState(100);
   const [unit, setUnit] = useState("");
   const [error, setError] = useState("");
@@ -775,7 +801,7 @@ function CustomItemModal({ onAdd, onClose }: {
       setError("Name is required");
       return;
     }
-    onAdd({ name: name.trim(), emoji, calories, protein, carbs, fat, grams });
+    onAdd({ name: name.trim(), emoji, calories, protein, carbs, fat, fiber, grams });
   }
 
   return (
@@ -814,11 +840,16 @@ function CustomItemModal({ onAdd, onClose }: {
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           <p className="text-[11px] text-zinc-500 pt-1">Macros per serving</p>
-          <div className="grid grid-cols-4 gap-2">
-            <NumberInput label="Calories" value={calories} onChange={setCalories} />
-            <NumberInput label="Protein" value={protein} onChange={setProtein} />
-            <NumberInput label="Carbs" value={carbs} onChange={setCarbs} />
-            <NumberInput label="Fat" value={fat} onChange={setFat} />
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-2">
+              <NumberInput label="Calories" value={calories} onChange={setCalories} />
+              <NumberInput label="Protein" value={protein} onChange={setProtein} />
+              <NumberInput label="Carbs" value={carbs} onChange={setCarbs} />
+              <NumberInput label="Fat" value={fat} onChange={setFat} />
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <NumberInput label="Fiber" value={fiber} onChange={setFiber} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

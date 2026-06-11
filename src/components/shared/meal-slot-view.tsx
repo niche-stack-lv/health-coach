@@ -196,7 +196,7 @@ function MealSlotCompactView({ slot }: { slot: TemplateMealSlot }) {
                   <span key={msd.id} className="flex items-center gap-1">
                     {idx > 0 && <span className="text-[10px] text-zinc-600 mx-0.5">or</span>}
                     <span
-                      title={isDish ? `${msd.dish!.totalCalories} cal · ${msd.dish!.totalProtein}p · ${msd.dish!.totalCarbs}c · ${msd.dish!.totalFat}f` : undefined}
+                      title={isDish ? `${msd.dish!.totalCalories} cal · ${msd.dish!.totalProtein}p · ${msd.dish!.totalCarbs}c · ${msd.dish!.totalFat}f · ${msd.dish!.totalFiber}fib` : undefined}
                       className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] text-zinc-300 cursor-default"
                     >
                       {emoji} {name}{isFood && msd.foodQuantity ? ` (${msd.foodQuantity}g)` : ""}
@@ -481,7 +481,7 @@ function MealSlotEditMode({
               return (
                 <span
                   key={dishId}
-                  title={dish ? `${calDisplay} cal · ${dish.totalProtein}p · ${dish.totalCarbs}c · ${dish.totalFat}f` : undefined}
+                  title={dish ? `${calDisplay} cal · ${dish.totalProtein}p · ${dish.totalCarbs}c · ${dish.totalFat}f · ${dish.totalFiber}fib` : undefined}
                   className="inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] text-zinc-300 cursor-default"
                 >
                   {dish?.emoji || "🍽️"} {dish?.name || "Unknown"}

@@ -129,6 +129,16 @@ function FoodCheckInPageInner() {
       // Populate selections from existing check-in
       const existingSelections: Record<string, string> = {};
       const existingSkipped = new Set<string>();
+      const existingOtherDetails: Record<string, { name: string; calories: string }> = {};
+      // Build a lookup of components from the assignment so we can resolve food selections
+      const componentLookup = new Map<string, MealSlotComponent>();
+      if (assignmentData?.template) {
+        for (const slot of assignmentData.template.mealSlots || []) {
+          for (const comp of slot.components || []) {
+            componentLookup.set(comp.id, comp);
+          }
+        }
+      }
       for (const item of checkIn.items || []) {
         if (!item.componentId) continue;
         if (item.isSkipped) {
@@ -136,10 +146,29 @@ function FoodCheckInPageInner() {
           if (item.slotId) existingSkipped.add(item.slotId);
         } else if (item.dishId) {
           existingSelections[item.componentId] = item.dishId;
+        } else if (item.customName) {
+          // No dishId — could be a food selection or "other".
+          // Try to match the customName to a food alternative in this component.
+          const comp = componentLookup.get(item.componentId);
+          const foodMsd = comp?.dishes.find((d) => {
+            if (!d.foodId || !d.food) return false;
+            const qty = d.foodQuantity || 100;
+            return item.customName === `${d.food.name} (${qty}g)`;
+          });
+          if (foodMsd) {
+            existingSelections[item.componentId] = foodMsd.id;
+          } else {
+            existingSelections[item.componentId] = "other";
+            existingOtherDetails[item.componentId] = {
+              name: item.customName || "",
+              calories: item.customCalories ? String(item.customCalories) : "",
+            };
+          }
         }
       }
       setSelections(existingSelections);
       setSkippedSlots(existingSkipped);
+      setOtherDetails(existingOtherDetails);
     }
 
     if (assignmentData?.template) {
@@ -244,14 +273,46 @@ function FoodCheckInPageInner() {
     const items = Object.entries(selections)
       .map(([componentId, value]) => {
         const slot = todaySlots.find((s) => s.components.some((c) => c.id === componentId));
+        const comp = slot?.components.find((c) => c.id === componentId);
         const other = otherDetails[componentId];
+
+        // Determine what kind of selection this is:
+        // - "skipped" / "other" → handled below
+        // - dish selection: value matches msd.dishId → store as dish_id
+        // - food selection: value matches msd.id where msd has a foodId → store dish_id=null,
+        //   capture food info as custom fields (FK only allows real dish ids)
+        let dishId: string | null = null;
+        let customName: string | undefined;
+        let customCalories: number | undefined;
+
+        if (value === "skipped") {
+          // skipped — no dish, no name
+        } else if (value === "other") {
+          customName = other?.name || "Other";
+          customCalories = other?.calories ? parseFloat(other.calories) : undefined;
+        } else {
+          // Try to match as a dish first
+          const dishMsd = comp?.dishes.find((d) => d.dishId === value);
+          if (dishMsd?.dishId) {
+            dishId = dishMsd.dishId;
+          } else {
+            // Match as a food alternative (msd.id with foodId)
+            const foodMsd = comp?.dishes.find((d) => d.id === value && d.foodId);
+            if (foodMsd?.food) {
+              const qty = foodMsd.foodQuantity || 100;
+              customName = `${foodMsd.food.name} (${qty}g)`;
+              customCalories = Math.round((foodMsd.food.calories * qty) / 100);
+            }
+          }
+        }
+
         return {
           slotId: slot?.id || null,
           componentId: componentId || null,
-          dishId: (value === "skipped" || value === "other") ? null : value,
+          dishId,
           isSkipped: value === "skipped",
-          customName: value === "other" ? (other?.name || "Other") : undefined,
-          customCalories: value === "other" && other?.calories ? parseFloat(other.calories) : undefined,
+          customName,
+          customCalories,
         };
       })
       .filter((item) => item.slotId && item.componentId);

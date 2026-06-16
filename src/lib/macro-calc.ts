@@ -157,3 +157,82 @@ export function calculateWeeklyAdherence(dailyScores: number[]): number {
 export function getTemplateDayForDate(date: Date): number {
   return date.getDay() + 1;
 }
+
+
+// ─── Daily target auto-fill ──────────────────────────────────────
+//
+// Strategy: for each component within a meal, take the alternative with
+// the highest macro value. Sum across components in the meal, then sum
+// across meals to get the day's worst-case ceiling. Coach can override
+// any field after auto-fill.
+//
+// Skipped meal slots are excluded.
+// Food alternatives (no dish, just a foodId + quantity) contribute their
+// scaled macro values too.
+
+export interface MaxMacroAlt {
+  /** Pre-computed macros for the alternative, in the units the picker shows. */
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
+export interface MaxMealComponent {
+  alternatives: MaxMacroAlt[];
+}
+
+export interface MaxMeal {
+  isSkipped: boolean;
+  components: MaxMealComponent[];
+}
+
+/**
+ * Compute per-meal max-sum macros — used to auto-fill a single meal's
+ * target_calories or to assemble the daily total.
+ */
+export function calculateMealMaxMacros(meal: MaxMeal): MacroValues {
+  if (meal.isSkipped) {
+    return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+  }
+  return meal.components.reduce<MacroValues>(
+    (mealTotal, comp) => {
+      if (comp.alternatives.length === 0) return mealTotal;
+      const compMax: MacroValues = {
+        calories: Math.max(...comp.alternatives.map((a) => a.calories || 0)),
+        protein: Math.max(...comp.alternatives.map((a) => a.protein || 0)),
+        carbs: Math.max(...comp.alternatives.map((a) => a.carbs || 0)),
+        fat: Math.max(...comp.alternatives.map((a) => a.fat || 0)),
+        fiber: Math.max(...comp.alternatives.map((a) => a.fiber || 0)),
+      };
+      return {
+        calories: mealTotal.calories + compMax.calories,
+        protein: mealTotal.protein + compMax.protein,
+        carbs: mealTotal.carbs + compMax.carbs,
+        fat: mealTotal.fat + compMax.fat,
+        fiber: mealTotal.fiber + compMax.fiber,
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+  );
+}
+
+/**
+ * Compute the day's max-sum target — sum of per-meal max-sums.
+ */
+export function calculateDailyMaxTargets(meals: MaxMeal[]): MacroValues {
+  return meals.reduce<MacroValues>(
+    (dayTotal, meal) => {
+      const mealMacros = calculateMealMaxMacros(meal);
+      return {
+        calories: dayTotal.calories + mealMacros.calories,
+        protein: dayTotal.protein + mealMacros.protein,
+        carbs: dayTotal.carbs + mealMacros.carbs,
+        fat: dayTotal.fat + mealMacros.fat,
+        fiber: dayTotal.fiber + mealMacros.fiber,
+      };
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+  );
+}

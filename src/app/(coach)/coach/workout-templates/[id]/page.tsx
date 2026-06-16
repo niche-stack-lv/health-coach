@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
@@ -155,19 +155,29 @@ function WorkoutTemplateEditPageInner() {
   const [errors, setErrors] = useState<{ name?: string }>({});
   const [pickerSlotIdx, setPickerSlotIdx] = useState<number | null>(null);
 
+  // Guard: only load once per templateId so token refreshes don't blow away edits
+  const loadedTemplateIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (isCreateMode) {
+      if (loadedTemplateIdRef.current === "create") return;
+      loadedTemplateIdRef.current = "create";
       if (isDemo) { setName(demoTemplate.name); const l = templateToLocal(demoTemplate); setSlots(l.slots); }
       setExpandedSlots(new Set(slots.map((s) => s.localId)));
       return;
     }
     if (isDemo) {
+      if (loadedTemplateIdRef.current === templateId) return;
+      loadedTemplateIdRef.current = templateId;
       setName(demoTemplate.name);
       const l = templateToLocal(demoTemplate);
       setSlots(l.slots); setPhases(l.phases.length ? l.phases : [createDefaultPhase(0)]);
       setLoading(false); return;
     }
-    if (user) loadTemplate();
+    if (user && loadedTemplateIdRef.current !== templateId) {
+      loadedTemplateIdRef.current = templateId;
+      loadTemplate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isDemo, templateId]);
 
   async function loadTemplate() {

@@ -14,6 +14,9 @@ import { ArrowLeft, TrendingDown, Camera, Calendar, Plus, Trash2, Sparkles, X, U
 import Link from "next/link";
 import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { WorkoutSlotView } from "@/components/shared/workout-slot-view";
+import { WeightDisplay } from "@/components/shared/weight-display";
+import { useWeightUnit } from "@/lib/use-weight-unit";
+import { fromKg } from "@/lib/units";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
@@ -138,8 +141,13 @@ function ClientDetailPageInner() {
           <div className="grid grid-cols-3 gap-3 mb-6">
             <Card className="p-3 cursor-pointer hover:border-gold/30 transition-colors" onClick={() => setShowWeightGraph(true)}>
               <TrendingDown className="h-4 w-4 text-emerald-400 mb-1" />
-              <p className="text-xl font-bold text-white">{latestCheckInWeight || latest?.weight || client.current_weight || "—"}{(latestCheckInWeight || latest?.weight || client.current_weight) ? " kg" : ""}</p>
-              <p className="text-[10px] text-zinc-500">Current kg</p>
+              <p className="text-xl font-bold text-white">
+                {(() => {
+                  const kg = latestCheckInWeight || latest?.weight || client.current_weight;
+                  return kg != null ? <WeightDisplay kg={kg} /> : "—";
+                })()}
+              </p>
+              <p className="text-[10px] text-zinc-500">Current weight</p>
             </Card>
             <Card className="p-3"><Camera className="h-4 w-4 text-sky-400 mb-1" /><p className="text-xl font-bold text-white">{checkIns.length}</p><p className="text-[10px] text-zinc-500">Check-ins</p></Card>
             <Card className="p-3"><Calendar className="h-4 w-4 text-amber-400 mb-1" /><p className="text-xl font-bold text-white">{dietAssignment ? 1 : 0}</p><p className="text-[10px] text-zinc-500">Diet plan</p></Card>
@@ -162,7 +170,7 @@ function ClientDetailPageInner() {
                   <button key={c.id} onClick={() => setTab("checkins")} className="w-full flex items-center justify-between rounded-xl border border-white/[0.06] p-3 hover:bg-white/[0.03] transition-colors cursor-pointer text-left">
                     <div className="flex items-center gap-2">
                       <div className="h-9 w-9 shrink-0 rounded-lg bg-white/[0.04] flex items-center justify-center text-xs font-bold text-gold">
-                        {c.weight ? `${c.weight} kg` : "—"}
+                        {c.weight ? <WeightDisplay kg={c.weight} /> : "—"}
                       </div>
                       <p className="text-sm text-white">{formatDate(c.date || c.created_at)}</p>
                     </div>
@@ -415,7 +423,7 @@ function ClientDetailPageInner() {
         <div>
           {latest ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-6">
-              {latest.weight != null && <Card className="p-3"><p className="text-[10px] text-zinc-500 uppercase font-semibold">Weight</p><p className="text-xl font-bold text-white mt-1">{latest.weight} kg</p></Card>}
+              {latest.weight != null && <Card className="p-3"><p className="text-[10px] text-zinc-500 uppercase font-semibold">Weight</p><p className="text-xl font-bold text-white mt-1"><WeightDisplay kg={latest.weight} /></p></Card>}
               {latest.body_fat != null && <Card className="p-3"><p className="text-[10px] text-zinc-500 uppercase font-semibold">Body Fat</p><p className="text-xl font-bold text-white mt-1">{latest.body_fat}%</p></Card>}
               {latest.chest != null && <Card className="p-3"><p className="text-[10px] text-zinc-500 uppercase font-semibold">Chest</p><p className="text-xl font-bold text-white mt-1">{latest.chest} cm</p></Card>}
               {latest.waist != null && <Card className="p-3"><p className="text-[10px] text-zinc-500 uppercase font-semibold">Waist</p><p className="text-xl font-bold text-white mt-1">{latest.waist} cm</p></Card>}
@@ -529,7 +537,7 @@ function ClientDetailPageInner() {
               <WeightChart data={checkInWeights} height={250} />
             ) : checkInWeights.length === 1 ? (
               <div className="text-center py-8">
-                <p className="text-2xl font-bold text-white">{checkInWeights[0].weight} kg</p>
+                <p className="text-2xl font-bold text-white"><WeightDisplay kg={checkInWeights[0].weight} /></p>
                 <p className="text-xs text-zinc-500 mt-1">Only 1 check-in recorded ({checkInWeights[0].date})</p>
                 <p className="text-xs text-zinc-600 mt-3">More data points needed to show a graph.</p>
               </div>
@@ -669,7 +677,7 @@ function WeeklyCheckInCard({ checkIn }: { checkIn: any }) {
       <button onClick={handleExpand} className="w-full p-3 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors">
         <div className="flex items-center gap-3">
           <div className="h-9 w-14 shrink-0 rounded-lg bg-sky-500/10 flex items-center justify-center text-[10px] font-bold text-sky-400">
-            {checkIn.weight ? `${checkIn.weight} kg` : "—"}
+            {checkIn.weight ? <WeightDisplay kg={checkIn.weight} /> : "—"}
           </div>
           <div>
             <p className="text-sm text-white">{formatDate(checkIn.date || checkIn.created_at)}</p>
@@ -683,7 +691,7 @@ function WeeklyCheckInCard({ checkIn }: { checkIn: any }) {
       </button>
       {expanded && (
         <div className="px-3 pb-3 border-t border-white/[0.06] pt-3 space-y-3">
-          {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white">{checkIn.weight} kg</span></p>}
+          {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white"><WeightDisplay kg={checkIn.weight} /></span></p>}
           {checkIn.notes && <p className="text-xs text-zinc-400">Notes: <span className="text-zinc-300">{checkIn.notes}</span></p>}
           {/* Photos */}
           {(checkIn.photos || []).length > 0 && (
@@ -756,7 +764,7 @@ function DailyCheckInCard({ checkIn }: { checkIn: any }) {
           <div>
             <p className="text-sm text-white">{formatDate(checkIn.date)}</p>
             <p className="text-[11px] text-zinc-500">
-              {checkIn.totalCalories} cal · {checkIn.weight ? `${checkIn.weight} kg` : "no weight"}
+              {checkIn.totalCalories} cal · {checkIn.weight ? <WeightDisplay kg={checkIn.weight} /> : "no weight"}
             </p>
           </div>
         </div>
@@ -770,7 +778,7 @@ function DailyCheckInCard({ checkIn }: { checkIn: any }) {
             <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalCarbs}g</p><p className="text-[9px] text-zinc-500">carbs</p></div>
             <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalFat}g</p><p className="text-[9px] text-zinc-500">fat</p></div>
           </div>
-          {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white">{checkIn.weight} kg</span></p>}
+          {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white"><WeightDisplay kg={checkIn.weight} /></span></p>}
           {checkIn.notes && <p className="text-xs text-zinc-400">Notes: <span className="text-zinc-300">{checkIn.notes}</span></p>}
           {/* Food items */}
           {checkIn.items?.length > 0 && (

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getHabits, getHabitLogs, toggleHabitLog } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { useIsDemo } from "@/lib/use-demo";
+import { getTodayLocal } from "@/lib/date-utils";
 import { Check } from "lucide-react";
 
 function HabitsContent() {
@@ -15,7 +16,7 @@ function HabitsContent() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [values, setValues] = useState<Record<string, string>>({});
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayLocal();
 
   useEffect(() => {
     if (isDemo) {

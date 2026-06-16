@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, X } from "lucide-react";
@@ -107,20 +107,29 @@ function DishEditPageInner() {
   // Validation errors
   const [errors, setErrors] = useState<{ name?: string; items?: string; category?: string }>({});
 
-  // Load dish in edit mode
+  // Load dish in edit mode — guarded so token refreshes don't reload over edits
+  const loadedDishIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (isCreateMode) return;
     if (isDemo) {
+      if (loadedDishIdRef.current === "demo") return;
+      loadedDishIdRef.current = "demo";
       populateFromDish(demoDish);
       setLoading(false);
       return;
     }
-    if (user) loadDish();
+    if (user && loadedDishIdRef.current !== dishId) {
+      loadedDishIdRef.current = dishId;
+      loadDish();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isDemo, dishId]);
 
-  // Load tags
+  // Load tags — guarded
+  const tagsLoadedRef = useRef(false);
   useEffect(() => {
-    if (user && !isDemo) {
+    if (user && !isDemo && !tagsLoadedRef.current) {
+      tagsLoadedRef.current = true;
       getDishTags(user.id).then(setAllTags);
     }
   }, [user, isDemo]);

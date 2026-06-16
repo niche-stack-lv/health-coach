@@ -122,6 +122,12 @@ export interface DietTemplate {
   coachId: string;
   name: string;
   planType: PlanType;
+  // Daily macro targets (nullable — when null, no progress bars are shown)
+  dailyCalories?: number | null;
+  dailyProtein?: number | null;
+  dailyCarbs?: number | null;
+  dailyFat?: number | null;
+  dailyFiber?: number | null;
   mealSlots: TemplateMealSlot[];
   createdAt: string;
 }
@@ -188,6 +194,7 @@ export interface FoodCheckIn {
   energyLevel?: number | null;
   mood?: string | null;
   notes?: string | null;
+  weightTraining?: string | null;
   coachFeedback?: string | null;
   status?: string;
   items: FoodCheckInItem[];

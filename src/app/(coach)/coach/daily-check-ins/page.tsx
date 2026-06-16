@@ -8,6 +8,8 @@ import { getCoachDailyCheckIns, getClients, updateDailyCheckInFeedback } from "@
 import { useIsDemo } from "@/lib/use-demo";
 import { Check, MessageCircle, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getTodayLocal } from "@/lib/date-utils";
+import { WeightDisplay } from "@/components/shared/weight-display";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
@@ -24,7 +26,7 @@ function DailyCheckInsContent() {
   const [feedbackText, setFeedbackText] = useState("");
   const [savingFeedback, setSavingFeedback] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayLocal();
 
   useEffect(() => {
     if (isDemo) {
@@ -165,11 +167,19 @@ function DailyCheckInsContent() {
 
                   {/* Full details */}
                   <div className="space-y-2 mb-3">
-                    {ci.weight && (
-                      <div className="flex items-center gap-2 text-xs text-zinc-300">
-                        <span className="text-zinc-500">⚖️ Weight:</span> {ci.weight} kg
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      {ci.weight && (
+                        <span className="text-zinc-300"><span className="text-zinc-500">⚖️</span> <WeightDisplay kg={ci.weight} /></span>
+                      )}
+                      {ci.steps != null && (
+                        <span className="text-zinc-300"><span className="text-zinc-500">👣</span> {ci.steps.toLocaleString()} steps</span>
+                      )}
+                      {ci.weight_training && (
+                        <span className="text-zinc-300 capitalize">
+                          <span className="text-zinc-500">💪</span> {ci.weight_training === "yes" ? "Lifted" : ci.weight_training === "no" ? "No lift" : "Rest day"}
+                        </span>
+                      )}
+                    </div>
 
                     {/* Macros & Adherence */}
                     {ci.total_calories > 0 && (

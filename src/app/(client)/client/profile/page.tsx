@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { getProfile, getCheckIns, getMeasurements, getOnboarding } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
+import { WeightDisplay } from "@/components/shared/weight-display";
 import { TrendingDown, Camera, Calendar, LogOut, Pencil } from "lucide-react";
 import Link from "next/link";
 
@@ -74,7 +75,7 @@ export default function ClientProfilePage() {
               <div key={ci.id} className="flex items-center justify-between">
                 <p className="text-sm text-zinc-300">{formatDate(ci.date || ci.created_at)}</p>
                 <div className="flex items-center gap-2">
-                  {ci.weight && <span className="text-xs text-zinc-500">{ci.weight} kg</span>}
+                  {ci.weight && <span className="text-xs text-zinc-500"><WeightDisplay kg={ci.weight} /></span>}
                   <Badge variant={ci.status === "reviewed" ? "success" : "warning"}>{ci.status}</Badge>
                 </div>
               </div>

@@ -11,6 +11,8 @@ import { useIsDemo } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
 import { getClients, getCoachCheckIns, getCoachDailyCheckIns } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
+import { getTodayLocal } from "@/lib/date-utils";
+import { WeightDisplay } from "@/components/shared/weight-display";
 import { config } from "@/lib/config";
 
 export default function CoachDashboard() {
@@ -63,7 +65,7 @@ function CoachDashboardInner() {
   const totalPending = pendingWeekly.length + pendingDaily.length;
 
   // Get today's date for checking missing check-ins
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayLocal();
   
   // Find clients who haven't checked in today
   const clientsWithCheckIns = new Set(dailyCheckIns.map((ci: any) => ci.client_id));
@@ -119,7 +121,7 @@ function CoachDashboardInner() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {ci.weight && <span className="text-xs text-zinc-400">{ci.weight} kg</span>}
+                      {ci.weight && <span className="text-xs text-zinc-400"><WeightDisplay kg={ci.weight} /></span>}
                       <Badge variant="gold">Daily</Badge>
                     </div>
                   </div>
@@ -137,7 +139,7 @@ function CoachDashboardInner() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {ci.weight && <span className="text-xs text-zinc-400">{ci.weight} kg</span>}
+                      {ci.weight && <span className="text-xs text-zinc-400"><WeightDisplay kg={ci.weight} /></span>}
                       <Badge variant="info">Weekly</Badge>
                     </div>
                   </div>

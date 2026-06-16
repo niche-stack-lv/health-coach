@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
 import { getClientActiveAssignment, getClientActiveWorkoutAssignment, getCheckIns, getMeasurements, getFoodCheckIn, getClientFoodCheckIns } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { getTodayLocal, getMondayOfThisWeek } from "@/lib/date-utils";
+import { WeightDisplay } from "@/components/shared/weight-display";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -45,7 +47,7 @@ function ClientDashboardInner() {
 
   async function loadData() {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayLocal();
     const [assignment, workoutAsgn, ci, m, foodCI, dci] = await Promise.all([
       getClientActiveAssignment(user.id),
       getClientActiveWorkoutAssignment(user.id),
@@ -121,7 +123,7 @@ function ClientDashboardInner() {
       {/* Current Weight */}
       <Card className="p-4">
         <TrendingDown className="h-4 w-4 text-emerald-400 mb-1.5" />
-        <p className="text-xl font-bold text-white">{latestWeight ? `${latestWeight} kg` : "—"}</p>
+        <p className="text-xl font-bold text-white">{latestWeight ? <WeightDisplay kg={latestWeight} /> : "—"}</p>
         <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">Current Weight</p>
       </Card>
 
@@ -161,12 +163,7 @@ function ClientDashboardInner() {
 
         {/* Weekly Check-in */}
         {checkIns[0] && (() => {
-          const now = new Date();
-          const day = now.getDay();
-          const diff = day === 0 ? 6 : day - 1;
-          const monday = new Date(now);
-          monday.setDate(now.getDate() - diff);
-          const mondayStr = monday.toISOString().split("T")[0];
+          const mondayStr = getMondayOfThisWeek();
           const latestDate = checkIns[0].date || checkIns[0].created_at?.split("T")[0];
           const submittedThisWeek = latestDate >= mondayStr;
 
@@ -193,12 +190,7 @@ function ClientDashboardInner() {
           return null;
         })()}
         {(!checkIns[0] || (() => {
-          const now = new Date();
-          const day = now.getDay();
-          const diff = day === 0 ? 6 : day - 1;
-          const monday = new Date(now);
-          monday.setDate(now.getDate() - diff);
-          const mondayStr = monday.toISOString().split("T")[0];
+          const mondayStr = getMondayOfThisWeek();
           const latestDate = checkIns[0]?.date || checkIns[0]?.created_at?.split("T")[0] || "";
           return latestDate < mondayStr;
         })()) && (

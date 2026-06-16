@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { getSupabase } from "./supabase";
 import type { User, Session, SupabaseClient } from "@supabase/supabase-js";
 
@@ -34,23 +34,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = sb();
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setUser(data.session?.user ?? null);
+      setUserStable(setUser, data.session?.user ?? null);
       if (data.session?.user) fetchRole(data.session.user.id);
       else setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
+    // IMPORTANT: Supabase fires onAuthStateChange on every token refresh
+    // (~hourly, or on tab focus after sleep). If we naively setUser on each
+    // event, downstream useEffects with `[user]` deps re-run and unsaved
+    // form state in editors gets blown away. We only update the React state
+    // when the user identity actually changed (id or signed in/out), not
+    // when only the JWT was rotated.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+      // Always keep the session ref up to date (it carries the new access token
+      // for downstream Supabase queries). The user identity check below
+      // gates only the React user/role state.
       setSession(sess);
-      setUser(sess?.user ?? null);
-      if (sess?.user) fetchRole(sess.user.id);
-      else { setRole(null); setLoading(false); }
+
+      if (event === "TOKEN_REFRESHED") {
+        // Pure token rotation — do NOT touch user/role state.
+        return;
+      }
+      if (event === "SIGNED_OUT" || !sess?.user) {
+        setUser(null);
+        setRole(null);
+        setLoading(false);
+        return;
+      }
+      // SIGNED_IN, USER_UPDATED, INITIAL_SESSION, etc.
+      setUserStable(setUser, sess.user);
+      if (event !== "USER_UPDATED") {
+        // role is keyed off the profile; only re-fetch when we don't already
+        // have one (initial sign in) or when explicitly told it changed.
+        fetchRoleIfNeeded(sess.user.id);
+      }
     });
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchRole(userId: string) {
     const { data } = await sb().from("profiles").select("role").eq("id", userId).single();
     if (data) setRole(data.role as UserRole);
     setLoading(false);
+  }
+
+  // Skip role refetch if we already have one and user id is unchanged
+  const lastRoleUserIdRef = useRef<string | null>(null);
+  async function fetchRoleIfNeeded(userId: string) {
+    if (lastRoleUserIdRef.current === userId && role) {
+      setLoading(false);
+      return;
+    }
+    lastRoleUserIdRef.current = userId;
+    await fetchRole(userId);
   }
 
   const signUp = async (email: string, password: string, name: string, role: "coach" | "client") => {
@@ -60,10 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await sb().from("profiles").insert({ id: data.user.id, email, name, role });
       // If signing up as client, also create clients record with password_changed=true
       if (role === "client") {
-        await sb().from("clients").insert({ 
-          id: data.user.id, 
+        await sb().from("clients").insert({
+          id: data.user.id,
           password_changed: true, // They set their own password
-          onboarding_completed: false 
+          onboarding_completed: false,
         });
       }
     }
@@ -87,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
     setRole(null);
+    lastRoleUserIdRef.current = null;
   };
 
   return (
@@ -94,6 +131,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+/**
+ * Only call setUser when the actual user identity changed.
+ * Supabase returns a fresh User object reference on every token refresh
+ * even though the underlying user is the same; passing that to setState
+ * causes every component that depends on `user` to re-render and re-run
+ * its effects.
+ */
+function setUserStable(setUser: Dispatch<SetStateAction<User | null>>, next: User | null) {
+  setUser((prev) => {
+    if (prev === next) return prev;
+    if (prev?.id && next?.id && prev.id === next.id) {
+      // Same user — keep the previous reference so React doesn't see a change.
+      return prev;
+    }
+    return next;
+  });
 }
 
 export function useAuth() {

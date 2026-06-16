@@ -8,6 +8,9 @@ import { useAuth } from "@/lib/auth-context";
 import { getSupabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { useIsDemo } from "@/lib/use-demo";
+import { getTodayLocal, getMondayOfThisWeek } from "@/lib/date-utils";
+import { useWeightUnit } from "@/lib/use-weight-unit";
+import { toKg } from "@/lib/units";
 
 const photoTypes = [
   { type: "front", label: "Front" },
@@ -18,6 +21,7 @@ const photoTypes = [
 function CheckInContent() {
   const { user } = useAuth();
   const isDemo = useIsDemo();
+  const { unit: weightUnit, setUnit: setWeightUnit } = useWeightUnit();
   const [weight, setWeight] = useState("");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState<Record<string, File | null>>({});
@@ -30,13 +34,7 @@ function CheckInContent() {
   useEffect(() => {
     if (isDemo) { setChecking(false); return; }
     if (!user) return;
-    const now = new Date();
-    const day = now.getDay(); // 0=Sun, 1=Mon...
-    const diff = day === 0 ? 6 : day - 1; // days since Monday
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - diff);
-    monday.setHours(0, 0, 0, 0);
-    const mondayStr = monday.toISOString().split("T")[0];
+    const mondayStr = getMondayOfThisWeek();
 
     const sb = getSupabase();
     sb.from("check_ins")
@@ -88,8 +86,8 @@ function CheckInContent() {
     // Save check-in
     await sb.from("check_ins").insert({
       client_id: user.id,
-      date: new Date().toISOString().split("T")[0],
-      weight: weight ? Number(weight) : null,
+      date: getTodayLocal(),
+      weight: weight ? toKg(Number(weight), weightUnit) : null,
       notes: notes || null,
       photos: photoUrls,
       status: "pending",
@@ -133,10 +131,27 @@ function CheckInContent() {
       </Card>
 
       <Card>
-        <div className="flex items-center gap-2 mb-4"><Scale className="h-4 w-4 text-gold" /><p className="text-sm font-semibold text-white">Weight</p></div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2"><Scale className="h-4 w-4 text-gold" /><p className="text-sm font-semibold text-white">Weight</p></div>
+          <div className="flex items-center gap-0.5">
+            {(["lbs", "kg"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setWeightUnit(u)}
+                className={cn(
+                  "px-2 py-1 rounded text-[10px] font-semibold uppercase",
+                  weightUnit === u ? "bg-gold/15 text-gold" : "text-zinc-600 hover:text-zinc-400"
+                )}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="relative">
           <input type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Enter weight" className={inputClass} />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-500">kg</span>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-zinc-500">{weightUnit}</span>
         </div>
       </Card>
 

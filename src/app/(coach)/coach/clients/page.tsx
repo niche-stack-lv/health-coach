@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth-context";
 import { getClients, addClient, searchProfiles, promoteToClient, getLeads, updateClient } from "@/lib/db";
 import { formatDate, cn } from "@/lib/utils";
+import { WeightDisplay } from "@/components/shared/weight-display";
 import Link from "next/link";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
@@ -219,7 +220,7 @@ export default function ClientsPage() {
                     </div>
                     {client.goal && <p className="text-xs text-zinc-500">{client.goal}</p>}
                     <div className="flex items-center justify-between mt-2 text-xs text-zinc-600">
-                      {client.current_weight && <span>{client.current_weight} kg → {client.target_weight} kg</span>}
+                      {client.current_weight && <span><WeightDisplay kg={client.current_weight} /> → <WeightDisplay kg={client.target_weight} /></span>}
                       <span>Joined {formatDate(client.created_at)}</span>
                     </div>
                   </Link>

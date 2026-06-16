@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getCoachCheckIns, getCheckInPhotoUrls } from "@/lib/db";
 import { getSupabase } from "@/lib/supabase";
 import { formatDate, cn } from "@/lib/utils";
+import { WeightDisplay } from "@/components/shared/weight-display";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
 
@@ -124,7 +125,7 @@ export default function CheckInsPage() {
                     </div>
                     {ci.notes && <p className="text-xs text-zinc-400 bg-white/[0.03] rounded-lg p-2 border border-white/[0.06] mb-3">&ldquo;{ci.notes}&rdquo;</p>}
                     <div className="flex items-center gap-3 mb-3">
-                      {ci.weight && <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2"><p className="text-xs text-zinc-500">Weight</p><p className="text-sm font-semibold text-white">{ci.weight} kg</p></div>}
+                      {ci.weight && <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2"><p className="text-xs text-zinc-500">Weight</p><p className="text-sm font-semibold text-white"><WeightDisplay kg={ci.weight} /></p></div>}
                       <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2"><p className="text-xs text-zinc-500">Photos</p><p className="text-sm font-semibold text-white">{(ci.photos || []).length}</p></div>
                     </div>
                     <PhotoGrid ci={ci} />

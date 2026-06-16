@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, SkipForward, ChevronDown, ChevronUp, Copy, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DishPickerModal } from "@/components/coach/dish-picker-modal";
@@ -12,6 +12,7 @@ import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { useIsDemo, useDemoSuffix } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
 import { getDietTemplate, createDietTemplate, updateDietTemplate, deleteDietTemplate, getDishes, getPlanTypes, createPlanType } from "@/lib/db";
+import { calculateDailyMaxTargets, calculateMealMaxMacros, type MaxMeal } from "@/lib/macro-calc";
 import { cn } from "@/lib/utils";
 import type { DietTemplate, PlanType, ComponentCategory, Dish } from "@/types";
 
@@ -177,6 +178,12 @@ function TemplateEditPageInner() {
   const [planTypes, setPlanTypes] = useState<Array<{ id: string; name: string; isDefault: boolean }>>([]);
   const [planTypeSearch, setPlanTypeSearch] = useState("");
   const [showPlanTypeDropdown, setShowPlanTypeDropdown] = useState(false);
+  // Daily macro targets (nullable — empty string means "not set")
+  const [dailyCalories, setDailyCalories] = useState<string>("");
+  const [dailyProtein, setDailyProtein] = useState<string>("");
+  const [dailyCarbs, setDailyCarbs] = useState<string>("");
+  const [dailyFat, setDailyFat] = useState<string>("");
+  const [dailyFiber, setDailyFiber] = useState<string>("");
   const [mealSlots, setMealSlots] = useState<LocalMealSlot[]>(() => [
     createEmptySlot("Meal 1", 0),
     createEmptySlot("Meal 2", 1),
@@ -209,32 +216,52 @@ function TemplateEditPageInner() {
   const [copyDropdownOpen, setCopyDropdownOpen] = useState<number | null>(null);
 
   // Load template in edit mode
+  // We gate with a ref so we only ever pull from the DB once per templateId.
+  // Without this, an auth token refresh (which can change the `user` reference
+  // even when identity is unchanged) would re-run the effect, call setMealSlots
+  // with the persisted state, and silently wipe any in-progress edits.
+  const loadedTemplateIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (isCreateMode && isDemo) {
+      if (loadedTemplateIdRef.current === "create-demo") return;
+      loadedTemplateIdRef.current = "create-demo";
       setName(demoTemplate.name);
       setPlanType(demoTemplate.planType);
       setMealSlots(templateToLocalSlots(demoTemplate));
       return;
     }
     if (isCreateMode) {
+      if (loadedTemplateIdRef.current === "create") return;
+      loadedTemplateIdRef.current = "create";
       // Expand all slots by default in create mode
       setExpandedSlots(new Set(mealSlots.map((s) => s.localId)));
       return;
     }
     if (isDemo) {
+      if (loadedTemplateIdRef.current === templateId) return;
+      loadedTemplateIdRef.current = templateId;
       setName(demoTemplate.name);
       setPlanType(demoTemplate.planType);
       setMealSlots(templateToLocalSlots(demoTemplate));
       setLoading(false);
       return;
     }
-    if (user) loadTemplate();
+    if (user && loadedTemplateIdRef.current !== templateId) {
+      loadedTemplateIdRef.current = templateId;
+      loadTemplate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isDemo, templateId]);
 
-  // Load dishes library
+  // Load dishes library — also gated so token refresh doesn't trigger refetches.
+  const dishesLoadedRef = useRef(false);
   useEffect(() => {
     if (isDemo) return;
-    if (user) loadDishes();
+    if (user && !dishesLoadedRef.current) {
+      dishesLoadedRef.current = true;
+      loadDishes();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isDemo]);
 
   async function loadTemplate() {
@@ -245,6 +272,11 @@ function TemplateEditPageInner() {
     }
     setName(template.name);
     setPlanType(template.planType);
+    setDailyCalories(template.dailyCalories != null ? String(template.dailyCalories) : "");
+    setDailyProtein(template.dailyProtein != null ? String(template.dailyProtein) : "");
+    setDailyCarbs(template.dailyCarbs != null ? String(template.dailyCarbs) : "");
+    setDailyFat(template.dailyFat != null ? String(template.dailyFat) : "");
+    setDailyFiber(template.dailyFiber != null ? String(template.dailyFiber) : "");
     // Check if this is a plan (is_template = false) by querying directly
     const { getSupabase } = await import("@/lib/supabase");
     const { data: raw } = await getSupabase().from("diet_templates").select("is_template").eq("id", templateId).single();
@@ -293,6 +325,11 @@ function TemplateEditPageInner() {
       coachId: user.id,
       name: name.trim(),
       planType: planType!,
+      dailyCalories: dailyCalories ? parseInt(dailyCalories, 10) : null,
+      dailyProtein: dailyProtein ? parseFloat(dailyProtein) : null,
+      dailyCarbs: dailyCarbs ? parseFloat(dailyCarbs) : null,
+      dailyFat: dailyFat ? parseFloat(dailyFat) : null,
+      dailyFiber: dailyFiber ? parseFloat(dailyFiber) : null,
       mealSlots: mealSlots.map((slot, slotIdx) => ({
         name: slot.name,
         targetCalories: slot.targetCalories ? parseFloat(slot.targetCalories) : null,
@@ -321,6 +358,11 @@ function TemplateEditPageInner() {
       const { error } = await updateDietTemplate(templateId, {
         name: templateInput.name,
         planType: templateInput.planType,
+        dailyCalories: templateInput.dailyCalories,
+        dailyProtein: templateInput.dailyProtein,
+        dailyCarbs: templateInput.dailyCarbs,
+        dailyFat: templateInput.dailyFat,
+        dailyFiber: templateInput.dailyFiber,
         mealSlots: templateInput.mealSlots,
       });
       if (error) {
@@ -408,6 +450,50 @@ function TemplateEditPageInner() {
       updated[slotIdx] = { ...updated[slotIdx], targetCalories: value };
       return updated;
     });
+  }
+
+  /**
+   * Build MaxMeal data from current local meal slots, using the dishes library
+   * for macro lookups. This is what powers the auto-fill calculation.
+   */
+  function buildMaxMealsFromState(): MaxMeal[] {
+    const dishMap = new Map(allDishes.map((d) => [d.id, d]));
+    return mealSlots.map((slot) => ({
+      isSkipped: slot.isSkipped,
+      components: slot.components.map((comp) => {
+        const alts = [];
+        for (const { dishId, multiplier } of comp.dishes) {
+          const dish = dishMap.get(dishId);
+          if (!dish) continue;
+          alts.push({
+            calories: dish.totalCalories * multiplier,
+            protein: dish.totalProtein * multiplier,
+            carbs: dish.totalCarbs * multiplier,
+            fat: dish.totalFat * multiplier,
+            fiber: (dish.totalFiber || 0) * multiplier,
+          });
+        }
+        // Note: foodItems contribute too. Their macros come from the food row,
+        // which is held in foodItems[].name/emoji only (no per100g cached locally).
+        // Skip them for the auto-fill — coach can override the final number.
+        return { alternatives: alts };
+      }),
+    }));
+  }
+
+  function autoFillDailyTargets() {
+    const totals = calculateDailyMaxTargets(buildMaxMealsFromState());
+    setDailyCalories(String(Math.round(totals.calories)));
+    setDailyProtein(String(Math.round(totals.protein * 10) / 10));
+    setDailyCarbs(String(Math.round(totals.carbs * 10) / 10));
+    setDailyFat(String(Math.round(totals.fat * 10) / 10));
+    setDailyFiber(String(Math.round(totals.fiber * 10) / 10));
+  }
+
+  function autoFillMealCalories(slotIdx: number) {
+    const max = buildMaxMealsFromState();
+    const macros = calculateMealMaxMacros(max[slotIdx]);
+    updateSlotCalories(slotIdx, String(Math.round(macros.calories)));
   }
 
   function toggleSlotSkipped(slotIdx: number) {
@@ -583,6 +669,76 @@ function TemplateEditPageInner() {
         {errors.planType && <p className="text-xs text-red-400 mt-2">{errors.planType}</p>}
       </Card>
 
+      {/* Daily Targets */}
+      <Card className="p-5 mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <label className="text-xs text-zinc-500">Daily Targets</label>
+            <p className="text-[10px] text-zinc-600 mt-0.5">Optional. Used to show progress bars in the client app.</p>
+          </div>
+          <button
+            type="button"
+            onClick={autoFillDailyTargets}
+            className="inline-flex items-center gap-1 rounded-lg border border-gold/30 bg-gold/5 px-2.5 py-1.5 text-[11px] font-semibold text-gold hover:bg-gold/10 transition-colors"
+            title="Set targets to the maximum sum of meal alternatives"
+          >
+            <Sparkles className="h-3 w-3" /> Auto from meals
+          </button>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          <div>
+            <label className="block text-[10px] text-zinc-600 mb-1">Calories</label>
+            <input
+              type="number"
+              value={dailyCalories}
+              onChange={(e) => setDailyCalories(e.target.value)}
+              placeholder="kcal"
+              className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-zinc-600 mb-1">Protein g</label>
+            <input
+              type="number"
+              value={dailyProtein}
+              onChange={(e) => setDailyProtein(e.target.value)}
+              placeholder="g"
+              className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-zinc-600 mb-1">Carbs g</label>
+            <input
+              type="number"
+              value={dailyCarbs}
+              onChange={(e) => setDailyCarbs(e.target.value)}
+              placeholder="g"
+              className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-zinc-600 mb-1">Fat g</label>
+            <input
+              type="number"
+              value={dailyFat}
+              onChange={(e) => setDailyFat(e.target.value)}
+              placeholder="g"
+              className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] text-zinc-600 mb-1">Fiber g</label>
+            <input
+              type="number"
+              value={dailyFiber}
+              onChange={(e) => setDailyFiber(e.target.value)}
+              placeholder="g"
+              className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-sm text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+            />
+          </div>
+        </div>
+      </Card>
+
       {/* Meal Slots */}
       <Card className="p-5 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -623,7 +779,7 @@ function TemplateEditPageInner() {
                   </div>
                   {/* Row 2: kcal + action buttons */}
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {/* Calories — manual input only */}
+                    {/* Calories — manual input + auto-fill */}
                     <div className="flex items-center gap-1 flex-1 min-w-0">
                       <input
                         type="number"
@@ -633,6 +789,14 @@ function TemplateEditPageInner() {
                         className="w-16 h-7 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2 text-xs text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold/50"
                       />
                       <span className="text-[10px] text-zinc-600 shrink-0">kcal</span>
+                      <button
+                        type="button"
+                        onClick={() => autoFillMealCalories(slotIdx)}
+                        title="Auto-fill from max of dishes"
+                        className="p-1 rounded-lg text-zinc-600 hover:text-gold hover:bg-gold/10 transition-colors"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                      </button>
                     </div>
                     {/* Actions */}
                     <div className="flex items-center gap-0.5 shrink-0">

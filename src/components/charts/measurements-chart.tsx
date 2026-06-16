@@ -4,6 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import type { BodyMeasurement } from "@/lib/mock-data";
+import { parseDateLocal } from "@/lib/date-utils";
 
 interface Props {
   data: BodyMeasurement[];
@@ -14,7 +15,7 @@ interface Props {
 export function MeasurementsChart({ data, metrics, height = 220 }: Props) {
   const formatted = data.map((d) => ({
     ...d,
-    label: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    label: parseDateLocal(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
   }));
 
   return (

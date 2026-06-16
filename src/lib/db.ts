@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase";
+import { getTodayLocal } from "./date-utils";
 import type {
   Dish,
   DishItem,
@@ -467,7 +468,7 @@ export async function getDailyCheckIns(clientId: string, limit = 30) {
 
 export async function getTodayCheckIn(clientId: string) {
   const sb = getSupabase();
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayLocal();
   const { data } = await sb
     .from("food_check_ins")
     .select("*")
@@ -505,7 +506,7 @@ export async function createDailyCheckIn(checkIn: {
   notes?: string;
 }) {
   const sb = getSupabase();
-  const today = checkIn.date || new Date().toISOString().split("T")[0];
+  const today = checkIn.date || getTodayLocal();
   // Upsert: if a food check-in already exists for today, update it with daily fields
   const { data: existing } = await sb
     .from("food_check_ins")
@@ -957,6 +958,11 @@ function mapDietTemplateRow(row: any): DietTemplate {
     coachId: row.coach_id,
     name: row.name,
     planType: row.plan_type as PlanType,
+    dailyCalories: row.daily_calories ?? null,
+    dailyProtein: row.daily_protein != null ? Number(row.daily_protein) : null,
+    dailyCarbs: row.daily_carbs != null ? Number(row.daily_carbs) : null,
+    dailyFat: row.daily_fat != null ? Number(row.daily_fat) : null,
+    dailyFiber: row.daily_fiber != null ? Number(row.daily_fiber) : null,
     mealSlots: (row.template_meal_slots || []).map(mapTemplateMealSlotRow),
     createdAt: row.created_at,
   };
@@ -1003,6 +1009,11 @@ export async function createDietTemplate(input: {
   name: string;
   planType: PlanType;
   isTemplate?: boolean;
+  dailyCalories?: number | null;
+  dailyProtein?: number | null;
+  dailyCarbs?: number | null;
+  dailyFat?: number | null;
+  dailyFiber?: number | null;
   mealSlots: Array<{
     name: string;
     targetCalories: number | null;
@@ -1027,6 +1038,11 @@ export async function createDietTemplate(input: {
       name: input.name,
       plan_type: input.planType,
       is_template: input.isTemplate !== false, // defaults to true
+      daily_calories: input.dailyCalories ?? null,
+      daily_protein: input.dailyProtein ?? null,
+      daily_carbs: input.dailyCarbs ?? null,
+      daily_fat: input.dailyFat ?? null,
+      daily_fiber: input.dailyFiber ?? null,
     })
     .select()
     .single();
@@ -1087,6 +1103,11 @@ export async function createDietTemplate(input: {
 export async function updateDietTemplate(templateId: string, input: {
   name: string;
   planType: PlanType;
+  dailyCalories?: number | null;
+  dailyProtein?: number | null;
+  dailyCarbs?: number | null;
+  dailyFat?: number | null;
+  dailyFiber?: number | null;
   mealSlots: Array<{
     name: string;
     targetCalories: number | null;
@@ -1108,6 +1129,11 @@ export async function updateDietTemplate(templateId: string, input: {
     .update({
       name: input.name,
       plan_type: input.planType,
+      daily_calories: input.dailyCalories ?? null,
+      daily_protein: input.dailyProtein ?? null,
+      daily_carbs: input.dailyCarbs ?? null,
+      daily_fat: input.dailyFat ?? null,
+      daily_fiber: input.dailyFiber ?? null,
     })
     .eq("id", templateId);
   if (updateError) return { error: updateError.message };
@@ -1317,6 +1343,7 @@ function mapFoodCheckInRow(row: any): FoodCheckIn {
     energyLevel: row.energy_level,
     mood: row.mood,
     notes: row.notes,
+    weightTraining: row.weight_training,
     coachFeedback: row.coach_feedback,
     status: row.status,
     items: (row.food_check_in_items || []).map(mapFoodCheckInItemRow),
@@ -1345,6 +1372,9 @@ export async function createFoodCheckIn(input: {
   totalFat: number;
   adherenceScore: number;
   weight?: number | null;
+  steps?: number | null;
+  weightTraining?: string | null;
+  notes?: string | null;
   items: Array<{
     slotId: string | null;
     componentId: string | null;
@@ -1375,7 +1405,10 @@ export async function createFoodCheckIn(input: {
         total_carbs: input.totalCarbs,
         total_fat: input.totalFat,
         adherence_score: input.adherenceScore,
-        weight: input.weight || null,
+        weight: input.weight ?? null,
+        steps: input.steps ?? null,
+        weight_training: input.weightTraining ?? null,
+        notes: input.notes ?? null,
         status: "submitted",
       })
       .eq("id", existing.id);
@@ -1416,7 +1449,10 @@ export async function createFoodCheckIn(input: {
         total_carbs: input.totalCarbs,
         total_fat: input.totalFat,
         adherence_score: input.adherenceScore,
-        weight: input.weight || null,
+        weight: input.weight ?? null,
+        steps: input.steps ?? null,
+        weight_training: input.weightTraining ?? null,
+        notes: input.notes ?? null,
         status: "submitted",
       })
       .select()

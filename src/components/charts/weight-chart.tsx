@@ -10,21 +10,31 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import { parseDateLocal } from "@/lib/date-utils";
+import { useWeightUnit } from "@/lib/use-weight-unit";
+import { fromKg } from "@/lib/units";
 
 interface WeightChartProps {
+  /** Weight values in kg (storage unit). Chart displays in user's preferred unit. */
   data: { date: string; weight: number }[];
+  /** Target weight in kg. */
   targetWeight?: number;
   height?: number;
 }
 
 export function WeightChart({ data, targetWeight, height = 250 }: WeightChartProps) {
+  const { unit } = useWeightUnit();
+
+  // Convert weights to display unit
   const formatted = data.map((d) => ({
     ...d,
-    label: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    weight: +fromKg(d.weight, unit).toFixed(1),
+    label: parseDateLocal(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
   }));
+  const targetDisplay = targetWeight != null ? +fromKg(targetWeight, unit).toFixed(1) : undefined;
 
-  const weights = data.map((d) => d.weight);
-  const min = Math.floor(Math.min(...weights, targetWeight || Infinity) - 1);
+  const weights = formatted.map((d) => d.weight);
+  const min = Math.floor(Math.min(...weights, targetDisplay ?? Infinity) - 1);
   const max = Math.ceil(Math.max(...weights) + 1);
 
   return (
@@ -42,7 +52,7 @@ export function WeightChart({ data, targetWeight, height = 250 }: WeightChartPro
           tick={{ fontSize: 12, fill: "#71717a" }}
           axisLine={{ stroke: "#27272a" }}
           tickLine={false}
-          unit=" kg"
+          unit={` ${unit}`}
         />
         <Tooltip
           contentStyle={{
@@ -53,15 +63,15 @@ export function WeightChart({ data, targetWeight, height = 250 }: WeightChartPro
             fontSize: 13,
             color: "#fff",
           }}
-          formatter={(value) => [`${value} kg`, "Weight"]}
+          formatter={(value) => [`${value} ${unit}`, "Weight"]}
         />
-        {targetWeight && (
+        {targetDisplay && (
           <ReferenceLine
-            y={targetWeight}
+            y={targetDisplay}
             stroke="#d4a853"
             strokeDasharray="6 4"
             label={{
-              value: `Target: ${targetWeight} kg`,
+              value: `Target: ${targetDisplay} ${unit}`,
               position: "right",
               fill: "#d4a853",
               fontSize: 11,

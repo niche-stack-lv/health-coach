@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useIsDemo } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
 import { getClientActiveAssignment } from "@/lib/db";
-import { calculateDailyMacros } from "@/lib/macro-calc";
+import { calculateDailyMaxTargets, type MaxMeal } from "@/lib/macro-calc";
 import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { MacroSummary } from "@/components/shared/macro-summary";
 import { DishDetailSheet } from "@/components/shared/dish-detail-sheet";
@@ -41,6 +41,11 @@ function buildDemoAssignment(): TemplateAssignment {
       coachId: "demo-coach",
       name: "Demo Veg Plan",
       planType: "veg",
+      dailyCalories: 1800,
+      dailyProtein: 150,
+      dailyCarbs: 180,
+      dailyFat: 60,
+      dailyFiber: 30,
       mealSlots: [
         {
           id: "slot-breakfast",
@@ -178,18 +183,39 @@ function ClientDietPlanPageInner() {
 
   const template = assignment.template;
 
-  // Calculate daily macros from all first-option dishes
+  // Calculate daily macros using the same max-sum rule as auto-fill targets:
+  // for each meal, sum across components of (max alternative for each macro).
+  // This way the displayed totals match what the targets bar is calibrated to.
   function getDailyMacros() {
-    const dishes: Dish[] = [];
-    for (const slot of template.mealSlots) {
-      if (slot.isSkipped) continue;
-      for (const comp of slot.components) {
-        if (comp.dishes.length > 0 && comp.dishes[0].dish) {
-          dishes.push(comp.dishes[0].dish);
+    const meals: MaxMeal[] = template.mealSlots.map((slot) => ({
+      isSkipped: slot.isSkipped,
+      components: slot.components.map((comp) => {
+        const alternatives = [];
+        for (const msd of comp.dishes) {
+          if (msd.dish) {
+            const mult = msd.mealSize === "large" ? 2 : msd.mealSize === "medium" ? 1.5 : 1;
+            alternatives.push({
+              calories: msd.dish.totalCalories * mult,
+              protein: msd.dish.totalProtein * mult,
+              carbs: msd.dish.totalCarbs * mult,
+              fat: msd.dish.totalFat * mult,
+              fiber: (msd.dish.totalFiber || 0) * mult,
+            });
+          } else if (msd.food && msd.foodQuantity) {
+            const factor = msd.foodQuantity / 100;
+            alternatives.push({
+              calories: msd.food.calories * factor,
+              protein: msd.food.protein * factor,
+              carbs: msd.food.carbs * factor,
+              fat: msd.food.fat * factor,
+              fiber: (msd.food.fiber || 0) * factor,
+            });
+          }
         }
-      }
-    }
-    return calculateDailyMacros(dishes);
+        return { alternatives };
+      }),
+    }));
+    return calculateDailyMaxTargets(meals);
   }
 
   const dayMacros = getDailyMacros();
@@ -203,7 +229,20 @@ function ClientDietPlanPageInner() {
 
       {/* Daily macro totals */}
       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-        <MacroSummary calories={dayMacros.calories} protein={dayMacros.protein} carbs={dayMacros.carbs} fat={dayMacros.fat} fiber={dayMacros.fiber} />
+        <MacroSummary
+          calories={dayMacros.calories}
+          protein={dayMacros.protein}
+          carbs={dayMacros.carbs}
+          fat={dayMacros.fat}
+          fiber={dayMacros.fiber}
+          targets={template ? {
+            calories: template.dailyCalories,
+            protein: template.dailyProtein,
+            carbs: template.dailyCarbs,
+            fat: template.dailyFat,
+            fiber: template.dailyFiber,
+          } : undefined}
+        />
       </div>
 
       {/* Meal slots — each is its own card */}

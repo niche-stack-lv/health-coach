@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useIsDemo } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
-import { getClientActiveAssignment, getFoodCheckIn, createFoodCheckIn } from "@/lib/db";
-import { calculateDailyMacros, calculateAdherenceScore } from "@/lib/macro-calc";
+import { getClientActiveAssignment, getFoodCheckIn, createFoodCheckIn, getDishes, getFoods } from "@/lib/db";
+import { calculateAdherenceScore, calculateDailyMaxTargets, type MaxMeal } from "@/lib/macro-calc";
+import { getTodayLocal } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 import { CheckCircle2 } from "lucide-react";
-import { MealSlotView } from "@/components/shared/meal-slot-view";
 import { MacroSummary } from "@/components/shared/macro-summary";
 import { DishDetailSheet } from "@/components/shared/dish-detail-sheet";
-import type { TemplateAssignment, TemplateMealSlot, MealSlotComponent, Dish } from "@/types";
+import { DailyPulseStrip } from "@/components/client/daily-pulse-strip";
+import { MealCard, type CheckInPick } from "@/components/client/meal-card";
+import { useWeightUnit } from "@/lib/use-weight-unit";
+import { fromKg, toKg } from "@/lib/units";
+import type { TemplateAssignment, TemplateMealSlot, MealSlotComponent, Dish, Food } from "@/types";
 
 export default function FoodCheckInPage() {
   return (
@@ -22,7 +26,8 @@ export default function FoodCheckInPage() {
   );
 }
 
-// Demo data
+// ─── Demo data ────────────────────────────────────────────────────────────
+
 const demoDishes: Dish[] = [
   { id: "d1", coachId: "demo", name: "Overnight Oats", emoji: "🥣", componentCategory: "carbs", totalCalories: 320, totalProtein: 22, totalCarbs: 38, totalFat: 10, totalFiber: 5, items: [], createdAt: "" },
   { id: "d2", coachId: "demo", name: "Smoothie", emoji: "🥤", componentCategory: "carbs", totalCalories: 250, totalProtein: 28, totalCarbs: 30, totalFat: 4, totalFiber: 3, items: [], createdAt: "" },
@@ -73,102 +78,309 @@ function buildDemoSlots(): TemplateMealSlot[] {
   ];
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+/** Resolve macros for a single pick into a MaxMacroAlt-shaped value. */
+function macrosForPick(pick: CheckInPick, comp: MealSlotComponent, allDishes: Dish[], allFoods: Food[]) {
+  let cal = 0, p = 0, c = 0, f = 0, fib = 0;
+  if (pick.kind === "alternative") {
+    const msd = comp.dishes.find((d) => d.id === pick.refId);
+    if (msd?.dish) {
+      const m = pick.multiplier ?? 1;
+      cal = msd.dish.totalCalories * m;
+      p = msd.dish.totalProtein * m;
+      c = msd.dish.totalCarbs * m;
+      f = msd.dish.totalFat * m;
+      fib = (msd.dish.totalFiber || 0) * m;
+    } else if (msd?.food) {
+      const grams = msd.foodQuantity || 100;
+      const factor = grams / 100;
+      cal = msd.food.calories * factor;
+      p = msd.food.protein * factor;
+      c = msd.food.carbs * factor;
+      f = msd.food.fat * factor;
+      fib = (msd.food.fiber || 0) * factor;
+    }
+  } else if (pick.kind === "extra-dish") {
+    const dish = allDishes.find((d) => d.id === pick.resolvedDishId);
+    if (dish) {
+      const m = pick.multiplier ?? 1;
+      cal = dish.totalCalories * m;
+      p = dish.totalProtein * m;
+      c = dish.totalCarbs * m;
+      f = dish.totalFat * m;
+      fib = (dish.totalFiber || 0) * m;
+    }
+  } else if (pick.kind === "extra-food") {
+    const food = allFoods.find((fd) => fd.id === pick.resolvedFoodId);
+    if (food) {
+      const grams = pick.grams || 100;
+      const factor = grams / 100;
+      cal = food.calories * factor;
+      p = food.protein * factor;
+      c = food.carbs * factor;
+      f = food.fat * factor;
+      fib = (food.fiber || 0) * factor;
+    }
+  } else if (pick.kind === "custom") {
+    cal = pick.customCalories || 0;
+  }
+  return { calories: cal, protein: p, carbs: c, fat: f, fiber: fib };
+}
+
+function buildMacrosFromPicks(
+  slots: TemplateMealSlot[],
+  picks: Record<string, CheckInPick[]>,
+  skippedSlots: Set<string>,
+  allDishes: Dish[],
+  allFoods: Food[]
+) {
+  const meals: MaxMeal[] = slots.map((slot) => {
+    if (skippedSlots.has(slot.id) || slot.isSkipped) return { isSkipped: true, components: [] };
+    return {
+      isSkipped: false,
+      components: slot.components
+        .filter((c) => c.dishes.length > 0)
+        .map((comp) => ({
+          alternatives: (picks[comp.id] || []).map((pick) => macrosForPick(pick, comp, allDishes, allFoods)),
+        })),
+    };
+  });
+  // calculateDailyMaxTargets uses max-per-component; here we pass ALL picks as
+  // alternatives so we'd lose extras. Instead, sum directly:
+  return meals.reduce(
+    (total, meal) => {
+      if (meal.isSkipped) return total;
+      for (const comp of meal.components) {
+        for (const alt of comp.alternatives) {
+          total.calories += alt.calories;
+          total.protein += alt.protein;
+          total.carbs += alt.carbs;
+          total.fat += alt.fat;
+          total.fiber += alt.fiber;
+        }
+      }
+      return total;
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
+  );
+}
+
+function getMealLoggedCalories(
+  slot: TemplateMealSlot,
+  picks: Record<string, CheckInPick[]>,
+  skippedSlots: Set<string>,
+  allDishes: Dish[],
+  allFoods: Food[]
+): number | undefined {
+  if (skippedSlots.has(slot.id) || slot.isSkipped) return undefined;
+  let cal = 0;
+  for (const comp of slot.components) {
+    for (const pick of picks[comp.id] || []) {
+      cal += macrosForPick(pick, comp, allDishes, allFoods).calories;
+    }
+  }
+  return cal > 0 ? Math.round(cal) : undefined;
+}
+
+function countDecidedMeals(
+  slots: TemplateMealSlot[],
+  picks: Record<string, CheckInPick[]>,
+  skippedSlots: Set<string>
+) {
+  let decided = 0;
+  let total = 0;
+  for (const slot of slots) {
+    if (slot.isSkipped) continue;
+    const renderable = slot.components.filter((c) => c.dishes.length > 0);
+    if (renderable.length === 0) continue;
+    total++;
+    if (skippedSlots.has(slot.id)) {
+      decided++;
+      continue;
+    }
+    const allPicked = renderable.every((c) => (picks[c.id] || []).length > 0);
+    if (allPicked) decided++;
+  }
+  return { decided, total };
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────
+
 function FoodCheckInPageInner() {
   const { user } = useAuth();
   const isDemo = useIsDemo();
+  const { unit: weightUnit, setUnit: setWeightUnit } = useWeightUnit();
+
   const [assignment, setAssignment] = useState<TemplateAssignment | null>(null);
   const [todaySlots, setTodaySlots] = useState<TemplateMealSlot[]>([]);
+  const [allDishes, setAllDishes] = useState<Dish[]>([]);
+  const [allFoods, setAllFoods] = useState<Food[]>([]);
   const [existingCheckIn, setExistingCheckIn] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [weight, setWeight] = useState("");
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null);
 
-  // Selections: componentId -> dishId | "other" | "skipped"
-  const [selections, setSelections] = useState<Record<string, string>>({});
-  // Other food details: componentId -> { name, calories }
-  const [otherDetails, setOtherDetails] = useState<Record<string, { name: string; calories: string }>>({});
-  // Skipped slots
+  // Daily pulse fields
+  const [weight, setWeight] = useState(""); // displayed in current unit
+  const [steps, setSteps] = useState("");
+  const [weightTraining, setWeightTraining] = useState<"yes" | "no" | "rest" | "">("");
+  const [notes, setNotes] = useState("");
+
+  // Multi-select picks per component
+  const [picks, setPicks] = useState<Record<string, CheckInPick[]>>({});
   const [skippedSlots, setSkippedSlots] = useState<Set<string>>(new Set());
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getTodayLocal();
 
   useEffect(() => {
     if (isDemo) {
-      const slots = buildDemoSlots();
-      setTodaySlots(slots);
-      // Pre-select first option for demo
-      const demoSelections: Record<string, string> = {};
-      for (const slot of slots) {
-        for (const comp of slot.components) {
-          if (comp.dishes.length > 0 && comp.dishes[0].dishId) {
-            demoSelections[comp.id] = comp.dishes[0].dishId;
-          }
-        }
-      }
-      setSelections(demoSelections);
+      setTodaySlots(buildDemoSlots());
       setLoading(false);
       return;
     }
     if (user) loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isDemo]);
+
+  // Re-format weight input when unit changes (preserve underlying kg)
+  const [weightKg, setWeightKg] = useState<number | null>(null);
+  useEffect(() => {
+    if (weightKg != null) {
+      setWeight(fromKg(weightKg, weightUnit).toFixed(1));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weightUnit]);
+
+  // When user types weight, sync underlying kg
+  useEffect(() => {
+    const n = parseFloat(weight);
+    if (!isNaN(n)) setWeightKg(toKg(n, weightUnit));
+    else setWeightKg(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weight]);
 
   async function loadData() {
     if (!user) return;
-    const [assignmentData, checkIn] = await Promise.all([
+    const [assignmentData, checkIn, foods] = await Promise.all([
       getClientActiveAssignment(user.id),
       getFoodCheckIn(user.id, today),
+      getFoods(),
     ]);
     setAssignment(assignmentData);
+    setAllFoods(foods);
+
+    // Dishes belong to the coach, not the client. Use the coach id from the
+    // active assignment so the "Add extra → Dish" picker shows the coach's
+    // library.
+    if (assignmentData?.coachId) {
+      const dishes = await getDishes(assignmentData.coachId).catch(() => [] as Dish[]);
+      setAllDishes(dishes);
+    }
 
     if (checkIn) {
       setExistingCheckIn(checkIn);
-      if (checkIn.weight) setWeight(String(checkIn.weight));
-      // Populate selections from existing check-in
-      const existingSelections: Record<string, string> = {};
+      if (checkIn.weight != null) {
+        setWeightKg(checkIn.weight);
+        setWeight(fromKg(checkIn.weight, weightUnit).toFixed(1));
+      }
+      if (checkIn.steps != null) setSteps(String(checkIn.steps));
+      if (checkIn.weightTraining) setWeightTraining(checkIn.weightTraining as any);
+      if (checkIn.notes) setNotes(checkIn.notes);
+
+      const existingPicks: Record<string, CheckInPick[]> = {};
       const existingSkipped = new Set<string>();
-      const existingOtherDetails: Record<string, { name: string; calories: string }> = {};
-      // Build a lookup of components from the assignment so we can resolve food selections
       const componentLookup = new Map<string, MealSlotComponent>();
       if (assignmentData?.template) {
         for (const slot of assignmentData.template.mealSlots || []) {
-          for (const comp of slot.components || []) {
-            componentLookup.set(comp.id, comp);
-          }
+          for (const comp of slot.components || []) componentLookup.set(comp.id, comp);
         }
       }
+
       for (const item of checkIn.items || []) {
         if (!item.componentId) continue;
         if (item.isSkipped) {
-          existingSelections[item.componentId] = "skipped";
           if (item.slotId) existingSkipped.add(item.slotId);
-        } else if (item.dishId) {
-          existingSelections[item.componentId] = item.dishId;
+          continue;
+        }
+        const comp = componentLookup.get(item.componentId);
+        if (!comp) continue;
+
+        let pick: CheckInPick | null = null;
+
+        if (item.dishId) {
+          // Match a prescribed alternative (dish), else treat as extra dish
+          const msd = comp.dishes.find((d) => d.dishId === item.dishId);
+          if (msd) {
+            pick = {
+              localId: crypto.randomUUID(),
+              kind: "alternative",
+              refId: msd.id,
+              resolvedDishId: msd.dishId,
+              multiplier: 1,
+            };
+          } else {
+            pick = {
+              localId: crypto.randomUUID(),
+              kind: "extra-dish",
+              refId: item.dishId,
+              resolvedDishId: item.dishId,
+              multiplier: 1,
+            };
+          }
         } else if (item.customName) {
-          // No dishId — could be a food selection or "other".
-          // Try to match the customName to a food alternative in this component.
-          const comp = componentLookup.get(item.componentId);
-          const foodMsd = comp?.dishes.find((d) => {
+          // Try food alternative match
+          const foodMsd = comp.dishes.find((d) => {
             if (!d.foodId || !d.food) return false;
             const qty = d.foodQuantity || 100;
             return item.customName === `${d.food.name} (${qty}g)`;
           });
           if (foodMsd) {
-            existingSelections[item.componentId] = foodMsd.id;
-          } else {
-            existingSelections[item.componentId] = "other";
-            existingOtherDetails[item.componentId] = {
-              name: item.customName || "",
-              calories: item.customCalories ? String(item.customCalories) : "",
+            pick = {
+              localId: crypto.randomUUID(),
+              kind: "alternative",
+              refId: foodMsd.id,
+              resolvedFoodId: foodMsd.foodId,
+              grams: foodMsd.foodQuantity || 100,
             };
+          } else {
+            // Unmatched custom — could be extra-food (parsed name with grams) or fully custom
+            const m = /^(.+) \((\d+(?:\.\d+)?)g\)$/.exec(item.customName);
+            if (m) {
+              const food = foods.find((fd) => fd.name === m[1]);
+              if (food) {
+                pick = {
+                  localId: crypto.randomUUID(),
+                  kind: "extra-food",
+                  refId: food.id,
+                  resolvedFoodId: food.id,
+                  grams: parseFloat(m[2]),
+                  customName: item.customName,
+                  customCalories: item.customCalories ?? undefined,
+                };
+              }
+            }
+            if (!pick) {
+              pick = {
+                localId: crypto.randomUUID(),
+                kind: "custom",
+                customName: item.customName,
+                customCalories: item.customCalories ?? 0,
+              };
+            }
           }
         }
+
+        if (pick) {
+          if (!existingPicks[item.componentId]) existingPicks[item.componentId] = [];
+          existingPicks[item.componentId].push(pick);
+        }
       }
-      setSelections(existingSelections);
+
+      setPicks(existingPicks);
       setSkippedSlots(existingSkipped);
-      setOtherDetails(existingOtherDetails);
     }
 
     if (assignmentData?.template) {
@@ -177,8 +389,10 @@ function FoodCheckInPageInner() {
     setLoading(false);
   }
 
-  function handleSelectDish(componentId: string, dishId: string) {
-    setSelections((prev) => ({ ...prev, [componentId]: dishId }));
+  // ── Selection handlers ────────────────────────────────────────────────
+
+  function handleChangePicks(componentId: string, next: CheckInPick[]) {
+    setPicks((prev) => ({ ...prev, [componentId]: next }));
   }
 
   function handleSkipSlot(slotId: string, components: MealSlotComponent[]) {
@@ -186,64 +400,112 @@ function FoodCheckInPageInner() {
       const next = new Set(prev);
       if (next.has(slotId)) {
         next.delete(slotId);
-        // Remove skipped state from components
-        const newSelections = { ...selections };
-        for (const comp of components) {
-          if (newSelections[comp.id] === "skipped") {
-            delete newSelections[comp.id];
-          }
-        }
-        setSelections(newSelections);
       } else {
         next.add(slotId);
-        // Mark all components as skipped
-        const newSelections = { ...selections };
-        for (const comp of components) {
-          newSelections[comp.id] = "skipped";
-        }
-        setSelections(newSelections);
+        // Clear picks in this slot
+        const newPicks = { ...picks };
+        for (const comp of components) delete newPicks[comp.id];
+        setPicks(newPicks);
       }
       return next;
     });
   }
 
-  // Calculate running macros
-  function getRunningMacros() {
-    const selectedDishes: Dish[] = [];
-    let otherCalories = 0;
-    for (const slot of todaySlots) {
-      if (skippedSlots.has(slot.id)) continue;
-      for (const comp of slot.components) {
-        const sel = selections[comp.id];
-        if (sel && sel !== "skipped" && sel !== "other") {
-          // Check if selection is a dishId
-          const msd = comp.dishes.find((d) => d.dishId === sel);
-          if (msd?.dish) {
-            selectedDishes.push(msd.dish);
-          } else {
-            // Check if selection is a food item (msd.id match)
-            const foodMsd = comp.dishes.find((d) => d.id === sel && d.foodId);
-            if (foodMsd?.food && foodMsd.foodQuantity) {
-              const qty = foodMsd.foodQuantity;
-              otherCalories += Math.round(foodMsd.food.calories * qty / 100);
-            }
-          }
-        } else if (sel === "other") {
-          const other = otherDetails[comp.id];
-          if (other?.calories) otherCalories += parseFloat(other.calories) || 0;
-        }
+  // ── Derived ──────────────────────────────────────────────────────────
+
+  const macros = useMemo(
+    () => buildMacrosFromPicks(todaySlots, picks, skippedSlots, allDishes, allFoods),
+    [todaySlots, picks, skippedSlots, allDishes, allFoods]
+  );
+  const mealsCount = useMemo(
+    () => countDecidedMeals(todaySlots, picks, skippedSlots),
+    [todaySlots, picks, skippedSlots]
+  );
+
+  const targets = assignment?.template
+    ? {
+        calories: assignment.template.dailyCalories,
+        protein: assignment.template.dailyProtein,
+        carbs: assignment.template.dailyCarbs,
+        fat: assignment.template.dailyFat,
+        fiber: assignment.template.dailyFiber,
       }
-    }
-    const macros = calculateDailyMacros(selectedDishes);
-    return { ...macros, calories: macros.calories + otherCalories };
-  }
+    : undefined;
+  const hasAnyTarget =
+    targets &&
+    (targets.calories != null ||
+      targets.protein != null ||
+      targets.carbs != null ||
+      targets.fat != null ||
+      targets.fiber != null);
+
+  // ── Submit ───────────────────────────────────────────────────────────
 
   async function handleSubmit() {
     if (!user || !assignment) return;
     setSubmitting(true);
     setError(null);
 
-    // Build components list for adherence calculation
+    // Build flat items list from picks
+    const items: Array<{
+      slotId: string | null;
+      componentId: string | null;
+      dishId: string | null;
+      isSkipped: boolean;
+      customName?: string;
+      customCalories?: number;
+    }> = [];
+
+    for (const slot of todaySlots) {
+      const isSkipped = skippedSlots.has(slot.id);
+      for (const comp of slot.components) {
+        if (comp.dishes.length === 0) continue;
+        if (isSkipped) {
+          items.push({
+            slotId: slot.id,
+            componentId: comp.id,
+            dishId: null,
+            isSkipped: true,
+          });
+          continue;
+        }
+        const compPicks = picks[comp.id] || [];
+        if (compPicks.length === 0) continue;
+        for (const pick of compPicks) {
+          let dishId: string | null = null;
+          let customName: string | undefined;
+          let customCalories: number | undefined;
+          if (pick.kind === "alternative") {
+            const msd = comp.dishes.find((d) => d.id === pick.refId);
+            if (msd?.dishId) {
+              dishId = msd.dishId;
+            } else if (msd?.foodId && msd.food) {
+              const grams = msd.foodQuantity || 100;
+              customName = `${msd.food.name} (${grams}g)`;
+              customCalories = Math.round((msd.food.calories * grams) / 100);
+            }
+          } else if (pick.kind === "extra-dish") {
+            dishId = pick.resolvedDishId || null;
+          } else if (pick.kind === "extra-food") {
+            customName = pick.customName;
+            customCalories = pick.customCalories;
+          } else if (pick.kind === "custom") {
+            customName = pick.customName;
+            customCalories = pick.customCalories;
+          }
+          items.push({
+            slotId: slot.id,
+            componentId: comp.id,
+            dishId,
+            isSkipped: false,
+            customName,
+            customCalories,
+          });
+        }
+      }
+    }
+
+    // Adherence score using the alternative picks
     const components = todaySlots.flatMap((slot) =>
       slot.components.map((comp) => ({
         componentId: comp.id,
@@ -251,71 +513,28 @@ function FoodCheckInPageInner() {
         prescribedDishIds: comp.dishes.map((d) => d.dishId || d.id).filter(Boolean) as string[],
       }))
     );
-
-    const selectionsList = Object.entries(selections).map(([componentId, value]) => ({
-      componentId,
-      dishId: (value === "skipped" || value === "other") ? null : value,
-      isSkipped: value === "skipped",
-    }));
-
+    const selectionsList: Array<{ componentId: string; dishId: string | null; isSkipped: boolean }> = [];
+    for (const slot of todaySlots) {
+      const isSkipped = skippedSlots.has(slot.id);
+      for (const comp of slot.components) {
+        if (comp.dishes.length === 0) continue;
+        if (isSkipped) {
+          selectionsList.push({ componentId: comp.id, dishId: null, isSkipped: true });
+          continue;
+        }
+        const altPick = (picks[comp.id] || []).find((p) => p.kind === "alternative");
+        if (altPick) {
+          selectionsList.push({
+            componentId: comp.id,
+            dishId: altPick.resolvedDishId || altPick.refId || null,
+            isSkipped: false,
+          });
+        }
+      }
+    }
     const isIF = assignment.template?.planType === "intermittent_fasting";
     const templateSkippedSlotIds = todaySlots.filter((s) => s.isSkipped).map((s) => s.id);
-
-    const adherenceScore = calculateAdherenceScore(
-      components,
-      selectionsList,
-      isIF,
-      templateSkippedSlotIds
-    );
-
-    const macros = getRunningMacros();
-
-    const items = Object.entries(selections)
-      .map(([componentId, value]) => {
-        const slot = todaySlots.find((s) => s.components.some((c) => c.id === componentId));
-        const comp = slot?.components.find((c) => c.id === componentId);
-        const other = otherDetails[componentId];
-
-        // Determine what kind of selection this is:
-        // - "skipped" / "other" → handled below
-        // - dish selection: value matches msd.dishId → store as dish_id
-        // - food selection: value matches msd.id where msd has a foodId → store dish_id=null,
-        //   capture food info as custom fields (FK only allows real dish ids)
-        let dishId: string | null = null;
-        let customName: string | undefined;
-        let customCalories: number | undefined;
-
-        if (value === "skipped") {
-          // skipped — no dish, no name
-        } else if (value === "other") {
-          customName = other?.name || "Other";
-          customCalories = other?.calories ? parseFloat(other.calories) : undefined;
-        } else {
-          // Try to match as a dish first
-          const dishMsd = comp?.dishes.find((d) => d.dishId === value);
-          if (dishMsd?.dishId) {
-            dishId = dishMsd.dishId;
-          } else {
-            // Match as a food alternative (msd.id with foodId)
-            const foodMsd = comp?.dishes.find((d) => d.id === value && d.foodId);
-            if (foodMsd?.food) {
-              const qty = foodMsd.foodQuantity || 100;
-              customName = `${foodMsd.food.name} (${qty}g)`;
-              customCalories = Math.round((foodMsd.food.calories * qty) / 100);
-            }
-          }
-        }
-
-        return {
-          slotId: slot?.id || null,
-          componentId: componentId || null,
-          dishId,
-          isSkipped: value === "skipped",
-          customName,
-          customCalories,
-        };
-      })
-      .filter((item) => item.slotId && item.componentId);
+    const adherenceScore = calculateAdherenceScore(components, selectionsList, isIF, templateSkippedSlotIds);
 
     const { error: err } = await createFoodCheckIn({
       clientId: user.id,
@@ -326,23 +545,26 @@ function FoodCheckInPageInner() {
       totalCarbs: Math.round(macros.carbs),
       totalFat: Math.round(macros.fat),
       adherenceScore: Math.round(adherenceScore),
-      weight: weight ? parseFloat(weight) : null,
+      weight: weightKg,
+      steps: steps ? parseInt(steps, 10) : null,
+      weightTraining: weightTraining || null,
+      notes: notes.trim() || null,
       items,
     });
 
-    if (err) {
-      setError(err);
-    } else {
-      setSubmitted(true);
-    }
+    if (err) setError(err);
+    else setSubmitted(true);
     setSubmitting(false);
   }
 
-  if (loading) return (
-    <div className="flex justify-center py-20">
-      <div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
-    </div>
-  );
+  // ── Render ───────────────────────────────────────────────────────────
+
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
+      </div>
+    );
 
   if (!isDemo && (!assignment || !assignment.template)) {
     return (
@@ -362,111 +584,119 @@ function FoodCheckInPageInner() {
         <h1 className="text-xl font-bold text-white">Food Check-in</h1>
         <Card className="p-8 text-center">
           <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
-          <p className="text-white font-semibold">Meals logged successfully!</p>
-          <p className="text-zinc-500 text-sm mt-1">Your coach can now see today&apos;s food log.</p>
+          <p className="text-white font-semibold">Logged successfully!</p>
+          <p className="text-zinc-500 text-sm mt-1">Your coach can now see today&apos;s check-in.</p>
         </Card>
       </div>
     );
   }
 
-  const macros = getRunningMacros();
+  const submitLabel = submitting
+    ? "Submitting..."
+    : mealsCount.decided < mealsCount.total
+    ? `Submit anyway · ${mealsCount.total - mealsCount.decided} pending`
+    : existingCheckIn
+    ? "Update check-in"
+    : "Submit check-in";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       <div>
         <h1 className="text-xl font-bold text-white">Daily Check-in</h1>
         <p className="text-sm text-zinc-500 mt-0.5">
-          {existingCheckIn ? "Update today's log" : "Log your food & weight for today"}
+          {existingCheckIn ? "Update today's log" : "Log your meals & body for today"}
         </p>
       </div>
 
       {existingCheckIn && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-          <p className="text-xs text-emerald-300">Already submitted today — you can update your selections below.</p>
+          <p className="text-xs text-emerald-300">Submitted earlier — edit and resubmit anytime.</p>
         </div>
       )}
 
-      {/* Running macro totals */}
-      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-        <MacroSummary calories={macros.calories} protein={macros.protein} carbs={macros.carbs} fat={macros.fat} fiber={macros.fiber} />
-      </div>
+      {/* Daily Pulse */}
+      <DailyPulseStrip
+        weight={weight}
+        onWeightChange={setWeight}
+        weightUnit={weightUnit}
+        onWeightUnitChange={setWeightUnit}
+        steps={steps}
+        onStepsChange={setSteps}
+        weightTraining={weightTraining}
+        onWeightTrainingChange={setWeightTraining}
+        mealsDecided={mealsCount.decided}
+        mealsTotal={mealsCount.total}
+      />
 
-      {/* Weight input */}
+      {/* Macro progress vs targets */}
       <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
-        <label className="block text-xs text-zinc-500 mb-1.5">Today&apos;s Weight (kg)</label>
-        <input
-          type="number"
-          step="0.1"
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          placeholder="e.g. 72.5"
-          className="w-full h-11 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50"
+        <MacroSummary
+          calories={macros.calories}
+          protein={macros.protein}
+          carbs={macros.carbs}
+          fat={macros.fat}
+          fiber={macros.fiber}
+          targets={hasAnyTarget ? targets : undefined}
         />
+        {!hasAnyTarget && (
+          <p className="mt-3 text-[11px] text-zinc-500 text-center">
+            Coach hasn&apos;t set daily targets yet — progress bars will show once they do.
+          </p>
+        )}
       </div>
 
-      {/* Meal slots */}
-      {/* Meal slots */}
+      {/* Meal cards */}
       <div className="space-y-3">
         {todaySlots
           .sort((a, b) => a.sortOrder - b.sortOrder)
           .map((slot) => (
-            <div key={slot.id}>
-              <MealSlotView
-                slot={slot}
-                mode="select"
-                selections={selections}
-                isSlotSkipped={skippedSlots.has(slot.id)}
-                onSelectDish={handleSelectDish}
-                onSkipSlot={() => handleSkipSlot(slot.id, slot.components)}
-                onSelectOther={(componentId) => {
-                  setSelections((prev) => ({ ...prev, [componentId]: "other" }));
-                  if (!otherDetails[componentId]) {
-                    setOtherDetails((prev) => ({ ...prev, [componentId]: { name: "", calories: "" } }));
-                  }
-                }}
-                onDishClick={setSelectedDish}
-                disabled={isDemo}
-              />
-              {/* Inline "Other" detail inputs for this slot */}
-              {slot.components
-                .filter((comp) => selections[comp.id] === "other")
-                .map((comp) => (
-                  <div key={comp.id} className="mt-2 ml-4 flex gap-2">
-                    <input
-                      type="text"
-                      value={otherDetails[comp.id]?.name || ""}
-                      onChange={(e) => setOtherDetails((prev) => ({ ...prev, [comp.id]: { ...prev[comp.id], name: e.target.value } }))}
-                      placeholder="What did you eat?"
-                      className="flex-1 h-10 rounded-xl border border-purple-500/20 bg-purple-500/5 px-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                    />
-                    <input
-                      type="number"
-                      value={otherDetails[comp.id]?.calories || ""}
-                      onChange={(e) => setOtherDetails((prev) => ({ ...prev, [comp.id]: { ...prev[comp.id], calories: e.target.value } }))}
-                      placeholder="cal"
-                      className="w-20 h-10 rounded-xl border border-purple-500/20 bg-purple-500/5 px-3 text-sm text-white text-center placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-purple-500/30"
-                    />
-                  </div>
-                ))}
-            </div>
+            <MealCard
+              key={slot.id}
+              slot={slot}
+              picks={picks}
+              isSlotSkipped={skippedSlots.has(slot.id)}
+              allDishes={allDishes}
+              allFoods={allFoods}
+              onChangePicks={handleChangePicks}
+              onSkipSlot={() => handleSkipSlot(slot.id, slot.components)}
+              onDishClick={setSelectedDish}
+              loggedCalories={getMealLoggedCalories(slot, picks, skippedSlots, allDishes, allFoods)}
+              disabled={isDemo}
+            />
           ))}
+      </div>
+
+      {/* Notes */}
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+        <label className="block text-xs text-zinc-500 mb-1.5">Notes for coach (optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="How did today feel? Any cravings, energy dips, wins?"
+          rows={2}
+          className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 px-3 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50 resize-none"
+        />
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <Button
-        variant="gold"
-        className="w-full h-12 text-base rounded-xl"
-        onClick={handleSubmit}
-        disabled={isDemo || submitting}
-      >
-        {isDemo ? "Demo Mode — Submit Disabled" : submitting ? "Submitting..." : existingCheckIn ? "Update Check-in" : "Submit Check-in"}
-      </Button>
+      {/* Sticky submit */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.06] bg-[#0a0a0a]/95 backdrop-blur p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-2xl mx-auto">
+          <Button
+            variant="gold"
+            className={cn("w-full h-12 text-base rounded-xl")}
+            onClick={handleSubmit}
+            disabled={isDemo || submitting}
+          >
+            {isDemo ? "Demo mode — submit disabled" : submitLabel}
+          </Button>
+        </div>
+      </div>
 
       {/* Dish detail sheet */}
       {selectedDish && <DishDetailSheet dish={selectedDish} onClose={() => setSelectedDish(null)} />}
     </div>
   );
 }
-

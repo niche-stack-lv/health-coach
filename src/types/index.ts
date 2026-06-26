@@ -224,6 +224,7 @@ export interface WorkoutSlotExercise {
   reps: string;
   restSeconds: number;
   notes?: string;
+  videoUrl?: string | null;
   sortOrder: number;
 }
 

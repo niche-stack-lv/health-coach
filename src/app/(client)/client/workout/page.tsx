@@ -8,11 +8,9 @@ import { getClientActiveWorkoutAssignment } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { useIsDemo } from "@/lib/use-demo";
 import { Play, ChevronDown, ChevronUp } from "lucide-react";
+import { parseYouTubeId } from "@/lib/youtube";
+import { ExerciseVideoSheet } from "@/components/shared/exercise-video-sheet";
 import type { WorkoutAssignment, WorkoutTemplateSlot } from "@/types";
-
-function getVideoUrl(videoId?: string | null): string | null {
-  return videoId ? `https://www.youtube.com/watch?v=${videoId}` : null;
-}
 
 // ---- Demo data ----
 const demoAssignment: WorkoutAssignment = {
@@ -52,6 +50,7 @@ const demoAssignment: WorkoutAssignment = {
 
 function ExerciseList({ slot }: { slot: WorkoutTemplateSlot }) {
   const exercises = [...slot.exercises].sort((a, b) => a.sortOrder - b.sortOrder);
+  const [playing, setPlaying] = useState<{ name: string; emoji?: string; videoId: string } | null>(null);
 
   return (
     <div className="space-y-4 pt-2">
@@ -65,7 +64,8 @@ function ExerciseList({ slot }: { slot: WorkoutTemplateSlot }) {
 
       {/* Exercises */}
       {exercises.map((ex, i) => {
-        const videoUrl = getVideoUrl((ex as any).videoId ?? null);
+        const videoUrl = ex.videoUrl ?? null;
+        const videoId = parseYouTubeId(videoUrl);
         return (
           <Card key={ex.id} className="p-4">
             <div className="flex items-start gap-3">
@@ -84,11 +84,19 @@ function ExerciseList({ slot }: { slot: WorkoutTemplateSlot }) {
                     💡 {ex.notes}
                   </p>
                 )}
-                {videoUrl && (
+                {videoId ? (
+                  <button
+                    type="button"
+                    onClick={() => setPlaying({ name: ex.customName || "Exercise", emoji: ex.customEmoji, videoId })}
+                    className="inline-flex items-center gap-1.5 mt-2 text-xs text-gold font-medium active:opacity-80"
+                  >
+                    <Play className="h-3 w-3 fill-gold" /> Watch Demo
+                  </button>
+                ) : videoUrl ? (
                   <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-2 text-xs text-gold font-medium">
                     <Play className="h-3 w-3" /> Watch Demo
                   </a>
-                )}
+                ) : null}
               </div>
               <span className="text-xs text-zinc-600 font-mono shrink-0">#{i + 1}</span>
             </div>
@@ -112,6 +120,15 @@ function ExerciseList({ slot }: { slot: WorkoutTemplateSlot }) {
             <p className="text-[10px] text-zinc-500">Min Est.</p>
           </div>
         </div>
+      )}
+
+      {playing && (
+        <ExerciseVideoSheet
+          name={playing.name}
+          emoji={playing.emoji}
+          videoId={playing.videoId}
+          onClose={() => setPlaying(null)}
+        />
       )}
     </div>
   );

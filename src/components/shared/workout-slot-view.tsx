@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Video } from "lucide-react";
 import type { WorkoutTemplateSlot, WorkoutSlotExercise } from "@/types";
 
 // ---- Editable types (used by template editors with local state) ----
@@ -14,6 +14,7 @@ export interface EditableExercise {
   reps: string;
   restSeconds: number;
   notes: string;
+  videoUrl?: string | null;
 }
 
 export interface EditableWorkoutSlot {
@@ -99,6 +100,7 @@ function WorkoutSlotFromTemplate({
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm">{ex.customEmoji || "🏋️"}</span>
             <span className="text-sm font-medium text-white truncate">{ex.customName || "Exercise"}</span>
+            {ex.videoUrl && <Video className="h-3.5 w-3.5 text-gold shrink-0" />}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="inline-flex items-center rounded-md bg-gold/10 text-gold px-2 py-0.5 text-[10px] font-semibold">
@@ -154,6 +156,7 @@ function WorkoutSlotFromEditable({
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm">{ex.emoji}</span>
             <span className="text-sm font-medium text-white truncate">{ex.name}</span>
+            {ex.videoUrl && <Video className="h-3.5 w-3.5 text-gold shrink-0" />}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="inline-flex items-center rounded-md bg-gold/10 text-gold px-2 py-0.5 text-[10px] font-semibold">

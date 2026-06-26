@@ -33,6 +33,7 @@ interface LocalExercise {
   reps: string;
   restSeconds: number;
   notes: string;
+  videoUrl?: string | null;
 }
 
 interface LocalSlot {
@@ -119,6 +120,7 @@ function templateToLocal(template: WorkoutTemplate): { phases: LocalPhase[]; slo
       reps: ex.reps,
       restSeconds: ex.restSeconds,
       notes: ex.notes ?? "",
+      videoUrl: ex.videoUrl ?? null,
     })),
   }));
 
@@ -239,7 +241,7 @@ function WorkoutTemplateEditPageInner() {
 
   // ---- Exercise management ----
 
-  function addExerciseToSlot(slotIdx: number, exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string) {
+  function addExerciseToSlot(slotIdx: number, exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string, videoUrl: string | null) {
     const isCustom = exercise.id.startsWith("custom-");
     setSlots((prev) => {
       const updated = [...prev];
@@ -250,6 +252,7 @@ function WorkoutTemplateEditPageInner() {
         name: exercise.name,
         emoji: exercise.emoji,
         sets, reps, restSeconds, notes,
+        videoUrl,
       });
       updated[slotIdx] = slot;
       return updated;
@@ -291,7 +294,7 @@ function WorkoutTemplateEditPageInner() {
         customName: ex.name,
         customEmoji: ex.emoji,
         sets: ex.sets, reps: ex.reps, restSeconds: ex.restSeconds,
-        notes: ex.notes || undefined, sortOrder: exIdx,
+        notes: ex.notes || undefined, videoUrl: ex.videoUrl ?? null, sortOrder: exIdx,
       })),
     }));
 
@@ -499,7 +502,7 @@ function WorkoutTemplateEditPageInner() {
 
       {pickerSlotIdx !== null && (
         <ExercisePicker
-          onSelect={(exercise, sets, reps, restSeconds, notes) => addExerciseToSlot(pickerSlotIdx, exercise, sets, reps, restSeconds, notes)}
+          onSelect={(exercise, sets, reps, restSeconds, notes, videoUrl) => addExerciseToSlot(pickerSlotIdx, exercise, sets, reps, restSeconds, notes, videoUrl)}
           onClose={() => setPickerSlotIdx(null)}
         />
       )}

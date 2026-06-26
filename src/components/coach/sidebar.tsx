@@ -9,7 +9,7 @@ import { config } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, Users, UtensilsCrossed,
-  Dumbbell, Settings, Menu, X, LogOut, TrendingUp, CalendarDays,
+  Dumbbell, Settings, Menu, X, LogOut, TrendingUp, CalendarDays, Film,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +19,7 @@ const navItems = [
   { href: "/coach/dishes", label: "Foods & Dishes", icon: UtensilsCrossed },
   { href: "/coach/diet-templates", label: "Diet Templates", icon: CalendarDays },
   { href: "/coach/workout-templates", label: "Workout Templates", icon: Dumbbell },
+  { href: "/coach/exercises", label: "Exercises", icon: Film },
 ];
 
 export function CoachSidebar() {

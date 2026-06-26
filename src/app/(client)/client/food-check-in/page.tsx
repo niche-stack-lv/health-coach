@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useIsDemo } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
 import { getClientActiveAssignment, getFoodCheckIn, createFoodCheckIn, getDishes, getFoods } from "@/lib/db";
 import { calculateAdherenceScore, calculateDailyMaxTargets, type MaxMeal } from "@/lib/macro-calc";
-import { getTodayLocal } from "@/lib/date-utils";
+import { getTodayLocal, formatCheckInDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, History } from "lucide-react";
+import Link from "next/link";
 import { MacroSummary } from "@/components/shared/macro-summary";
 import { DishDetailSheet } from "@/components/shared/dish-detail-sheet";
+import { DatePicker } from "@/components/ui/date-picker";
 import { DailyPulseStrip } from "@/components/client/daily-pulse-strip";
 import { MealCard, type CheckInPick } from "@/components/client/meal-card";
 import { useWeightUnit } from "@/lib/use-weight-unit";
@@ -234,6 +237,17 @@ function FoodCheckInPageInner() {
   const [skippedSlots, setSkippedSlots] = useState<Set<string>>(new Set());
 
   const today = getTodayLocal();
+  // Date the check-in is being logged for. Defaults to today; the client can
+  // pick a past day from the calendar to back-fill a missed check-in, or land
+  // on a specific day via ?date= (e.g. from the history list).
+  const searchParams = useSearchParams();
+  const initialDate = (() => {
+    const q = searchParams.get("date");
+    if (q && /^\d{4}-\d{2}-\d{2}$/.test(q) && q <= today) return q;
+    return today;
+  })();
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const demoSuffix = searchParams.get("demo") === "true" ? "?demo=true" : "";
 
   useEffect(() => {
     if (isDemo) {
@@ -243,7 +257,26 @@ function FoodCheckInPageInner() {
     }
     if (user) loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isDemo]);
+  }, [user, isDemo, selectedDate]);
+
+  // Switch the day being logged. Resets the form so the freshly loaded day's
+  // data doesn't blend with the previous day's selections.
+  function handleDateChange(next: string) {
+    if (!next || next === selectedDate) return;
+    // Don't allow logging future days.
+    const clamped = next > today ? today : next;
+    setSubmitted(false);
+    setExistingCheckIn(null);
+    setPicks({});
+    setSkippedSlots(new Set());
+    setWeight("");
+    setWeightKg(null);
+    setSteps("");
+    setWeightTraining("");
+    setNotes("");
+    setLoading(true);
+    setSelectedDate(clamped);
+  }
 
   // Re-format weight input when unit changes (preserve underlying kg)
   const [weightKg, setWeightKg] = useState<number | null>(null);
@@ -266,7 +299,7 @@ function FoodCheckInPageInner() {
     if (!user) return;
     const [assignmentData, checkIn, foods] = await Promise.all([
       getClientActiveAssignment(user.id),
-      getFoodCheckIn(user.id, today),
+      getFoodCheckIn(user.id, selectedDate),
       getFoods(),
     ]);
     setAssignment(assignmentData);
@@ -539,7 +572,7 @@ function FoodCheckInPageInner() {
     const { error: err } = await createFoodCheckIn({
       clientId: user.id,
       assignmentId: assignment.id,
-      date: today,
+      date: selectedDate,
       totalCalories: Math.round(macros.calories),
       totalProtein: Math.round(macros.protein),
       totalCarbs: Math.round(macros.carbs),
@@ -558,6 +591,12 @@ function FoodCheckInPageInner() {
   }
 
   // ── Render ───────────────────────────────────────────────────────────
+
+  // Calendar date selector. Custom dark-themed picker (phone-optimised, large
+  // tap targets). Capped at today so future days can't be logged.
+  const dateSelector = !isDemo ? (
+    <DatePicker value={selectedDate} max={today} onChange={handleDateChange} />
+  ) : null;
 
   if (loading)
     return (
@@ -585,8 +624,16 @@ function FoodCheckInPageInner() {
         <Card className="p-8 text-center">
           <CheckCircle2 className="h-12 w-12 text-emerald-400 mx-auto mb-3" />
           <p className="text-white font-semibold">Logged successfully!</p>
-          <p className="text-zinc-500 text-sm mt-1">Your coach can now see today&apos;s check-in.</p>
+          <p className="text-zinc-500 text-sm mt-1">
+            Your coach can now see your {formatCheckInDate(selectedDate).toLowerCase()} check-in.
+          </p>
         </Card>
+        {dateSelector && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-zinc-500">Log another day</p>
+            {dateSelector}
+          </div>
+        )}
       </div>
     );
   }
@@ -601,12 +648,26 @@ function FoodCheckInPageInner() {
 
   return (
     <div className="space-y-4 pb-24">
-      <div>
-        <h1 className="text-xl font-bold text-white">Daily Check-in</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
-          {existingCheckIn ? "Update today's log" : "Log your meals & body for today"}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white">Daily Check-in</h1>
+          <p className="text-sm text-zinc-500 mt-0.5">
+            {existingCheckIn
+              ? `Update your ${formatCheckInDate(selectedDate).toLowerCase()} log`
+              : `Log your meals & body for ${formatCheckInDate(selectedDate).toLowerCase()}`}
+          </p>
+        </div>
+        <Link
+          href={`/client/food-check-in/history${demoSuffix}`}
+          className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-zinc-300 active:bg-white/[0.06] shrink-0"
+        >
+          <History className="h-3.5 w-3.5 text-gold" />
+          History
+        </Link>
       </div>
+
+      {/* Date selector */}
+      {dateSelector}
 
       {existingCheckIn && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">

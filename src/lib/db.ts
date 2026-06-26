@@ -1196,9 +1196,8 @@ export async function updateDietTemplate(templateId: string, input: {
 
 export async function deleteDietTemplate(templateId: string): Promise<{ error: string | null }> {
   const sb = getSupabase();
-  // Delete assignments referencing this template first
-  await sb.from("template_assignments").delete().eq("template_id", templateId);
-  // Now delete the template (cascade removes meal slots, components, dishes)
+  // FKs cascade: deleting the template removes its assignments,
+  // food_check_ins, meal slots, components, and dishes.
   const { error } = await sb.from("diet_templates").delete().eq("id", templateId);
   return { error: error?.message || null };
 }
@@ -1526,6 +1525,11 @@ function mapWorkoutSlotExerciseRow(row: any): WorkoutSlotExercise {
     reps: row.reps,
     restSeconds: row.rest_seconds,
     notes: row.notes ?? undefined,
+    // Prefer the per-exercise URL the coach set on this slot; otherwise fall
+    // back to a YouTube link built from the shared library's video_id.
+    videoUrl:
+      row.video_url ??
+      (row.exercise?.video_id ? `https://www.youtube.com/watch?v=${row.exercise.video_id}` : null),
     sortOrder: row.sort_order,
   };
 }
@@ -1631,6 +1635,7 @@ export async function createWorkoutTemplate(input: {
       reps: string;
       restSeconds: number;
       notes?: string;
+      videoUrl?: string | null;
       sortOrder: number;
     }>;
   }>;
@@ -1699,6 +1704,7 @@ export async function createWorkoutTemplate(input: {
         reps: ex.reps,
         rest_seconds: ex.restSeconds,
         notes: ex.notes || null,
+        video_url: ex.videoUrl || null,
         sort_order: ex.sortOrder,
       }));
       const { error: exError } = await sb.from("workout_slot_exercises").insert(exerciseRows);
@@ -1734,6 +1740,7 @@ export async function updateWorkoutTemplate(templateId: string, input: {
       reps: string;
       restSeconds: number;
       notes?: string;
+      videoUrl?: string | null;
       sortOrder: number;
     }>;
   }>;
@@ -1803,6 +1810,7 @@ export async function updateWorkoutTemplate(templateId: string, input: {
         reps: ex.reps,
         rest_seconds: ex.restSeconds,
         notes: ex.notes || null,
+        video_url: ex.videoUrl || null,
         sort_order: ex.sortOrder,
       }));
       const { error: exError } = await sb.from("workout_slot_exercises").insert(exerciseRows);

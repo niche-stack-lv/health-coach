@@ -27,7 +27,7 @@ const MUSCLE_GROUPS = [
 ];
 
 interface ExercisePickerProps {
-  onSelect: (exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string) => void;
+  onSelect: (exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string, videoUrl: string | null) => void;
   onClose: () => void;
 }
 
@@ -64,8 +64,8 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
     return (
       <ExerciseDetailSheet
         exercise={selectedExercise}
-        onAdd={(sets, reps, restSeconds, notes) => {
-          onSelect(selectedExercise, sets, reps, restSeconds, notes);
+        onAdd={(sets, reps, restSeconds, notes, videoUrl) => {
+          onSelect(selectedExercise, sets, reps, restSeconds, notes, videoUrl);
         }}
         onClose={() => setSelectedExercise(null)}
       />
@@ -178,7 +178,7 @@ function ExerciseDetailSheet({
   onClose,
 }: {
   exercise: Exercise;
-  onAdd: (sets: number, reps: string, restSeconds: number, notes: string) => void;
+  onAdd: (sets: number, reps: string, restSeconds: number, notes: string, videoUrl: string | null) => void;
   onClose: () => void;
 }) {
   const isCustom = exercise.id.startsWith("custom-");
@@ -187,6 +187,11 @@ function ExerciseDetailSheet({
   const [reps, setReps] = useState("10-12");
   const [rest, setRest] = useState("60");
   const [notes, setNotes] = useState("");
+  // Prefill from the shared library's YouTube id when available, so coaches can
+  // keep or override it. Stored as a full URL on the workout exercise.
+  const [videoUrl, setVideoUrl] = useState(
+    exercise.videoId ? `https://www.youtube.com/watch?v=${exercise.videoId}` : ""
+  );
 
   const inputClass =
     "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-3 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-gold/50";
@@ -265,6 +270,19 @@ function ExerciseDetailSheet({
           />
         </div>
 
+        <div className="mb-5">
+          <label className="block text-xs text-zinc-400 mb-1">Video link (optional)</label>
+          <input
+            type="url"
+            inputMode="url"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://youtube.com/watch?v=..."
+            className={inputClass}
+          />
+          <p className="mt-1 text-[11px] text-zinc-600">Paste a YouTube or video URL — clients can tap to watch a demo.</p>
+        </div>
+
         <Button
           variant="gold"
           className="w-full h-12 text-base rounded-2xl"
@@ -275,7 +293,7 @@ function ExerciseDetailSheet({
             if (isCustom) {
               (exercise as any).name = finalName;
             }
-            onAdd(Number(sets) || 3, reps || "10", Number(rest) || 60, notes);
+            onAdd(Number(sets) || 3, reps || "10", Number(rest) || 60, notes, videoUrl.trim() || null);
           }}
         >
           <Plus className="h-5 w-5" /> Add Exercise

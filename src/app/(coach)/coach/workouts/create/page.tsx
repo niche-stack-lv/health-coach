@@ -33,6 +33,7 @@ interface LocalExercise {
   reps: string;
   restSeconds: number;
   notes: string;
+  videoUrl?: string | null;
 }
 
 interface LocalSlot {
@@ -87,6 +88,7 @@ function templateToLocal(template: WorkoutTemplate): { phases: LocalPhase[]; slo
           reps: ex.reps,
           restSeconds: ex.restSeconds,
           notes: ex.notes ?? "",
+          videoUrl: ex.videoUrl ?? null,
         })),
     }));
 
@@ -189,7 +191,7 @@ function CreateWorkoutPlanPageInner() {
           customName: ex.name,
           customEmoji: ex.emoji,
           sets: ex.sets, reps: ex.reps, restSeconds: ex.restSeconds,
-          notes: ex.notes || undefined, sortOrder: exIdx,
+          notes: ex.notes || undefined, videoUrl: ex.videoUrl ?? null, sortOrder: exIdx,
         })),
       })),
     });
@@ -214,11 +216,11 @@ function CreateWorkoutPlanPageInner() {
   function updateSlotWarmup(i: number, v: string) { setSlots((p) => { const u = [...p]; u[i] = { ...u[i], warmupNotes: v }; return u; }); }
   function updateSlotPhase(i: number, phaseIndex: number) { setSlots((p) => { const u = [...p]; u[i] = { ...u[i], phaseIndex }; return u; }); }
 
-  function addExerciseToSlot(slotIdx: number, exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string) {
+  function addExerciseToSlot(slotIdx: number, exercise: Exercise, sets: number, reps: string, restSeconds: number, notes: string, videoUrl: string | null) {
     setSlots((prev) => {
       const updated = [...prev];
       const slot = { ...updated[slotIdx], exercises: [...updated[slotIdx].exercises] };
-      slot.exercises.push({ localId: crypto.randomUUID(), exerciseId: exercise.id.startsWith("custom-") ? null : exercise.id, name: exercise.name, emoji: exercise.emoji, sets, reps, restSeconds, notes });
+      slot.exercises.push({ localId: crypto.randomUUID(), exerciseId: exercise.id.startsWith("custom-") ? null : exercise.id, name: exercise.name, emoji: exercise.emoji, sets, reps, restSeconds, notes, videoUrl });
       updated[slotIdx] = slot;
       return updated;
     });
@@ -435,7 +437,7 @@ function CreateWorkoutPlanPageInner() {
 
           {pickerSlotIdx !== null && (
             <ExercisePicker
-              onSelect={(exercise, sets, reps, restSeconds, notes) => addExerciseToSlot(pickerSlotIdx, exercise, sets, reps, restSeconds, notes)}
+              onSelect={(exercise, sets, reps, restSeconds, notes, videoUrl) => addExerciseToSlot(pickerSlotIdx, exercise, sets, reps, restSeconds, notes, videoUrl)}
               onClose={() => setPickerSlotIdx(null)}
             />
           )}

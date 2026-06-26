@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getProfile, updateProfile, getFoods, createFood, deleteFood, getExercises, createExercise, deleteExercise } from "@/lib/db";
 import { Check, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseYouTubeId } from "@/lib/youtube";
 import type { Food } from "@/types";
 
 const inputClass = "w-full rounded-xl border border-white/[0.08] bg-white/[0.03] py-2.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gold/50";
@@ -315,7 +316,7 @@ function AddExerciseForm({ onClose, onAdded }: { onClose: () => void; onAdded: (
     await createExercise({
       name, category, emoji,
       equipment: equipment || undefined,
-      video_id: videoId || undefined,
+      video_id: parseYouTubeId(videoId) || undefined,
     });
     setSaving(false);
     onAdded();
@@ -344,7 +345,7 @@ function AddExerciseForm({ onClose, onAdded }: { onClose: () => void; onAdded: (
         <div className="grid grid-cols-3 gap-3">
           <input placeholder="Emoji" value={emoji} onChange={e => setEmoji(e.target.value)} className={smallInputClass} />
           <input placeholder="Equipment" value={equipment} onChange={e => setEquipment(e.target.value)} className={smallInputClass} />
-          <input placeholder="YouTube Video ID" value={videoId} onChange={e => setVideoId(e.target.value)} className={smallInputClass} />
+          <input placeholder="YouTube link or ID" value={videoId} onChange={e => setVideoId(e.target.value)} className={smallInputClass} />
         </div>
         <Button variant="gold" type="submit" disabled={saving} className="w-full">
           {saving ? "Adding..." : "Add Exercise"}

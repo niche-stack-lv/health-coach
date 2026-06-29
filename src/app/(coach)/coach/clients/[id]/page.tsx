@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { WeightChart } from "@/components/charts/weight-chart";
+import { WeightTrendCard } from "@/components/charts/weight-trend-card";
 import { MeasurementsChart } from "@/components/charts/measurements-chart";
 import { getClients, getCoachCheckIns, getMeasurements, getHabits, addHabit, deleteHabit, getClientActiveAssignment, getClientActiveWorkoutAssignment, deactivateAssignment, removeWorkoutAssignment, getOnboarding, updateClient, updateProfile, getClientFoodCheckIns } from "@/lib/db";
 import { useAuth } from "@/lib/auth-context";
@@ -99,7 +99,6 @@ function ClientDetailPageInner() {
   if (!client) return <div className="py-20 text-center"><p className="text-zinc-500">Client not found.</p><Link href="/coach/clients" className="text-gold text-sm mt-2 inline-block">← Back to clients</Link></div>;
 
   const name = client.profile?.name || "Unknown";
-  const weightHistory = measurements.map((m: any) => ({ date: m.date || m.created_at, weight: m.weight })).filter((m: any) => m.weight);
   // Get weight from food check-ins (daily) + weekly check-ins
   const checkInWeights = [
     ...foodCheckIns
@@ -111,6 +110,33 @@ function ClientDetailPageInner() {
   ].sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const latestCheckInWeight = checkInWeights.length > 0 ? checkInWeights[checkInWeights.length - 1].weight : null;
   const latest = measurements[measurements.length - 1];
+
+  // Combined weight series for the trend card: measurements + daily + weekly
+  // check-ins, one point per calendar day (latest source wins), ascending.
+  const coachWeightSeries = (() => {
+    const byDate = new Map<string, number>();
+    for (const m of measurements) {
+      if (m?.weight != null) {
+        const dt = String(m.date || m.created_at || "").slice(0, 10);
+        if (dt) byDate.set(dt, m.weight);
+      }
+    }
+    for (const ci of foodCheckIns) {
+      if (ci?.weight != null) {
+        const dt = String(ci.date || ci.createdAt || "").slice(0, 10);
+        if (dt) byDate.set(dt, ci.weight);
+      }
+    }
+    for (const ci of checkIns) {
+      if (ci?.weight != null) {
+        const dt = String(ci.date || ci.created_at || "").slice(0, 10);
+        if (dt) byDate.set(dt, ci.weight);
+      }
+    }
+    return Array.from(byDate.entries())
+      .map(([date, weight]) => ({ date, weight }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  })();
 
   return (
     <div>
@@ -153,11 +179,14 @@ function ClientDetailPageInner() {
             <Card className="p-3"><Calendar className="h-4 w-4 text-amber-400 mb-1" /><p className="text-xl font-bold text-white">{dietAssignment ? 1 : 0}</p><p className="text-[10px] text-zinc-500">Diet plan</p></Card>
           </div>
 
-          {weightHistory.length > 0 && (
-            <Card className="mb-6">
-              <h2 className="text-sm font-semibold text-white mb-1">Weight Progress</h2>
-              <WeightChart data={weightHistory} targetWeight={client.target_weight} height={250} />
-            </Card>
+          {coachWeightSeries.length >= 2 && (
+            <WeightTrendCard
+              data={coachWeightSeries}
+              targetWeight={client.target_weight}
+              defaultRange="1m"
+              chartHeight={250}
+              className="mb-6"
+            />
           )}
 
           <Card>
@@ -533,17 +562,17 @@ function ClientDetailPageInner() {
               <h2 className="text-lg font-bold text-white">Weight Progression</h2>
               <button onClick={() => setShowWeightGraph(false)} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
-            {checkInWeights.length > 1 ? (
-              <WeightChart data={checkInWeights} height={250} />
-            ) : checkInWeights.length === 1 ? (
+            {coachWeightSeries.length >= 2 ? (
+              <WeightTrendCard data={coachWeightSeries} targetWeight={client.target_weight} defaultRange="3m" chartHeight={250} className="!p-0 !border-0 !bg-transparent" />
+            ) : coachWeightSeries.length === 1 ? (
               <div className="text-center py-8">
-                <p className="text-2xl font-bold text-white"><WeightDisplay kg={checkInWeights[0].weight} /></p>
-                <p className="text-xs text-zinc-500 mt-1">Only 1 check-in recorded ({checkInWeights[0].date})</p>
+                <p className="text-2xl font-bold text-white"><WeightDisplay kg={coachWeightSeries[0].weight} /></p>
+                <p className="text-xs text-zinc-500 mt-1">Only 1 weight entry recorded ({coachWeightSeries[0].date})</p>
                 <p className="text-xs text-zinc-600 mt-3">More data points needed to show a graph.</p>
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-sm text-zinc-500">No weight data from daily check-ins yet.</p>
+                <p className="text-sm text-zinc-500">No weight data yet.</p>
               </div>
             )}
           </div>

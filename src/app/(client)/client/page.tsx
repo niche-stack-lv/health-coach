@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Camera, TrendingDown, TrendingUp, Calendar, Dumbbell, ClipboardCheck } from "lucide-react";
+import { Camera, TrendingDown, Calendar, Dumbbell, ClipboardCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -10,7 +10,7 @@ import { getClientActiveAssignment, getClientActiveWorkoutAssignment, getCheckIn
 import { cn } from "@/lib/utils";
 import { getTodayLocal, getMondayOfThisWeek } from "@/lib/date-utils";
 import { WeightDisplay } from "@/components/shared/weight-display";
-import { WeightChart } from "@/components/charts/weight-chart";
+import { WeightTrendCard } from "@/components/charts/weight-trend-card";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -106,8 +106,6 @@ function ClientDashboardInner() {
   }, [measurements, dailyCheckIns]);
 
   const currentWeight = weightSeries.length > 0 ? weightSeries[weightSeries.length - 1].weight : latestWeight;
-  const weightDeltaKg =
-    weightSeries.length >= 2 ? weightSeries[weightSeries.length - 1].weight - weightSeries[0].weight : null;
 
   if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
 
@@ -149,29 +147,7 @@ function ClientDashboardInner() {
 
       {/* Weight progression */}
       {weightSeries.length >= 2 ? (
-        <Card className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Weight Progress</p>
-              <p className="text-xl font-bold text-white mt-0.5">
-                {currentWeight != null ? <WeightDisplay kg={currentWeight} /> : "—"}
-              </p>
-            </div>
-            {weightDeltaKg != null && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-2 py-1",
-                  weightDeltaKg <= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
-                )}
-              >
-                {weightDeltaKg <= 0 ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
-                {weightDeltaKg <= 0 ? "−" : "+"}
-                <WeightDisplay kg={Math.abs(weightDeltaKg)} />
-              </span>
-            )}
-          </div>
-          <WeightChart data={weightSeries} height={200} />
-        </Card>
+        <WeightTrendCard data={weightSeries} defaultRange="1m" />
       ) : (
         <Card className="p-4">
           <TrendingDown className="h-4 w-4 text-emerald-400 mb-1.5" />
@@ -183,8 +159,8 @@ function ClientDashboardInner() {
 
       {/* Check-in Status Cards */}
       <div className="flex flex-col gap-3">
-        {/* Daily Check-in */}
-        {foodCheckInDone ? (
+        {/* Daily Check-in status (submission lives in the bottom nav / More tab) */}
+        {foodCheckInDone && (
           <Card className={cn("!p-4", dailyCheckIns[0]?.status === "reviewed" ? "border-emerald-500/20" : "border-amber-500/20")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -201,18 +177,6 @@ function ClientDashboardInner() {
               <p className="text-sm text-zinc-300 leading-relaxed mt-2 pl-6">&ldquo;{dailyCheckIns[0].coachFeedback}&rdquo;</p>
             )}
           </Card>
-        ) : (
-          <Link href={`/client/food-check-in${d}`}>
-            <Card className="!p-4 border-white/[0.08] hover:border-gold/30 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 text-gold" />
-                  <p className="text-xs font-semibold text-white">Submit Daily Check-in</p>
-                </div>
-                <span className="text-xs text-gold font-medium">→</span>
-              </div>
-            </Card>
-          </Link>
         )}
 
         {/* Weekly Check-in */}
@@ -243,23 +207,6 @@ function ClientDashboardInner() {
           }
           return null;
         })()}
-        {(!checkIns[0] || (() => {
-          const mondayStr = getMondayOfThisWeek();
-          const latestDate = checkIns[0]?.date || checkIns[0]?.created_at?.split("T")[0] || "";
-          return latestDate < mondayStr;
-        })()) && (
-          <Link href={`/client/check-in${d}`}>
-            <Card className="!p-4 border-white/[0.08] hover:border-sky-500/30 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-sky-400" />
-                  <p className="text-xs font-semibold text-white">Submit Weekly Check-in</p>
-                </div>
-                <span className="text-xs text-sky-400 font-medium">→</span>
-              </div>
-            </Card>
-          </Link>
-        )}
 
         {/* Body measurements link */}
         <Link href={`/client/measurements${d}`}>

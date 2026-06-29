@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Camera, TrendingDown, Calendar, Dumbbell, ClipboardCheck } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Camera, TrendingDown, TrendingUp, Calendar, Dumbbell, ClipboardCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +10,7 @@ import { getClientActiveAssignment, getClientActiveWorkoutAssignment, getCheckIn
 import { cn } from "@/lib/utils";
 import { getTodayLocal, getMondayOfThisWeek } from "@/lib/date-utils";
 import { WeightDisplay } from "@/components/shared/weight-display";
+import { WeightChart } from "@/components/charts/weight-chart";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -37,7 +38,13 @@ function ClientDashboardInner() {
         { id: "m4", name: "Dinner", time: "7:30 PM", calories: 480 },
       ] });
       setCheckIns([{ id: "1", coach_feedback: "Great progress this week! Weight trending down nicely. Keep protein high." }]);
-      setMeasurements([{ weight: 83.2 }]);
+      setMeasurements([
+        { date: "2026-06-01", weight: 85.0 },
+        { date: "2026-06-08", weight: 84.3 },
+        { date: "2026-06-15", weight: 83.6 },
+        { date: "2026-06-22", weight: 83.2 },
+        { date: "2026-06-28", weight: 82.7 },
+      ]);
       setFoodCheckInDone(false);
       setLoading(false);
       return;
@@ -54,7 +61,7 @@ function ClientDashboardInner() {
       getCheckIns(user.id),
       getMeasurements(user.id),
       getFoodCheckIn(user.id, today),
-      getClientFoodCheckIns(user.id, 10),
+      getClientFoodCheckIns(user.id, 60),
     ]);
     // Convert template assignment to plan-like shape for the UI
     if (assignment?.template) {
@@ -81,6 +88,26 @@ function ClientDashboardInner() {
   const latestWeight = measurements.length > 0 ? measurements[measurements.length - 1].weight : null;
   const latestCheckIn = checkIns[0];
   const d = useDemoSuffix();
+
+  // Combined weight history for the progression chart. Pulls from body
+  // measurements and daily check-ins (both store weight in kg), one point per
+  // date (latest source wins), sorted oldest → newest.
+  const weightSeries = useMemo(() => {
+    const byDate = new Map<string, number>();
+    for (const m of measurements) {
+      if (m?.date && m.weight != null) byDate.set(m.date, m.weight);
+    }
+    for (const ci of dailyCheckIns) {
+      if (ci?.date && ci.weight != null) byDate.set(ci.date, ci.weight);
+    }
+    return Array.from(byDate.entries())
+      .map(([date, weight]) => ({ date, weight }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [measurements, dailyCheckIns]);
+
+  const currentWeight = weightSeries.length > 0 ? weightSeries[weightSeries.length - 1].weight : latestWeight;
+  const weightDeltaKg =
+    weightSeries.length >= 2 ? weightSeries[weightSeries.length - 1].weight - weightSeries[0].weight : null;
 
   if (loading) return <div className="flex justify-center py-20"><div className="h-8 w-8 rounded-full border-2 border-gold border-t-transparent animate-spin" /></div>;
 
@@ -120,12 +147,39 @@ function ClientDashboardInner() {
         )}
       </div>
 
-      {/* Current Weight */}
-      <Card className="p-4">
-        <TrendingDown className="h-4 w-4 text-emerald-400 mb-1.5" />
-        <p className="text-xl font-bold text-white">{latestWeight ? <WeightDisplay kg={latestWeight} /> : "—"}</p>
-        <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">Current Weight</p>
-      </Card>
+      {/* Weight progression */}
+      {weightSeries.length >= 2 ? (
+        <Card className="p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Weight Progress</p>
+              <p className="text-xl font-bold text-white mt-0.5">
+                {currentWeight != null ? <WeightDisplay kg={currentWeight} /> : "—"}
+              </p>
+            </div>
+            {weightDeltaKg != null && (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 text-xs font-semibold rounded-lg px-2 py-1",
+                  weightDeltaKg <= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                )}
+              >
+                {weightDeltaKg <= 0 ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+                {weightDeltaKg <= 0 ? "−" : "+"}
+                <WeightDisplay kg={Math.abs(weightDeltaKg)} />
+              </span>
+            )}
+          </div>
+          <WeightChart data={weightSeries} height={200} />
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <TrendingDown className="h-4 w-4 text-emerald-400 mb-1.5" />
+          <p className="text-xl font-bold text-white">{currentWeight != null ? <WeightDisplay kg={currentWeight} /> : "—"}</p>
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider mt-0.5">Current Weight</p>
+          <p className="text-[11px] text-zinc-600 mt-1.5">Log your weight in daily check-ins to see your progress graph.</p>
+        </Card>
+      )}
 
       {/* Check-in Status Cards */}
       <div className="flex flex-col gap-3">

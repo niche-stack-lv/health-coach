@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useIsDemo } from "@/lib/use-demo";
 import { useAuth } from "@/lib/auth-context";
 import { getClientActiveAssignment, getFoodCheckIn, createFoodCheckIn, getDishes, getFoods } from "@/lib/db";
+import { getSupabase } from "@/lib/supabase";
 import { calculateAdherenceScore, calculateDailyMaxTargets, type MaxMeal } from "@/lib/macro-calc";
 import { getTodayLocal, formatCheckInDate } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
@@ -236,6 +237,11 @@ function FoodCheckInPageInner() {
   const [picks, setPicks] = useState<Record<string, CheckInPick[]>>({});
   const [skippedSlots, setSkippedSlots] = useState<Set<string>>(new Set());
 
+  // Optional per-meal photos: slotId -> storage path / display url
+  const [mealPhotoPaths, setMealPhotoPaths] = useState<Record<string, string>>({});
+  const [mealPhotoUrls, setMealPhotoUrls] = useState<Record<string, string>>({});
+  const [uploadingPhotoSlots, setUploadingPhotoSlots] = useState<Set<string>>(new Set());
+
   const today = getTodayLocal();
   // Date the check-in is being logged for. Defaults to today; the client can
   // pick a past day from the calendar to back-fill a missed check-in, or land
@@ -269,6 +275,9 @@ function FoodCheckInPageInner() {
     setExistingCheckIn(null);
     setPicks({});
     setSkippedSlots(new Set());
+    setMealPhotoPaths({});
+    setMealPhotoUrls({});
+    setUploadingPhotoSlots(new Set());
     setWeight("");
     setWeightKg(null);
     setSteps("");
@@ -414,6 +423,19 @@ function FoodCheckInPageInner() {
 
       setPicks(existingPicks);
       setSkippedSlots(existingSkipped);
+
+      // Load any attached meal photos and sign URLs for display.
+      const photos = (checkIn.mealPhotos || {}) as Record<string, string>;
+      if (Object.keys(photos).length > 0) {
+        setMealPhotoPaths(photos);
+        const sb = getSupabase();
+        const entries: [string, string][] = [];
+        for (const [slotId, path] of Object.entries(photos)) {
+          const { data } = await sb.storage.from("check-in-photos").createSignedUrl(path, 3600);
+          if (data?.signedUrl) entries.push([slotId, data.signedUrl]);
+        }
+        setMealPhotoUrls(Object.fromEntries(entries));
+      }
     }
 
     if (assignmentData?.template) {
@@ -441,6 +463,52 @@ function FoodCheckInPageInner() {
         setPicks(newPicks);
       }
       return next;
+    });
+  }
+
+  // ── Meal photo handlers ────────────────────────────────────────────────
+
+  async function handlePickPhoto(slotId: string, file: File) {
+    // Show an instant local preview.
+    const localUrl = URL.createObjectURL(file);
+    setMealPhotoUrls((prev) => ({ ...prev, [slotId]: localUrl }));
+
+    if (isDemo || !user) return; // demo: preview only, no upload
+
+    setUploadingPhotoSlots((prev) => new Set(prev).add(slotId));
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${user.id}/meals/${selectedDate}_${slotId}_${Date.now()}.${ext}`;
+    const { error: upErr } = await getSupabase()
+      .storage.from("check-in-photos")
+      .upload(path, file, { upsert: true });
+    setUploadingPhotoSlots((prev) => {
+      const n = new Set(prev);
+      n.delete(slotId);
+      return n;
+    });
+    if (upErr) {
+      // Revert the preview if the upload failed.
+      setMealPhotoUrls((prev) => {
+        const n = { ...prev };
+        delete n[slotId];
+        return n;
+      });
+      setError(`Couldn't upload photo: ${upErr.message}`);
+      return;
+    }
+    setMealPhotoPaths((prev) => ({ ...prev, [slotId]: path }));
+  }
+
+  function handleRemovePhoto(slotId: string) {
+    setMealPhotoPaths((prev) => {
+      const n = { ...prev };
+      delete n[slotId];
+      return n;
+    });
+    setMealPhotoUrls((prev) => {
+      const n = { ...prev };
+      delete n[slotId];
+      return n;
     });
   }
 
@@ -582,6 +650,7 @@ function FoodCheckInPageInner() {
       steps: steps ? parseInt(steps, 10) : null,
       weightTraining: weightTraining || null,
       notes: notes.trim() || null,
+      mealPhotos: mealPhotoPaths,
       items,
     });
 
@@ -724,6 +793,10 @@ function FoodCheckInPageInner() {
               onDishClick={setSelectedDish}
               loggedCalories={getMealLoggedCalories(slot, picks, skippedSlots, allDishes, allFoods)}
               disabled={isDemo}
+              photoUrl={mealPhotoUrls[slot.id] || null}
+              onPickPhoto={(file) => handlePickPhoto(slot.id, file)}
+              onRemovePhoto={() => handleRemovePhoto(slot.id)}
+              photoUploading={uploadingPhotoSlots.has(slot.id)}
             />
           ))}
       </div>
@@ -742,8 +815,8 @@ function FoodCheckInPageInner() {
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      {/* Sticky submit */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.06] bg-[#0a0a0a]/95 backdrop-blur p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* Sticky submit — sits just above the bottom navbar so nav stays reachable */}
+      <div className="fixed bottom-[calc(env(safe-area-inset-bottom)_+_3.75rem)] left-0 right-0 z-20 border-t border-white/[0.06] bg-[#0a0a0a]/95 backdrop-blur p-3">
         <div className="max-w-2xl mx-auto">
           <Button
             variant="gold"

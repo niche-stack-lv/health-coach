@@ -1345,6 +1345,7 @@ function mapFoodCheckInRow(row: any): FoodCheckIn {
     weightTraining: row.weight_training,
     coachFeedback: row.coach_feedback,
     status: row.status,
+    mealPhotos: row.meal_photos ?? {},
     items: (row.food_check_in_items || []).map(mapFoodCheckInItemRow),
     createdAt: row.created_at,
   };
@@ -1374,6 +1375,7 @@ export async function createFoodCheckIn(input: {
   steps?: number | null;
   weightTraining?: string | null;
   notes?: string | null;
+  mealPhotos?: Record<string, string> | null;
   items: Array<{
     slotId: string | null;
     componentId: string | null;
@@ -1408,6 +1410,7 @@ export async function createFoodCheckIn(input: {
         steps: input.steps ?? null,
         weight_training: input.weightTraining ?? null,
         notes: input.notes ?? null,
+        meal_photos: input.mealPhotos ?? {},
         status: "submitted",
       })
       .eq("id", existing.id);
@@ -1452,6 +1455,7 @@ export async function createFoodCheckIn(input: {
         steps: input.steps ?? null,
         weight_training: input.weightTraining ?? null,
         notes: input.notes ?? null,
+        meal_photos: input.mealPhotos ?? {},
         status: "submitted",
       })
       .select()

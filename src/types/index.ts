@@ -197,6 +197,8 @@ export interface FoodCheckIn {
   weightTraining?: string | null;
   coachFeedback?: string | null;
   status?: string;
+  /** Optional photo per meal: { [slotId]: storagePath }. */
+  mealPhotos?: Record<string, string> | null;
   items: FoodCheckInItem[];
   createdAt: string;
 }

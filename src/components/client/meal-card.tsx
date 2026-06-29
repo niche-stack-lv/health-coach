@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Check, SkipForward, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ChevronDown, ChevronUp, Check, SkipForward, Plus, Trash2, Search, X, ImagePlus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TemplateMealSlot, Dish, MealSlotComponent, Food } from "@/types";
 
@@ -70,6 +70,14 @@ export interface MealCardProps {
   /** Computed running calories for this meal (live as user picks) */
   loggedCalories?: number;
   disabled?: boolean;
+  /** Display URL for an already-attached meal photo (signed or object URL). */
+  photoUrl?: string | null;
+  /** Called when the user selects a photo file for this meal. */
+  onPickPhoto?: (file: File) => void;
+  /** Remove the attached photo. */
+  onRemovePhoto?: () => void;
+  /** Whether a photo upload is in progress for this meal. */
+  photoUploading?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -97,6 +105,10 @@ export function MealCard({
   onDishClick,
   loggedCalories,
   disabled = false,
+  photoUrl,
+  onPickPhoto,
+  onRemovePhoto,
+  photoUploading = false,
 }: MealCardProps) {
   const renderedComponents = getRenderedComponents(slot);
   const anyUndecided = renderedComponents.some((c) => !isComponentDecided(c, picks));
@@ -208,6 +220,54 @@ export function MealCard({
               disabled={disabled}
             />
           ))}
+
+          {/* Optional meal photo */}
+          {(onPickPhoto || photoUrl) && (
+            <div className="pt-1">
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1.5">Meal photo (optional)</p>
+              {photoUrl ? (
+                <div className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photoUrl}
+                    alt={`${slot.name} photo`}
+                    className="h-24 w-24 rounded-xl object-cover border border-white/[0.08]"
+                  />
+                  {!disabled && onRemovePhoto && (
+                    <button
+                      type="button"
+                      onClick={onRemovePhoto}
+                      className="absolute -top-2 -right-2 rounded-full bg-black/80 border border-white/[0.1] p-1 text-zinc-300 hover:text-white"
+                      aria-label="Remove photo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <label
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-3 py-2.5 text-xs text-zinc-400 cursor-pointer hover:border-white/[0.2] transition-colors",
+                    (disabled || photoUploading) && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {photoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  {photoUploading ? "Uploading…" : "Add photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={disabled || photoUploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f && onPickPhoto) onPickPhoto(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -358,34 +418,12 @@ function ComponentRow({
       {/* Picker row — dropdown (if alternatives exist) + Add extra button */}
       <div className="grid grid-cols-[1fr_auto] gap-2">
         {totalAlts > 0 ? (
-          <select
-            value=""
+          <PlanPicker
+            dishAlts={dishAlts}
+            foodAlts={foodAlts}
             disabled={disabled}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v) addAlternative(v);
-              e.target.value = "";
-            }}
-            className="h-9 min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-gold/50"
-          >
-            <option value="" className="bg-[#1a1a1a]">
-              + Pick from plan…
-            </option>
-            {dishAlts.map((msd) => (
-              <option key={msd.id} value={msd.id} className="bg-[#1a1a1a]">
-                {msd.dish?.emoji || "🍽️"} {msd.dish?.name} · {msd.dish?.totalCalories} cal
-              </option>
-            ))}
-            {foodAlts.map((msd) => {
-              const cal =
-                msd.food && msd.foodQuantity ? Math.round((msd.food.calories * msd.foodQuantity) / 100) : 0;
-              return (
-                <option key={msd.id} value={msd.id} className="bg-[#1a1a1a]">
-                  {msd.food?.emoji || "🥗"} {msd.food?.name} ({msd.foodQuantity}g) · {cal} cal
-                </option>
-              );
-            })}
-          </select>
+            onPick={(id) => addAlternative(id)}
+          />
         ) : (
           <p className="h-9 inline-flex items-center text-[11px] text-zinc-600 px-1">
             No options in plan — add anything you ate →
@@ -420,6 +458,120 @@ function ComponentRow({
           }}
           onClose={() => setExtraSheetOpen(false)}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Searchable "pick from plan" dropdown ───────────────────────────────────
+
+function PlanPicker({
+  dishAlts,
+  foodAlts,
+  disabled,
+  onPick,
+}: {
+  dishAlts: MealSlotComponent["dishes"];
+  foodAlts: MealSlotComponent["dishes"];
+  disabled?: boolean;
+  onPick: (msdId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Unified option list for searching/rendering.
+  const options = [
+    ...dishAlts.map((msd) => ({
+      id: msd.id,
+      emoji: msd.dish?.emoji || "🍽️",
+      label: msd.dish?.name || "Dish",
+      cal: msd.dish?.totalCalories ?? 0,
+    })),
+    ...foodAlts.map((msd) => ({
+      id: msd.id,
+      emoji: msd.food?.emoji || "🥗",
+      label: `${msd.food?.name || "Food"}${msd.foodQuantity ? ` (${msd.foodQuantity}g)` : ""}`,
+      cal: msd.food && msd.foodQuantity ? Math.round((msd.food.calories * msd.foodQuantity) / 100) : 0,
+    })),
+  ];
+
+  const filtered = query.trim()
+    ? options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : options;
+
+  // Close on outside tap.
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    }
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [open]);
+
+  function choose(id: string) {
+    onPick(id);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div ref={rootRef} className="relative min-w-0">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-9 w-full items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-zinc-400 focus:outline-none focus:ring-2 focus:ring-gold/50 disabled:opacity-50"
+      >
+        <Plus className="h-3.5 w-3.5 shrink-0" />
+        <span className="flex-1 truncate text-left">Pick from plan…</span>
+        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 z-50 mt-1 rounded-xl border border-white/[0.08] bg-[#1a1a1a] shadow-2xl shadow-black/60">
+          {/* Search */}
+          <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 py-2">
+            <Search className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search options…"
+              className="w-full bg-transparent text-sm text-white placeholder:text-zinc-600 focus:outline-none"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} className="text-zinc-500 hover:text-white">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Options */}
+          <div className="max-h-60 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-zinc-600 text-center">No matches</p>
+            ) : (
+              filtered.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => choose(o.id)}
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-white active:bg-white/[0.06]"
+                >
+                  <span className="shrink-0">{o.emoji}</span>
+                  <span className="flex-1 truncate">{o.label}</span>
+                  <span className="shrink-0 text-[11px] text-zinc-500">{o.cal} cal</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -90,20 +90,32 @@ function ClientDashboardInner() {
   const d = useDemoSuffix();
 
   // Combined weight history for the progression chart. Pulls from body
-  // measurements and daily check-ins (both store weight in kg), one point per
-  // date (latest source wins), sorted oldest → newest.
+  // measurements, daily check-ins, and weekly check-ins (all store weight in
+  // kg), one point per date (latest source wins), sorted oldest → newest.
   const weightSeries = useMemo(() => {
     const byDate = new Map<string, number>();
     for (const m of measurements) {
-      if (m?.date && m.weight != null) byDate.set(m.date, m.weight);
+      if (m?.weight != null) {
+        const dt = String(m.date || m.created_at || "").slice(0, 10);
+        if (dt) byDate.set(dt, m.weight);
+      }
     }
     for (const ci of dailyCheckIns) {
-      if (ci?.date && ci.weight != null) byDate.set(ci.date, ci.weight);
+      if (ci?.weight != null) {
+        const dt = String(ci.date || ci.createdAt || "").slice(0, 10);
+        if (dt) byDate.set(dt, ci.weight);
+      }
+    }
+    for (const ci of checkIns) {
+      if (ci?.weight != null) {
+        const dt = String(ci.date || ci.created_at || "").slice(0, 10);
+        if (dt) byDate.set(dt, ci.weight);
+      }
     }
     return Array.from(byDate.entries())
       .map(([date, weight]) => ({ date, weight }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [measurements, dailyCheckIns]);
+  }, [measurements, dailyCheckIns, checkIns]);
 
   const currentWeight = weightSeries.length > 0 ? weightSeries[weightSeries.length - 1].weight : latestWeight;
 
@@ -113,7 +125,7 @@ function ClientDashboardInner() {
     <div className="space-y-5 pb-20">
       <div>
         <h1 className="text-xl font-bold text-white tracking-tight">Welcome 👋</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">Keep pushing, you&apos;re doing great.</p>
+        <p className="text-sm text-zinc-500 mt-0.5">It&apos;s supposed to be hard, that&apos;s what makes you stronger.</p>
       </div>
 
       {/* Active plans — side by side */}
@@ -146,7 +158,7 @@ function ClientDashboardInner() {
       </div>
 
       {/* Weight progression */}
-      {weightSeries.length >= 2 ? (
+      {weightSeries.length >= 1 ? (
         <WeightTrendCard data={weightSeries} defaultRange="1m" />
       ) : (
         <Card className="p-4">

@@ -31,7 +31,7 @@ export default function DesisquatsLanding() {
               href="/enquiry"
               className="bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2.5 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)]"
             >
-              APPLY NOW
+              I WANT TO TRANSFORM NOW
             </Link>
           </div>
         </div>
@@ -66,7 +66,7 @@ export default function DesisquatsLanding() {
                 href="/enquiry"
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-sm font-bold uppercase tracking-wider px-8 py-4 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_8px_40px_rgba(255,102,17,0.4)]"
               >
-                APPLY NOW
+                I WANT TO TRANSFORM NOW
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               <a
@@ -164,7 +164,7 @@ export default function DesisquatsLanding() {
               href="/enquiry"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] text-white text-sm font-bold uppercase tracking-wider px-7 py-4 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)]"
             >
-              APPLY NOW
+              I WANT TO TRANSFORM NOW
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -275,7 +275,7 @@ export default function DesisquatsLanding() {
               </div>
               <p className="text-3xl font-extrabold text-white">
                 <span className="text-lg font-normal text-zinc-600 line-through mr-2">$499</span>$399
-                <span className="text-base font-normal text-zinc-500"> / 3 months</span>
+                <span className="text-base font-normal text-zinc-500"> / 100 days</span>
               </p>
               <p className="text-sm text-zinc-400 mt-3 mb-6">For self-motivated professionals who want the right system.</p>
               <div className="space-y-3">
@@ -288,7 +288,7 @@ export default function DesisquatsLanding() {
               </div>
               <Link href="/enquiry" className="block mt-8">
                 <button className="w-full bg-white/[0.06] border border-white/[0.1] text-white text-sm font-bold uppercase tracking-wider py-4 rounded-lg hover:bg-white/[0.1] transition-colors">
-                  APPLY NOW
+                  I WANT TO TRANSFORM NOW
                 </button>
               </Link>
             </div>
@@ -301,7 +301,7 @@ export default function DesisquatsLanding() {
               </div>
               <p className="text-3xl font-extrabold text-white">
                 <span className="text-lg font-normal text-zinc-600 line-through mr-2">$1,199</span>$999
-                <span className="text-base font-normal text-zinc-500"> / 3 months</span>
+                <span className="text-base font-normal text-zinc-500"> / 100 days</span>
               </p>
               <p className="text-sm text-zinc-400 mt-3 mb-6">For professionals who want Praneeth personally guiding them.</p>
               <div className="space-y-3">
@@ -315,7 +315,7 @@ export default function DesisquatsLanding() {
               <p className="text-xs text-zinc-500 mt-4 italic">You don&apos;t just get a plan. You get direct coaching.</p>
               <Link href="/enquiry" className="block mt-6">
                 <button className="w-full bg-gradient-to-r from-[#f61] to-[#e55a00] text-white text-sm font-bold uppercase tracking-wider py-4 rounded-lg shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)] transition-all">
-                  APPLY NOW
+                  I WANT TO TRANSFORM NOW
                 </button>
               </Link>
             </div>
@@ -381,7 +381,7 @@ export default function DesisquatsLanding() {
             href="/enquiry"
             className="group inline-flex items-center gap-2 mt-10 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-base font-bold uppercase tracking-wider px-10 py-5 rounded-lg transition-all shadow-[0_4px_30px_rgba(255,102,17,0.4)] hover:shadow-[0_8px_50px_rgba(255,102,17,0.5)]"
           >
-            APPLY NOW
+            I WANT TO TRANSFORM NOW
             <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
@@ -407,15 +407,32 @@ export default function DesisquatsLanding() {
         </p>
       </footer>
 
-      {/* Floating WhatsApp */}
+      {/* Sticky bottom CTA bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[rgba(10,10,10,0.92)] backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 px-4 sm:px-8 py-3">
+          <div className="hidden sm:block min-w-0">
+            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-wider">Limited spots</p>
+            <p className="text-xs text-zinc-400 truncate">100-day transformation for NRI professionals</p>
+          </div>
+          <Link
+            href="/enquiry"
+            className="group inline-flex flex-1 sm:flex-none items-center justify-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-sm font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.35)]"
+          >
+            I WANT TO TRANSFORM
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </div>
+      </div>
+
+      {/* Floating WhatsApp — lifted above the sticky CTA */}
       <a
         href="https://wa.me/19712706678"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:scale-110 transition-all"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)_+_5rem)] right-4 z-50 h-12 w-12 bg-[#25D366] rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(37,211,102,0.4)] hover:scale-110 transition-all"
         aria-label="Chat on WhatsApp"
       >
-        <MessageCircle className="h-6 w-6 text-white" />
+        <MessageCircle className="h-5 w-5 text-white" />
       </a>
     </div>
   );

@@ -1,8 +1,94 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Check, MessageCircle, Play, Star } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, MessageCircle, Play, Star } from "lucide-react";
+
+// ─── Testimonials carousel ──────────────────────────────────────────────
+// Native horizontal scroll with snap points — no library, works with touch
+// swipe, mouse-wheel, arrow keys, and the arrow buttons below.
+const TESTIMONIALS = [
+  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",           video: "https://desisquats.com/wp-content/uploads/2025/09/Kalyan-Ds-Testimonial.mp4" },
+  { name: "Alekhya",   location: "",        result: "Transformed while working full-time", video: "https://desisquats.com/wp-content/uploads/2025/09/Alekhya-Ds-Testimonial.mp4" },
+  { name: "Hari",      location: "Atlanta", result: "Lost 24 lbs in 4 months",             video: "https://desisquats.com/wp-content/uploads/2025/09/Hari-Ds-Testimonial.mp4" },
+  { name: "Abhirup",   location: "",        result: "Sustainable transformation",          video: "https://desisquats.com/wp-content/uploads/2025/09/Abhirup-Ds-Testimonial.mp4" },
+  { name: "Madhvi",    location: "",        result: "Rebuilt her health in real life",     video: "https://desisquats.com/wp-content/uploads/2025/09/Madhvi-Ds-Testimonial.mp4" },
+  { name: "Indu",      location: "",        result: "Never felt this strong before",       video: "https://desisquats.com/wp-content/uploads/2025/09/Indu-Ds-Testimonial.mp4" },
+  { name: "Neeti",     location: "",        result: "No more guilt about rice",            video: "https://desisquats.com/wp-content/uploads/2025/09/Neeti-Ds-Testimonial.mp4" },
+  { name: "Anil",      location: "",        result: "Consistency finally clicked",         video: "https://desisquats.com/wp-content/uploads/2025/09/Anil-Ds-Testimonial.mp4" },
+  { name: "Santosh",   location: "",        result: "Fitness that fits corporate life",    video: "https://desisquats.com/wp-content/uploads/2025/09/Santosh-Ds-Testimonial.mp4" },
+  { name: "Subhaajit", location: "",        result: "Traveled and still stayed on track",  video: "https://desisquats.com/wp-content/uploads/2025/09/Subhaajit-Ds-Testimonial.mp4" },
+];
+
+function TestimonialsCarousel() {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  // Scroll by one card width in either direction.
+  function scrollByCards(dir: 1 | -1) {
+    const el = trackRef.current;
+    if (!el) return;
+    const first = el.querySelector<HTMLElement>("[data-slide]");
+    const step = first ? first.offsetWidth + 20 /* gap */ : 320;
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  }
+
+  return (
+    <div className="relative">
+      {/* Track */}
+      <div
+        ref={trackRef}
+        className="flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-3 -mx-5 sm:-mx-8 px-5 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {TESTIMONIALS.map((t) => (
+          <div
+            key={t.name}
+            data-slide
+            className="snap-start shrink-0 w-[78%] sm:w-[46%] lg:w-[30%] bg-[#111] border border-white/[0.06] rounded-2xl overflow-hidden flex flex-col"
+          >
+            <video
+              src={t.video}
+              controls
+              preload="metadata"
+              playsInline
+              className="w-full aspect-[9/16] bg-black object-cover"
+            >
+              Your browser does not support HTML5 video.
+            </video>
+            <div className="p-4">
+              <div className="flex items-center gap-1 mb-1.5">
+                {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-[#f61] text-[#f61]" />)}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <h3 className="text-sm font-bold text-white">{t.name}</h3>
+                {t.location && <span className="text-[10px] uppercase tracking-wider text-zinc-500">· {t.location}</span>}
+              </div>
+              <p className="text-[#f61] text-xs font-semibold mt-0.5">{t.result}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Arrows (desktop mostly) */}
+      <button
+        type="button"
+        onClick={() => scrollByCards(-1)}
+        aria-label="Previous testimonials"
+        className="hidden sm:flex absolute -left-3 top-1/2 -translate-y-1/2 h-11 w-11 items-center justify-center rounded-full bg-black/80 border border-white/[0.1] text-white hover:bg-black hover:border-white/[0.2] transition-colors"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => scrollByCards(1)}
+        aria-label="Next testimonials"
+        className="hidden sm:flex absolute -right-3 top-1/2 -translate-y-1/2 h-11 w-11 items-center justify-center rounded-full bg-black/80 border border-white/[0.1] text-white hover:bg-black hover:border-white/[0.2] transition-colors"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </div>
+  );
+}
 
 export default function DesisquatsLanding() {
   return (
@@ -24,14 +110,8 @@ export default function DesisquatsLanding() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-[13px] font-semibold text-zinc-400 hover:text-white tracking-wide transition-colors hidden sm:block">
+            <Link href="/login" className="text-[13px] font-semibold text-zinc-400 hover:text-white tracking-wide transition-colors">
               LOGIN
-            </Link>
-            <Link
-              href="/enquiry"
-              className="bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-[12px] font-bold uppercase tracking-wider px-5 py-2.5 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)]"
-            >
-              I WANT TO TRANSFORM NOW
             </Link>
           </div>
         </div>
@@ -123,9 +203,9 @@ export default function DesisquatsLanding() {
           <div className="relative">
             <div className="rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
               <img
-                src="/clients/desisquats/scientific-process.webp"
-                alt="Coach Praneeth training"
-                className="w-full aspect-square object-cover"
+                src="/clients/desisquats/hero-bg.webp"
+                alt="Client transformations"
+                className="w-full h-auto object-contain bg-black"
               />
             </div>
             <div className="absolute -bottom-5 -right-5 bg-gradient-to-br from-[#f61] to-[#e55a00] text-white px-6 py-4 rounded-2xl shadow-xl">
@@ -335,30 +415,8 @@ export default function DesisquatsLanding() {
             </h2>
             <p className="text-sm text-zinc-500 mt-4 max-w-lg mx-auto">Because every transformation started with someone who believed they were &ldquo;too busy.&rdquo;</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[
-              { name: "Kalyan", location: "Dallas", result: "Lost 50+ lbs in 7 months while still eating Indian food", quote: "The process was simple. I could still have my chai and parathas while losing weight.", img: "/clients/desisquats/kalyan.webp" },
-              { name: "Alekhya", location: "", result: "Transformed her body while balancing work and family life", quote: "Praneeth built a plan around my real life. I stopped restarting and finally saw the scale move for good.", img: "/clients/desisquats/alekhya.webp" },
-              { name: "Hari", location: "Atlanta", result: "Lost 24 lbs in 4 months while balancing corporate life", quote: "Strength training changed my life. I feel more energetic at work than ever before.", img: "/clients/desisquats/hari.webp" },
-            ].map((t) => (
-              <div key={t.name} className="bg-[#111] border border-white/[0.06] rounded-2xl overflow-hidden hover:border-white/[0.12] transition-colors">
-                <div className="overflow-hidden">
-                  <img src={t.img} alt={t.name} className="w-full h-auto object-contain" />
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center gap-1 mb-2">
-                    {[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-[#f61] text-[#f61]" />)}
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <h3 className="text-base font-bold text-white">{t.name}</h3>
-                    {t.location && <span className="text-[10px] uppercase tracking-wider text-zinc-500">· {t.location}</span>}
-                  </div>
-                  <p className="text-[#f61] text-sm font-semibold mt-0.5">{t.result}</p>
-                  <p className="text-zinc-400 text-sm italic mt-3 leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <TestimonialsCarousel />
+          <p className="mt-4 text-center text-[11px] text-zinc-600 uppercase tracking-wider">Swipe to see more →</p>
         </div>
       </section>
 

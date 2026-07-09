@@ -41,3 +41,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# heavyweight raw video assets (host separately on Vercel Blob / Supabase / YouTube)
+/public/clients/desisquats/testimonials/*.mp4
+/public/clients/desisquats/testimonials/*.mov
+
+# local tmp workspace for scripts / spreadsheets / dumps
+/tmp/

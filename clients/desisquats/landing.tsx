@@ -143,7 +143,7 @@ export default function DesisquatsLanding() {
 
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
-                href="/enquiry"
+                href="/checkout"
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-sm font-bold uppercase tracking-wider px-8 py-4 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_8px_40px_rgba(255,102,17,0.4)]"
               >
                 I WANT TO TRANSFORM NOW
@@ -241,7 +241,7 @@ export default function DesisquatsLanding() {
               ))}
             </div>
             <Link
-              href="/enquiry"
+              href="/checkout"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] text-white text-sm font-bold uppercase tracking-wider px-7 py-4 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)]"
             >
               I WANT TO TRANSFORM NOW
@@ -366,7 +366,7 @@ export default function DesisquatsLanding() {
                   </div>
                 ))}
               </div>
-              <Link href="/enquiry" className="block mt-8">
+              <Link href="/checkout" className="block mt-8">
                 <button className="w-full bg-white/[0.06] border border-white/[0.1] text-white text-sm font-bold uppercase tracking-wider py-4 rounded-lg hover:bg-white/[0.1] transition-colors">
                   I WANT TO TRANSFORM NOW
                 </button>
@@ -393,7 +393,7 @@ export default function DesisquatsLanding() {
                 ))}
               </div>
               <p className="text-xs text-zinc-500 mt-4 italic">You don&apos;t just get a plan. You get direct coaching.</p>
-              <Link href="/enquiry" className="block mt-6">
+              <Link href="/checkout" className="block mt-6">
                 <button className="w-full bg-gradient-to-r from-[#f61] to-[#e55a00] text-white text-sm font-bold uppercase tracking-wider py-4 rounded-lg shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_4px_30px_rgba(255,102,17,0.5)] transition-all">
                   I WANT TO TRANSFORM NOW
                 </button>
@@ -436,7 +436,7 @@ export default function DesisquatsLanding() {
             You do not need to give up Indian food or wait for life to become less busy. You need a fitness strategy that finally matches the life you have built in America.
           </p>
           <Link
-            href="/enquiry"
+            href="/checkout"
             className="group inline-flex items-center gap-2 mt-10 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-base font-bold uppercase tracking-wider px-10 py-5 rounded-lg transition-all shadow-[0_4px_30px_rgba(255,102,17,0.4)] hover:shadow-[0_8px_50px_rgba(255,102,17,0.5)]"
           >
             I WANT TO TRANSFORM NOW
@@ -473,7 +473,7 @@ export default function DesisquatsLanding() {
             <p className="text-xs text-zinc-400 truncate">100-day transformation for NRI professionals</p>
           </div>
           <Link
-            href="/enquiry"
+            href="/checkout"
             className="group inline-flex flex-1 sm:flex-none items-center justify-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-sm font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.35)]"
           >
             I WANT TO TRANSFORM

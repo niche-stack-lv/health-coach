@@ -31,49 +31,37 @@ export async function getClients(coachId: string) {
   return data || [];
 }
 
-export async function addClient(coachId: string, email: string, name: string, goal: string) {
+/**
+ * Add a new client.
+ *
+ * Delegates to the server route `/api/coach/create-client` which does the
+ * auth-user creation with service role, inserts the profile + client rows,
+ * generates a Supabase "set your password" recovery link, and emails it via
+ * Resend. We never send a plaintext password.
+ *
+ * Return shape mirrors the old function so callers don't need to change,
+ * except `tempPassword` is gone — replaced with `emailSent` so the UI can
+ * confirm whether the client got the invite.
+ */
+export async function addClient(_coachId: string, email: string, name: string, goal: string) {
   const sb = getSupabase();
-  // Create auth user with a secure temp password
-  const tempPassword = crypto.randomUUID().slice(0, 12) + "A1!";
-  const { data: authData, error: authError } = await sb.auth.signUp({
-    email,
-    password: tempPassword,
+  const { data: { session } } = await sb.auth.getSession();
+  const token = session?.access_token;
+  if (!token) return { error: "Not signed in as a coach" };
+
+  const res = await fetch("/api/coach/create-client", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ email, name, goal }),
   });
-  if (authError) return { error: authError.message };
-  if (!authData.user) return { error: "Failed to create user" };
-
-  const userId = authData.user.id;
-
-  // Create profile — clean up auth user on failure
-  const { error: profileError } = await sb.from("profiles").insert({
-    id: userId,
-    email,
-    name,
-    role: "client",
-  });
-  if (profileError) {
-    await sb.auth.admin.deleteUser(userId).catch(() => {
-      // admin.deleteUser requires service role key which we don't have client-side.
-      // Log for manual cleanup.
-      console.error(`[addClient] Orphaned auth user ${userId} — profile insert failed: ${profileError.message}`);
-    });
-    return { error: profileError.message };
-  }
-
-  // Create client record — clean up profile on failure
-  const { error: clientError } = await sb.from("clients").insert({
-    id: userId,
-    coach_id: coachId,
-    goal,
-    status: "active",
-  });
-  if (clientError) {
-    await sb.from("profiles").delete().eq("id", userId);
-    console.error(`[addClient] Cleaned up profile for ${userId} — client insert failed: ${clientError.message}`);
-    return { error: clientError.message };
-  }
-
-  return { error: null, clientId: userId, tempPassword };
+  const payload = (await res.json().catch(() => ({}))) as {
+    ok?: boolean; clientId?: string; emailSent?: boolean; error?: string;
+  };
+  if (!res.ok || !payload.ok) return { error: payload.error || `HTTP ${res.status}` };
+  return { error: null, clientId: payload.clientId, emailSent: !!payload.emailSent };
 }
 
 export async function updateClient(clientId: string, updates: {

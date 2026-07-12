@@ -38,7 +38,7 @@ export default function ClientsPage() {
   const [addForm, setAddForm] = useState({ name: "", email: "", goal: "" });
   const [addError, setAddError] = useState("");
   const [addLoading, setAddLoading] = useState(false);
-  const [addSuccess, setAddSuccess] = useState<{ password: string } | null>(null);
+  const [addSuccess, setAddSuccess] = useState<{ emailSent: boolean } | null>(null);
 
   // Action menu & confirmation modals
   const [showMenu, setShowMenu] = useState<string | null>(null);
@@ -97,7 +97,7 @@ export default function ClientsPage() {
     const result = await addClient(user.id, addForm.email, addForm.name, addForm.goal);
     setAddLoading(false);
     if (result.error) { setAddError(result.error); return; }
-    setAddSuccess({ password: result.tempPassword! });
+    setAddSuccess({ emailSent: !!result.emailSent });
     loadClients();
   }
 
@@ -371,12 +371,14 @@ export default function ClientsPage() {
               <button onClick={() => setShowAdd(false)} className="p-2 rounded-xl hover:bg-white/[0.06]"><X className="h-5 w-5 text-zinc-400" /></button>
             </div>
             {addSuccess ? (
-              <div className="text-center py-4">
+              <div className="text-center py-6">
                 <p className="text-gold font-semibold mb-2">Client created!</p>
-                <p className="text-sm text-zinc-400 mb-1">Share these login credentials:</p>
-                <p className="text-sm text-white">Email: {addForm.email}</p>
-                <p className="text-sm text-white">Temp password: <span className="text-gold font-mono">{addSuccess.password}</span></p>
-                <p className="text-xs text-zinc-500 mt-3">Ask them to change their password after first login.</p>
+                {addSuccess.emailSent ? (
+                  <p className="text-sm text-emerald-400">Welcome email sent to {addForm.email}</p>
+                ) : (
+                  <p className="text-sm text-amber-400">Account created, but the welcome email didn&apos;t send. Ask them to use &ldquo;Forgot password&rdquo; on the login page.</p>
+                )}
+                <p className="text-xs text-zinc-500 mt-3">They&apos;ll tap the link in the email to pick a password and log in.</p>
                 <Button variant="gold" className="mt-4 w-full" onClick={() => setShowAdd(false)}>Done</Button>
               </div>
             ) : (

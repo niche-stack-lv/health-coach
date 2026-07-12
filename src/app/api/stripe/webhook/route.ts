@@ -30,6 +30,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { sendClientWelcomeEmail } from "@/lib/email";
 
 // The Next.js App Router expects raw text/arrayBuffer for signature verification.
 export const runtime = "nodejs";
@@ -111,15 +112,18 @@ async function provisionClient(stripe: Stripe, session: Stripe.Checkout.Session)
 
   const sb = admin();
 
-  // 1. Ensure an auth user exists.
+  // 1. Ensure an auth user exists. We never surface a password — the buyer
+  // sets their own via the recovery link emailed in step 4.
   let userId: string;
+  let isNewUser = false;
   const existing = await findAuthUserByEmail(sb, email);
   if (existing) {
     userId = existing.id;
   } else {
+    isNewUser = true;
     const { data, error } = await sb.auth.admin.createUser({
       email,
-      password: randomPassword(),
+      password: randomPassword(), // throwaway; will be replaced on first login
       email_confirm: true,
       user_metadata: { name, source: "stripe_checkout", plan },
     });
@@ -151,17 +155,28 @@ async function provisionClient(stripe: Stripe, session: Stripe.Checkout.Session)
     );
   if (clientError) throw new Error(`clients upsert: ${clientError.message}`);
 
-  // 4. Send a password-reset email so the buyer can log in.
+  // 4. Email a "set your password" invite. Same template for new and
+  //    returning users — the link takes them to the recovery flow so nobody
+  //    ever sees a plaintext password.
   const site = process.env.NEXT_PUBLIC_SITE_URL || "";
-  const redirectTo = site ? `${site}${REDIRECT_TO}` : undefined;
-  const { error: linkErr } = await sb.auth.admin.generateLink({
+  const redirectTo = site ? `${site.replace(/\/$/, "")}${REDIRECT_TO}` : undefined;
+  const { data: linkData, error: linkErr } = await sb.auth.admin.generateLink({
     type: "recovery",
     email,
     options: redirectTo ? { redirectTo } : undefined,
   });
-  if (linkErr) console.warn(`recovery link: ${linkErr.message}`);
+  if (linkErr || !linkData.properties?.action_link) {
+    console.warn("[stripe] generateLink failed", linkErr);
+  } else {
+    const emailResult = await sendClientWelcomeEmail({
+      to: email,
+      name,
+      setPasswordUrl: linkData.properties.action_link,
+    });
+    if ("error" in emailResult) console.warn("welcome email:", emailResult.error);
+  }
 
-  return { ok: true, userId, plan };
+  return { ok: true, userId, plan, isNewUser };
 }
 
 export async function POST(request: Request) {

@@ -92,8 +92,8 @@ export async function POST(request: Request) {
     status: "active",
   });
   if (clientErr) {
-    await sb.from("profiles").delete().eq("id", userId).catch(() => {});
-    await sb.auth.admin.deleteUser(userId).catch(() => {});
+    try { await sb.from("profiles").delete().eq("id", userId); } catch {}
+    try { await sb.auth.admin.deleteUser(userId); } catch {}
     return NextResponse.json({ error: clientErr.message }, { status: 400 });
   }
 

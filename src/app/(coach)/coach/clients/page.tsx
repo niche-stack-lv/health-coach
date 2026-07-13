@@ -116,14 +116,37 @@ export default function ClientsPage() {
   async function handleDelete() {
     if (!confirmAction || confirmAction.type !== "delete") return;
     setActionLoading(true);
-    // Delete client record (this will cascade delete related data based on DB constraints)
+    // Deleting via server API (service-role) so the auth user + profile +
+    // client + all their data cascade away in one shot. A client-side
+    // delete on `clients` would silently no-op due to RLS.
     const { getSupabase } = await import("@/lib/supabase");
-    const { error } = await getSupabase().from("clients").delete().eq("id", confirmAction.clientId);
+    const { data: { session } } = await getSupabase().auth.getSession();
+    const token = session?.access_token;
+    let ok = false;
+    let errorMsg = "";
+    try {
+      const res = await fetch("/api/coach/delete-client", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ clientId: confirmAction.clientId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) ok = true;
+      else errorMsg = json.error || `delete failed (${res.status})`;
+    } catch (e) {
+      errorMsg = (e as Error).message;
+    }
     setActionLoading(false);
-    if (!error) {
+    if (ok) {
       await loadClients();
       setConfirmAction(null);
       setShowMenu(null);
+    } else {
+      console.error("[delete-client]", errorMsg);
+      alert(`Failed to delete client: ${errorMsg}`);
     }
   }
 

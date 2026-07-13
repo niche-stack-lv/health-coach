@@ -25,6 +25,76 @@ const TESTIMONIALS = [
   { name: "Subhaajit", location: "",        result: "Traveled and still stayed on track",  video: "https://desisquats.com/wp-content/uploads/2025/09/Subhaajit-Ds-Testimonial.mp4", poster: `${THUMB_BASE}/Subhaajit.webp` },
 ];
 
+// A single testimonial card. Shows an image thumbnail with a play button;
+// on click, mounts the actual <video> and starts playback. This avoids the
+// `poster` attribute quirks in Safari (which sometimes ignores WebP posters
+// on <video> even though it renders them fine on <img>) and keeps initial
+// page weight tiny since videos only load when someone actually taps play.
+function TestimonialCard({ t }: { t: typeof TESTIMONIALS[number] }) {
+  const [playing, setPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  return (
+    <div
+      data-slide
+      className="snap-start shrink-0 w-[78%] sm:w-[46%] lg:w-[30%] bg-[#111] border border-white/[0.06] rounded-2xl overflow-hidden flex flex-col"
+    >
+      <div className="relative w-full aspect-[9/16] bg-black">
+        {playing ? (
+          <video
+            ref={videoRef}
+            src={t.video}
+            controls
+            autoPlay
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+          >
+            Your browser does not support HTML5 video.
+          </video>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            className="group absolute inset-0 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#f61]/60"
+            aria-label={`Play testimonial from ${t.name}`}
+          >
+            {t.poster ? (
+              // Using <img> instead of <video poster>: Safari renders WebP
+              // reliably here and it loads at proper priority.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={t.poster}
+                alt={`${t.name} testimonial thumbnail`}
+                loading="lazy"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a]" />
+            )}
+            {/* Play button overlay */}
+            <span className="relative flex h-16 w-16 items-center justify-center">
+              <span className="absolute inset-0 rounded-full bg-black/40 group-hover:bg-black/20 backdrop-blur-sm transition-colors" aria-hidden />
+              <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/95 shadow-lg group-hover:scale-110 transition-transform">
+                <Play className="h-7 w-7 text-[#0a0a0a] translate-x-[2px] fill-[#0a0a0a]" aria-hidden />
+              </span>
+            </span>
+          </button>
+        )}
+      </div>
+      <div className="p-4">
+        <div className="flex items-center gap-1 mb-1.5">
+          {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-[#f61] text-[#f61]" />)}
+        </div>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-bold text-white">{t.name}</h3>
+          {t.location && <span className="text-[10px] uppercase tracking-wider text-zinc-500">· {t.location}</span>}
+        </div>
+        <p className="text-[#f61] text-xs font-semibold mt-0.5">{t.result}</p>
+      </div>
+    </div>
+  );
+}
+
 function TestimonialsCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -45,32 +115,7 @@ function TestimonialsCarousel() {
         className="flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-3 -mx-5 sm:-mx-8 px-5 sm:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {TESTIMONIALS.map((t) => (
-          <div
-            key={t.name}
-            data-slide
-            className="snap-start shrink-0 w-[78%] sm:w-[46%] lg:w-[30%] bg-[#111] border border-white/[0.06] rounded-2xl overflow-hidden flex flex-col"
-          >
-            <video
-              src={t.video}
-              poster={t.poster || undefined}
-              controls
-              preload="metadata"
-              playsInline
-              className="w-full aspect-[9/16] bg-black object-cover"
-            >
-              Your browser does not support HTML5 video.
-            </video>
-            <div className="p-4">
-              <div className="flex items-center gap-1 mb-1.5">
-                {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-[#f61] text-[#f61]" />)}
-              </div>
-              <div className="flex items-baseline gap-2">
-                <h3 className="text-sm font-bold text-white">{t.name}</h3>
-                {t.location && <span className="text-[10px] uppercase tracking-wider text-zinc-500">· {t.location}</span>}
-              </div>
-              <p className="text-[#f61] text-xs font-semibold mt-0.5">{t.result}</p>
-            </div>
-          </div>
+          <TestimonialCard key={t.name} t={t} />
         ))}
       </div>
 

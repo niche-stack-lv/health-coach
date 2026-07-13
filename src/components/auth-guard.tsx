@@ -42,49 +42,73 @@ function ClientGuardInner({ children }: { children: React.ReactNode }) {
   const [gateChecked, setGateChecked] = useState(false);
   const [allowed, setAllowed] = useState(true);
 
+  const onGatePage =
+    pathname.includes("/client/change-password") ||
+    pathname.includes("/client/onboarding");
+
   useEffect(() => {
+    // Cancellation flag: if pathname changes mid-async (because we called
+    // router.replace inside the async), we must NOT let the stale async
+    // clobber state that a subsequent effect run already reset. Without this,
+    // the target gate page (e.g. /client/onboarding) renders a black screen
+    // because `allowed` gets flipped back to false by the stale async.
+    let cancelled = false;
+
     if (isDemo || loading) return;
     if (!user || role !== "client") { router.replace("/login"); return; }
 
-    // Skip gate checks if already on the gate pages
-    if (pathname.includes("/client/change-password") || pathname.includes("/client/onboarding")) {
+    // Gate pages skip the check entirely and are always rendered. Reset
+    // `allowed` so a stale false from a prior run doesn't blank the page.
+    if (onGatePage) {
+      setAllowed(true);
       setGateChecked(true);
-      return;
+      return () => { cancelled = true; };
     }
 
-    // Check password_changed and onboarding_completed
     (async () => {
       try {
         const { getSupabase } = await import("@/lib/supabase");
         const sb = getSupabase();
-        const { data } = await sb.from("clients").select("password_changed, onboarding_completed").eq("id", user.id).single();
-        
+        const { data } = await sb
+          .from("clients")
+          .select("password_changed, onboarding_completed")
+          .eq("id", user.id)
+          .single();
+        if (cancelled) return;
+
         if (data && !data.password_changed) {
-          setAllowed(false);
           router.replace("/client/change-password");
-        } else if (data && !data.onboarding_completed) {
+          return; // let the next effect run reset state on the gate page
+        }
+        if (data && !data.onboarding_completed) {
           const { getOnboarding } = await import("@/lib/db");
           const onb = await getOnboarding(user.id);
+          if (cancelled) return;
           if (!onb) {
-            setAllowed(false);
             router.replace("/client/onboarding");
-          } else {
-            await sb.from("clients").update({ onboarding_completed: true }).eq("id", user.id);
-            setAllowed(true);
+            return;
           }
-        } else {
-          setAllowed(true);
+          await sb.from("clients").update({ onboarding_completed: true }).eq("id", user.id);
         }
-      } catch {
+        if (cancelled) return;
         setAllowed(true);
+        setGateChecked(true);
+      } catch {
+        if (cancelled) return;
+        setAllowed(true);
+        setGateChecked(true);
       }
-      setGateChecked(true);
     })();
-  }, [user, role, loading, router, isDemo, pathname]);
+
+    return () => { cancelled = true; };
+  }, [user, role, loading, router, isDemo, pathname, onGatePage]);
 
   if (isDemo) return <>{children}</>;
   if (loading) return <Spinner />;
   if (!user || role !== "client") return null;
+  // Gate pages always render immediately once we know the user is a client;
+  // no data fetch needed.
+  if (onGatePage) return <>{children}</>;
   if (!gateChecked) return <Spinner />;
   if (!allowed) return null;
   return <>{children}</>;

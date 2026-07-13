@@ -68,8 +68,7 @@ export default function LoginPage() {
           </form>
         </Card>
 
-        <div className="flex justify-between items-center text-sm mt-6">
-          <p className="text-zinc-500">Don&apos;t have an account? <Link href="/signup" className="text-gold font-medium hover:text-gold-light">Sign up</Link></p>
+        <div className="flex justify-end text-sm mt-6">
           <Link href="/forgot-password" className="text-zinc-500 hover:text-gold">Forgot password?</Link>
         </div>
         <div className="text-center mt-3">

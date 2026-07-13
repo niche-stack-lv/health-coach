@@ -11,7 +11,6 @@ interface AuthState {
   session: Session | null;
   role: UserRole;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role: "coach" | "client") => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null; role: UserRole }>;
   signOut: () => Promise<void>;
 }
@@ -89,23 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchRole(userId);
   }
 
-  const signUp = async (email: string, password: string, name: string, role: "coach" | "client") => {
-    const { data, error } = await sb().auth.signUp({ email, password });
-    if (error) return { error: error.message };
-    if (data.user) {
-      await sb().from("profiles").insert({ id: data.user.id, email, name, role });
-      // If signing up as client, also create clients record with password_changed=true
-      if (role === "client") {
-        await sb().from("clients").insert({
-          id: data.user.id,
-          password_changed: true, // They set their own password
-          onboarding_completed: false,
-        });
-      }
-    }
-    return { error: null };
-  };
-
   const signIn = async (email: string, password: string) => {
     const { data, error } = await sb().auth.signInWithPassword({ email, password });
     if (error) return { error: error.message, role: null as UserRole };
@@ -127,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, X, UserPlus, Users, MoreVertical, UserX, Trash2 } from "lucide-react";
+import { Plus, Search, X, UserPlus, Users, MoreVertical, UserX, Trash2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
@@ -44,6 +44,38 @@ export default function ClientsPage() {
   const [showMenu, setShowMenu] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: "inactive" | "delete"; clientId: string; clientName: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [resetLoadingId, setResetLoadingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  async function handleSendResetLink(clientId: string, clientName: string, clientEmail: string) {
+    setResetLoadingId(clientId);
+    setToast(null);
+    const { getSupabase } = await import("@/lib/supabase");
+    const { data: { session } } = await getSupabase().auth.getSession();
+    const token = session?.access_token;
+    try {
+      const res = await fetch("/api/coach/send-reset-link", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ clientId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        setToast({ kind: "ok", text: `Reset link sent to ${clientEmail || clientName}` });
+      } else {
+        setToast({ kind: "err", text: json.error || `Failed (${res.status})` });
+      }
+    } catch (e) {
+      setToast({ kind: "err", text: (e as Error).message });
+    } finally {
+      setResetLoadingId(null);
+      setShowMenu(null);
+      setTimeout(() => setToast(null), 4000);
+    }
+  }
 
   useEffect(() => { if (user) loadClients(); }, [user]);
   useEffect(() => { if (user && tab === "find") loadPaidLeads(); }, [user, tab]);
@@ -160,6 +192,18 @@ export default function ClientsPage() {
 
   return (
     <div>
+      {toast && (
+        <div
+          className={cn(
+            "fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg border",
+            toast.kind === "ok"
+              ? "bg-green-500/15 border-green-500/30 text-green-300"
+              : "bg-red-500/15 border-red-500/30 text-red-300"
+          )}
+        >
+          {toast.text}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-white">Clients</h1>
@@ -278,6 +322,20 @@ export default function ClientsPage() {
                             Mark as Inactive
                           </button>
                         )}
+                        <button
+                          disabled={resetLoadingId === client.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleSendResetLink(client.id, client.profile?.name || "this client", client.profile?.email || "");
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-300 hover:bg-white/[0.06] transition-colors disabled:opacity-60",
+                            client.status !== "active" && "rounded-t-xl"
+                          )}
+                        >
+                          <Mail className="h-4 w-4" />
+                          {resetLoadingId === client.id ? "Sending…" : "Send reset link"}
+                        </button>
                         <button
                           onClick={(e) => {
                             e.preventDefault();

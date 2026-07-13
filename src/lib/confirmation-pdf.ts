@@ -230,7 +230,7 @@ export async function generateConfirmationPDF(order: OrderDetails) {
     : [
         { n: "1", t: "Payment Verified", d: `Coach ${config.coach.firstName} will verify your payment within 24 hours.` },
         { n: "2", t: "WhatsApp Confirmation", d: "You will receive a message confirming your account activation." },
-        { n: "3", t: "Sign Up on Portal", d: `Visit ${config.contact.websiteUrl}/signup and create your account using the email you provided.` },
+        { n: "3", t: "Account Created for You", d: `Once your payment is verified, we'll create your account and email you a "Set your password" link at the email you provided.` },
         { n: "4", t: "Plan Built For You", d: "Your personalized plan will be ready within 48-72 hours." },
         { n: "5", t: "Access Your Portal", d: `Log in at ${config.contact.websiteUrl} to view your complete plan.` },
       ];

@@ -1,24 +1,28 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, MessageCircle, Play, Star } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, MessageCircle, Play, Star, X } from "lucide-react";
+
+const VSL_YOUTUBE_ID = "W8JpjRWMR1w";
 
 // ─── Testimonials carousel ──────────────────────────────────────────────
 // Native horizontal scroll with snap points — no library, works with touch
 // swipe, mouse-wheel, arrow keys, and the arrow buttons below.
+// Poster images (thumbnails) are shown before the video loads. Safari
+// often shows a black frame with `preload="metadata"`, so an explicit
+// poster keeps the card looking right there too.
+const THUMB_BASE = "/clients/desisquats/testimonial-thumbs";
 const TESTIMONIALS = [
-  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",           video: "https://desisquats.com/wp-content/uploads/2025/09/Kalyan-Ds-Testimonial.mp4" },
-  { name: "Alekhya",   location: "",        result: "Transformed while working full-time", video: "https://desisquats.com/wp-content/uploads/2025/09/Alekhya-Ds-Testimonial.mp4" },
-  { name: "Hari",      location: "Atlanta", result: "Lost 24 lbs in 4 months",             video: "https://desisquats.com/wp-content/uploads/2025/09/Hari-Ds-Testimonial.mp4" },
-  { name: "Abhirup",   location: "",        result: "Sustainable transformation",          video: "https://desisquats.com/wp-content/uploads/2025/09/Abhirup-Ds-Testimonial.mp4" },
-  { name: "Madhvi",    location: "",        result: "Rebuilt her health in real life",     video: "https://desisquats.com/wp-content/uploads/2025/09/Madhvi-Ds-Testimonial.mp4" },
-  { name: "Indu",      location: "",        result: "Never felt this strong before",       video: "https://desisquats.com/wp-content/uploads/2025/09/Indu-Ds-Testimonial.mp4" },
-  { name: "Neeti",     location: "",        result: "No more guilt about rice",            video: "https://desisquats.com/wp-content/uploads/2025/09/Neeti-Ds-Testimonial.mp4" },
-  { name: "Anil",      location: "",        result: "Consistency finally clicked",         video: "https://desisquats.com/wp-content/uploads/2025/09/Anil-Ds-Testimonial.mp4" },
-  { name: "Santosh",   location: "",        result: "Fitness that fits corporate life",    video: "https://desisquats.com/wp-content/uploads/2025/09/Santosh-Ds-Testimonial.mp4" },
-  { name: "Subhaajit", location: "",        result: "Traveled and still stayed on track",  video: "https://desisquats.com/wp-content/uploads/2025/09/Subhaajit-Ds-Testimonial.mp4" },
+  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",           video: "https://desisquats.com/wp-content/uploads/2025/09/Kalyan-Ds-Testimonial.mp4",    poster: `${THUMB_BASE}/Kalyan.webp` },
+  { name: "Alekhya",   location: "",        result: "Transformed while working full-time", video: "https://desisquats.com/wp-content/uploads/2025/09/Alekhya-Ds-Testimonial.mp4",   poster: `${THUMB_BASE}/Alekhya.webp` },
+  { name: "Hari",      location: "Atlanta", result: "Lost 24 lbs in 4 months",             video: "https://desisquats.com/wp-content/uploads/2025/09/Hari-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Hari.webp` },
+  { name: "Indu",      location: "",        result: "Never felt this strong before",       video: "https://desisquats.com/wp-content/uploads/2025/09/Indu-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Indu.webp` },
+  { name: "Neeti",     location: "",        result: "No more guilt about rice",            video: "https://desisquats.com/wp-content/uploads/2025/09/Neeti-Ds-Testimonial.mp4",     poster: `${THUMB_BASE}/Neeti.webp` },
+  { name: "Anil",      location: "",        result: "Consistency finally clicked",         video: "https://desisquats.com/wp-content/uploads/2025/09/Anil-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Anil.webp` },
+  { name: "Santosh",   location: "",        result: "Fitness that fits corporate life",    video: "https://desisquats.com/wp-content/uploads/2025/09/Santosh-Ds-Testimonial.mp4",   poster: `${THUMB_BASE}/Santosh.webp` },
+  { name: "Subhaajit", location: "",        result: "Traveled and still stayed on track",  video: "https://desisquats.com/wp-content/uploads/2025/09/Subhaajit-Ds-Testimonial.mp4", poster: `${THUMB_BASE}/Subhaajit.webp` },
 ];
 
 function TestimonialsCarousel() {
@@ -48,6 +52,7 @@ function TestimonialsCarousel() {
           >
             <video
               src={t.video}
+              poster={t.poster || undefined}
               controls
               preload="metadata"
               playsInline
@@ -91,6 +96,21 @@ function TestimonialsCarousel() {
 }
 
 export default function DesisquatsLanding() {
+  const [videoOpen, setVideoOpen] = useState(false);
+
+  // Close the VSL modal on Escape and lock body scroll while it's open.
+  useEffect(() => {
+    if (!videoOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setVideoOpen(false); };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [videoOpen]);
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* ═══════════════════════════════════════════════════════════════
@@ -160,14 +180,34 @@ export default function DesisquatsLanding() {
           </div>
 
           <div className="hidden lg:block relative">
-            <div className="relative rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50">
+            <button
+              type="button"
+              onClick={() => setVideoOpen(true)}
+              className="group relative block w-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50 focus:outline-none focus:ring-2 focus:ring-[#f61]/60"
+              aria-label="Play video: A message from Coach Praneeth"
+            >
               <img
                 src="/clients/desisquats/coach.webp"
                 alt="Coach Praneeth"
-                className="w-full aspect-[3/4] object-cover"
+                className="w-full aspect-[3/4] object-cover transition-transform duration-500 group-hover:scale-[1.02]"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/60 via-transparent to-transparent" />
-            </div>
+              {/* Dark overlay for contrast against the play button */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/70 via-black/25 to-black/25 group-hover:from-[#0a0a0a]/60 transition-colors" />
+              {/* Play button */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center">
+                  <span className="absolute inset-0 rounded-full bg-[#f61]/50 blur-xl animate-pulse" aria-hidden />
+                  <span className="relative flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#f61] to-[#e55a00] shadow-[0_10px_40px_rgba(255,102,17,0.55)] transition-transform group-hover:scale-110">
+                    <Play className="h-9 w-9 sm:h-10 sm:w-10 text-white translate-x-[2px] fill-white" aria-hidden />
+                  </span>
+                </span>
+              </div>
+              {/* Caption on the image */}
+              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-white/90 uppercase tracking-[0.2em]">Watch Praneeth&apos;s Message</span>
+                <span className="text-[10px] font-semibold text-white/70">2 min</span>
+              </div>
+            </button>
             <div className="absolute -bottom-4 -left-4 bg-[#f61] text-white px-5 py-3 rounded-xl shadow-lg">
               <p className="text-xs font-bold uppercase tracking-wider">Coach Praneeth</p>
               <p className="text-[10px] text-white/70 mt-0.5">Founder • ACE Certified</p>
@@ -492,6 +532,40 @@ export default function DesisquatsLanding() {
       >
         <MessageCircle className="h-5 w-5 text-white" />
       </a>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          VSL MODAL — plays the coach's video sales letter
+          ═══════════════════════════════════════════════════════════════ */}
+      {videoOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center px-4 sm:px-8 py-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Coach Praneeth video"
+          onClick={() => setVideoOpen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setVideoOpen(false)}
+            className="absolute top-4 right-4 sm:top-6 sm:right-6 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-colors"
+            aria-label="Close video"
+          >
+            <X className="h-5 w-5 text-white" />
+          </button>
+          <div
+            className="relative w-full max-w-5xl aspect-video rounded-xl overflow-hidden bg-black shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <iframe
+              src={`https://www.youtube.com/embed/${VSL_YOUTUBE_ID}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+              title="Coach Praneeth — A Message"
+              className="absolute inset-0 h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

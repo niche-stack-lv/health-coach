@@ -76,11 +76,21 @@ export default function ResetPasswordPage() {
     setLoading(true);
     const sb = getSupabase();
     const { error } = await sb.auth.updateUser({ password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error.message);
       return;
     }
+    // Clients have a legacy `password_changed` gate that would otherwise
+    // send them back to /client/change-password on their next hop. Flip
+    // it here so we go straight into onboarding / dashboard.
+    if (role === "client") {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        await sb.from("clients").update({ password_changed: true }).eq("id", user.id);
+      }
+    }
+    setLoading(false);
     setPhase("success");
     // Brief pause on success screen, then send them to their dashboard.
     setTimeout(() => {

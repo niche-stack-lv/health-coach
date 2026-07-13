@@ -13,9 +13,21 @@ const VSL_YOUTUBE_ID = "W8JpjRWMR1w";
 // Poster images (thumbnails) are shown before the video loads. Safari
 // often shows a black frame with `preload="metadata"`, so an explicit
 // poster keeps the card looking right there too.
+//
+// A testimonial can be either:
+//   • `youtubeId`  — plays inline via YouTube iframe (best UX / no CORS)
+//   • `video`      — direct MP4 URL (legacy; requires the file to be hosted)
+type Testimonial = {
+  name: string;
+  location: string;
+  result: string;
+  poster: string;
+  youtubeId?: string;
+  video?: string;
+};
 const THUMB_BASE = "/clients/desisquats/testimonial-thumbs";
-const TESTIMONIALS = [
-  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",           video: "https://desisquats.com/wp-content/uploads/2025/09/Kalyan-Ds-Testimonial.mp4",    poster: `${THUMB_BASE}/Kalyan.webp` },
+const TESTIMONIALS: Testimonial[] = [
+  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",           youtubeId: "neP9qOkichA",                                                              poster: `${THUMB_BASE}/Kalyan.webp` },
   { name: "Alekhya",   location: "",        result: "Transformed while working full-time", video: "https://desisquats.com/wp-content/uploads/2025/09/Alekhya-Ds-Testimonial.mp4",   poster: `${THUMB_BASE}/Alekhya.webp` },
   { name: "Hari",      location: "Atlanta", result: "Lost 24 lbs in 4 months",             video: "https://desisquats.com/wp-content/uploads/2025/09/Hari-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Hari.webp` },
   { name: "Indu",      location: "",        result: "Never felt this strong before",       video: "https://desisquats.com/wp-content/uploads/2025/09/Indu-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Indu.webp` },
@@ -30,9 +42,8 @@ const TESTIMONIALS = [
 // `poster` attribute quirks in Safari (which sometimes ignores WebP posters
 // on <video> even though it renders them fine on <img>) and keeps initial
 // page weight tiny since videos only load when someone actually taps play.
-function TestimonialCard({ t }: { t: typeof TESTIMONIALS[number] }) {
+function TestimonialCard({ t }: { t: Testimonial }) {
   const [playing, setPlaying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   return (
     <div
@@ -40,9 +51,16 @@ function TestimonialCard({ t }: { t: typeof TESTIMONIALS[number] }) {
       className="snap-start shrink-0 w-[78%] sm:w-[46%] lg:w-[30%] bg-[#111] border border-white/[0.06] rounded-2xl overflow-hidden flex flex-col"
     >
       <div className="relative w-full aspect-[9/16] bg-black">
-        {playing ? (
+        {playing && t.youtubeId ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${t.youtubeId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+            title={`${t.name} testimonial`}
+            className="absolute inset-0 h-full w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        ) : playing && t.video ? (
           <video
-            ref={videoRef}
             src={t.video}
             controls
             autoPlay

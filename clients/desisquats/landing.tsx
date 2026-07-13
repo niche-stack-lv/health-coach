@@ -27,14 +27,16 @@ type Testimonial = {
 };
 const THUMB_BASE = "/clients/desisquats/testimonial-thumbs";
 const TESTIMONIALS: Testimonial[] = [
-  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",           youtubeId: "neP9qOkichA",                                                              poster: `${THUMB_BASE}/Kalyan.webp` },
-  { name: "Alekhya",   location: "",        result: "Transformed while working full-time", video: "https://desisquats.com/wp-content/uploads/2025/09/Alekhya-Ds-Testimonial.mp4",   poster: `${THUMB_BASE}/Alekhya.webp` },
-  { name: "Hari",      location: "Atlanta", result: "Lost 24 lbs in 4 months",             video: "https://desisquats.com/wp-content/uploads/2025/09/Hari-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Hari.webp` },
-  { name: "Indu",      location: "",        result: "Never felt this strong before",       video: "https://desisquats.com/wp-content/uploads/2025/09/Indu-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Indu.webp` },
-  { name: "Neeti",     location: "",        result: "No more guilt about rice",            video: "https://desisquats.com/wp-content/uploads/2025/09/Neeti-Ds-Testimonial.mp4",     poster: `${THUMB_BASE}/Neeti.webp` },
-  { name: "Anil",      location: "",        result: "Consistency finally clicked",         video: "https://desisquats.com/wp-content/uploads/2025/09/Anil-Ds-Testimonial.mp4",      poster: `${THUMB_BASE}/Anil.webp` },
-  { name: "Santosh",   location: "",        result: "Fitness that fits corporate life",    video: "https://desisquats.com/wp-content/uploads/2025/09/Santosh-Ds-Testimonial.mp4",   poster: `${THUMB_BASE}/Santosh.webp` },
-  { name: "Subhaajit", location: "",        result: "Traveled and still stayed on track",  video: "https://desisquats.com/wp-content/uploads/2025/09/Subhaajit-Ds-Testimonial.mp4", poster: `${THUMB_BASE}/Subhaajit.webp` },
+  { name: "Hari",      location: "Atlanta", result: "Lost 24 lbs in 4 months",             youtubeId: "neP9qOkichA", poster: `${THUMB_BASE}/Hari.webp` },
+  { name: "Neeti",     location: "",        result: "No more guilt about rice",            youtubeId: "DhSXwOKJkbk", poster: `${THUMB_BASE}/Neeti.webp` },
+  { name: "Santosh",   location: "",        result: "Fitness that fits corporate life",    youtubeId: "0mD8OPJm9zk", poster: `${THUMB_BASE}/Santosh.webp` },
+  { name: "Anil",      location: "",        result: "Consistency finally clicked",         youtubeId: "Y8XDVm4M9E0", poster: `${THUMB_BASE}/Anil.webp` },
+  { name: "Indu",      location: "",        result: "Never felt this strong before",       youtubeId: "ou42y6melBE", poster: `${THUMB_BASE}/Indu.webp` },
+  { name: "Kalyan",    location: "Dallas",  result: "Lost 50+ lbs in 7 months",            youtubeId: "6q5ACfiCoAc", poster: `${THUMB_BASE}/Kalyan.webp` },
+  { name: "Abhirup",   location: "",        result: "Sustainable transformation",          youtubeId: "0pF6odcRhs4", poster: "" },
+  { name: "Subhaajit", location: "",        result: "Traveled and still stayed on track",  youtubeId: "JPUnDTBrJ8Y", poster: `${THUMB_BASE}/Subhaajit.webp` },
+  { name: "Alekhya",   location: "",        result: "Transformed while working full-time", youtubeId: "_Sh28RBEBd8", poster: `${THUMB_BASE}/Alekhya.webp` },
+  { name: "Madhvi",    location: "",        result: "Rebuilt her health in real life",     youtubeId: "GEmddpw5Efc", poster: "" },
 ];
 
 // A single testimonial card. Shows an image thumbnail with a play button;

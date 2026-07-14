@@ -226,7 +226,37 @@ export default function DesisquatsLanding() {
               Become healthier, stronger, and more confident — without giving up Indian food, family dinners, travel, or the life you have built here.
             </p>
 
-            <div className="mt-10 flex flex-wrap gap-4">
+            {/* MOBILE-ONLY: compact VSL play card. Desktop uses the large photo
+                on the right side of the hero grid instead. */}
+            <div className="mt-8 lg:hidden">
+              <button
+                type="button"
+                onClick={() => setVideoOpen(true)}
+                className="group relative block w-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50 focus:outline-none focus:ring-2 focus:ring-[#f61]/60"
+                aria-label="Play video: A message from Coach Praneeth"
+              >
+                <img
+                  src="/clients/desisquats/coach.webp"
+                  alt="Coach Praneeth"
+                  className="w-full aspect-[4/3] object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/80 via-black/25 to-black/25 group-hover:from-[#0a0a0a]/70 transition-colors" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="relative flex h-16 w-16 items-center justify-center">
+                    <span className="absolute inset-0 rounded-full bg-[#f61]/50 blur-lg animate-pulse" aria-hidden />
+                    <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#f61] to-[#e55a00] shadow-[0_10px_30px_rgba(255,102,17,0.5)] group-hover:scale-110 transition-transform">
+                      <Play className="h-7 w-7 text-white translate-x-[2px] fill-white" aria-hidden />
+                    </span>
+                  </span>
+                </div>
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-white/90 uppercase tracking-[0.2em]">Watch Praneeth&apos;s Message</span>
+                  <span className="text-[10px] font-semibold text-white/70">2 min</span>
+                </div>
+              </button>
+            </div>
+
+            <div className="mt-8 lg:mt-10 flex flex-wrap gap-4">
               <Link
                 href="/checkout"
                 className="group inline-flex items-center gap-2 bg-gradient-to-r from-[#f61] to-[#e55a00] hover:from-[#ff7722] hover:to-[#f61] text-white text-sm font-bold uppercase tracking-wider px-8 py-4 rounded-lg transition-all shadow-[0_4px_20px_rgba(255,102,17,0.3)] hover:shadow-[0_8px_40px_rgba(255,102,17,0.4)]"

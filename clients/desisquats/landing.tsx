@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Check, ChevronLeft, ChevronRight, MessageCircle, Play, Star, X } from "lucide-react";
 
-const VSL_YOUTUBE_ID = "W8JpjRWMR1w";
+const VSL_YOUTUBE_ID = "fgS7L-xcFb8";
 
 // ─── Testimonials carousel ──────────────────────────────────────────────
 // Native horizontal scroll with snap points — no library, works with touch

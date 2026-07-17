@@ -6,7 +6,7 @@ import { Suspense, useState } from "react";
 import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
 import { useAuth } from "@/lib/auth-context";
-import { Dumbbell, Home, Camera, Flame, Ruler, CalendarCheck, HelpCircle, MoreHorizontal, UtensilsCrossed, History } from "lucide-react";
+import { Dumbbell, Home, Camera, Flame, Ruler, CalendarCheck, HelpCircle, MoreHorizontal, UtensilsCrossed, History, Pizza } from "lucide-react";
 
 const mainNavItems = [
   { href: "/client", label: "Home", icon: Home },
@@ -20,6 +20,7 @@ const menuItems = [
   { href: "/client/measurements", label: "Body", icon: Ruler },
   { href: "/client/check-in", label: "Weekly", icon: Camera },
   { href: "/client/diet-plan", label: "Diet", icon: UtensilsCrossed },
+  { href: "/client/fast-food", label: "Fast Food", icon: Pizza },
 ];
 
 function NavbarInner() {

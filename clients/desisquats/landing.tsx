@@ -161,12 +161,16 @@ function TestimonialsCarousel() {
 }
 
 export default function DesisquatsLanding() {
-  const [videoOpen, setVideoOpen] = useState(false);
+  // Currently-playing video: `null` when the modal is closed, otherwise the
+  // YouTube ID to embed. Any button on the page can open the modal by
+  // calling `setActiveVideo("<id>")`.
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
+  const videoOpen = activeVideo !== null;
 
-  // Close the VSL modal on Escape and lock body scroll while it's open.
+  // Close the video modal on Escape and lock body scroll while it's open.
   useEffect(() => {
     if (!videoOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setVideoOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setActiveVideo(null); };
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -231,7 +235,7 @@ export default function DesisquatsLanding() {
             <div className="mt-8 lg:hidden">
               <button
                 type="button"
-                onClick={() => setVideoOpen(true)}
+                onClick={() => setActiveVideo(VSL_YOUTUBE_ID)}
                 className="group relative block w-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50 focus:outline-none focus:ring-2 focus:ring-[#f61]/60"
                 aria-label="Play video: A message from Coach Praneeth"
               >
@@ -277,7 +281,7 @@ export default function DesisquatsLanding() {
           <div className="hidden lg:block relative">
             <button
               type="button"
-              onClick={() => setVideoOpen(true)}
+              onClick={() => setActiveVideo(VSL_YOUTUBE_ID)}
               className="group relative block w-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-2xl shadow-black/50 focus:outline-none focus:ring-2 focus:ring-[#f61]/60"
               aria-label="Play video: A message from Coach Praneeth"
             >
@@ -472,6 +476,62 @@ export default function DesisquatsLanding() {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════
+          SECTION 6.5 — PRODUCT WALKTHROUGH VIDEOS
+          Two horizontal YouTube previews shown just before the pricing.
+          Uses the same modal player as the VSL for a consistent UX.
+          ═══════════════════════════════════════════════════════════════ */}
+      <section className="py-16 bg-[#080808]">
+        <div className="max-w-6xl mx-auto px-5 sm:px-8">
+          <div className="text-center mb-10">
+            <p className="text-[11px] font-bold text-[#f61] uppercase tracking-[0.2em] mb-3">SEE IT IN ACTION</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white uppercase tracking-tight">
+              A quick look inside DesiSquats
+            </h2>
+            <p className="mt-3 text-sm text-zinc-400 max-w-lg mx-auto">
+              Two short videos — one showing what you get, one walking through the coaching dashboard.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[
+              { title: "DesiSquats sneak peek",       id: "wSyCy6EttqU" },
+              { title: "How the dashboard works",     id: "aMTeCoTrogk" },
+            ].map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setActiveVideo(v.id)}
+                className="group relative block w-full rounded-2xl overflow-hidden border border-white/[0.08] shadow-xl shadow-black/40 focus:outline-none focus:ring-2 focus:ring-[#f61]/60"
+                aria-label={`Play ${v.title}`}
+              >
+                {/* YouTube's hqdefault thumbnail is served over HTTPS and
+                    exists for every video — no manual asset needed. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`}
+                  alt={v.title}
+                  loading="lazy"
+                  className="w-full aspect-video object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/85 via-black/25 to-black/25 group-hover:from-[#0a0a0a]/70 transition-colors" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="relative flex h-16 w-16 items-center justify-center">
+                    <span className="absolute inset-0 rounded-full bg-[#f61]/40 blur-lg group-hover:bg-[#f61]/60 transition-colors" aria-hidden />
+                    <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#f61] to-[#e55a00] shadow-[0_10px_30px_rgba(255,102,17,0.5)] group-hover:scale-110 transition-transform">
+                      <Play className="h-7 w-7 text-white translate-x-[2px] fill-white" aria-hidden />
+                    </span>
+                  </span>
+                </div>
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                  <span className="text-xs font-bold text-white uppercase tracking-wide">{v.title}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════════
           SECTION 7 — CHOOSE YOUR JOURNEY (PROGRAMS)
           ═══════════════════════════════════════════════════════════════ */}
       <section id="programs" className="py-24">
@@ -631,17 +691,17 @@ export default function DesisquatsLanding() {
       {/* ═══════════════════════════════════════════════════════════════
           VSL MODAL — plays the coach's video sales letter
           ═══════════════════════════════════════════════════════════════ */}
-      {videoOpen && (
+      {activeVideo && (
         <div
           className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center px-4 sm:px-8 py-8"
           role="dialog"
           aria-modal="true"
-          aria-label="Coach Praneeth video"
-          onClick={() => setVideoOpen(false)}
+          aria-label="Video player"
+          onClick={() => setActiveVideo(null)}
         >
           <button
             type="button"
-            onClick={() => setVideoOpen(false)}
+            onClick={() => setActiveVideo(null)}
             className="absolute top-4 right-4 sm:top-6 sm:right-6 h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition-colors"
             aria-label="Close video"
           >
@@ -652,8 +712,8 @@ export default function DesisquatsLanding() {
             onClick={(e) => e.stopPropagation()}
           >
             <iframe
-              src={`https://www.youtube.com/embed/${VSL_YOUTUBE_ID}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-              title="Coach Praneeth — A Message"
+              src={`https://www.youtube.com/embed/${activeVideo}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
+              title="Video"
               className="absolute inset-0 h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen

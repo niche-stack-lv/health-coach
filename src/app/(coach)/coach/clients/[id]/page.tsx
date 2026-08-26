@@ -794,6 +794,7 @@ function DailyCheckInCard({ checkIn }: { checkIn: any }) {
             <p className="text-sm text-white">{formatDate(checkIn.date)}</p>
             <p className="text-[11px] text-zinc-500">
               {checkIn.totalCalories} cal · {checkIn.weight ? <WeightDisplay kg={checkIn.weight} /> : "no weight"}
+              {checkIn.steps != null && <> · {checkIn.steps.toLocaleString()} steps</>}
             </p>
           </div>
         </div>
@@ -808,6 +809,8 @@ function DailyCheckInCard({ checkIn }: { checkIn: any }) {
             <div className="rounded-lg bg-white/[0.03] p-2"><p className="text-xs font-bold text-white">{checkIn.totalFat}g</p><p className="text-[9px] text-zinc-500">fat</p></div>
           </div>
           {checkIn.weight && <p className="text-xs text-zinc-400">Weight: <span className="text-white"><WeightDisplay kg={checkIn.weight} /></span></p>}
+          {checkIn.steps != null && <p className="text-xs text-zinc-400">Steps: <span className="text-white">👣 {checkIn.steps.toLocaleString()}</span></p>}
+          {checkIn.weightTraining && <p className="text-xs text-zinc-400">Weight training: <span className="text-white capitalize">{checkIn.weightTraining}</span></p>}
           {checkIn.notes && <p className="text-xs text-zinc-400">Notes: <span className="text-zinc-300">{checkIn.notes}</span></p>}
           {/* Food items */}
           {checkIn.items?.length > 0 && (

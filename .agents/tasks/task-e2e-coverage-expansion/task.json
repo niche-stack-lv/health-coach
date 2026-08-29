@@ -1,0 +1,14 @@
+{
+  "task_id": "task-e2e-coverage-expansion",
+  "task_description": "Expand E2E test coverage to 100% of TEST_FLOWS.md spec and add tests for all 16 untested pages. Fill gaps in existing F1-F24 tests and write new tests for coach and client portal pages that have zero coverage.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "pass",
+    "tests": "pass",
+    "test_quality": "pass",
+    "docker_build": "skipped",
+    "summary": "180 tests pass (3 skipped for real-Supabase dependency), npm run build succeeds. Tests cover all 16 previously untested pages and fill spec gaps in F1-F24. Review noted 5 quality improvement suggestions (CSS class selectors, broad text matchers) but no blocking issues."
+  }
+}

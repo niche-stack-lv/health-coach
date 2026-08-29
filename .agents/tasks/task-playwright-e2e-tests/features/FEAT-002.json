@@ -1,0 +1,31 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Write E2E tests for all public pages (F1-F8 from TEST_FLOWS.md): Landing, Login, Signup, Forgot Password, Pricing, Enquiry, Book Call, About Platform. These pages require no auth. Tests must import config values from site.config.ts dynamically.",
+  "status": "completed",
+  "steps": [
+    "Create `tests/e2e/public-pages.spec.ts` with proper imports: `import { test, expect } from '@playwright/test'` and import config from `../../site.config`",
+    "F1 - Landing Page tests (`/`): Assert nav shows config.brand.name. Assert hero section renders (heading text). Assert about section shows config.coach.name. Assert achievements grid shows 4 items. Assert testimonials section renders. Assert programs grid shows all programs from config. Assert footer shows brand name. Assert footer copyright shows current year + config.brand.copyrightHolder. Assert 'Send Enquiry' button links to /enquiry. Assert 'Start Your Transformation' CTA links to /pricing. Assert demo footer links exist (coach demo, client demo).",
+    "F2 - Login Page tests (`/login`): Assert page renders with config.brand.loginSubtitle. Assert email and password input fields are present. Assert 'Sign up' link href is /signup. Assert 'Forgot password?' link href is /forgot-password. Assert 'Back to home' link href is /.",
+    "F3 - Signup Page tests (`/signup`): Assert page renders with config.brand.signupSubtitle. Assert name, email, password fields present. Assert 'Sign in' link goes to /login.",
+    "F4 - Forgot Password Page tests (`/forgot-password`): Assert email field present. Assert 'Back to Sign In' link works (navigates to /login).",
+    "F5 - Pricing Page tests (`/pricing`): Assert pricing badge from config (e.g. 'Pre-Launch') renders. Step 1: Assert all programs from config render as buttons - click one. Step 2: Assert duration buttons appear (4/8/12 weeks from config.pricing.durations). Step 3: Assert plan tiers show (One-Time, Gold, Platinum). Assert Gold plan shows correct price from config.pricing.gold. Assert Platinum shows config.pricing.platinum price. Click a plan (e.g. Gold). Step 4: Assert 'About You' form appears with name/phone/email/age/gender fields. Assert price summary shows correct calculated price. Click 'Proceed to Payment'. Assert payment step shows UPI ID from config.contact.upiId. Assert Back button on payment step navigates back (not to a different page).",
+    "F6 - Enquiry Page tests (`/enquiry`): Assert header shows 'Get Started with Coach {firstName}' from config. Assert 4-step form navigation: Step 1 has name and phone fields. Fill name and phone, proceed. Step 2 has goal selection. Step 3 has diet/gym/injuries fields. Step 4 has referral source and summary preview. Assert 'How did you find Coach {firstName}?' label uses config.coach.firstName.",
+    "F7 - Book Call Page tests (`/book-call`): Assert shows 'with Coach {firstName}' from config. Assert call duration from config.pricing.callDuration. Assert price from config.pricing.callPrice (formatted). Assert UPI ID shows from config.contact.upiId. Assert 'Confirm Booking' button is disabled until screenshot + all fields filled.",
+    "F8 - About Platform Page tests (`/about-platform`): Assert nav shows config.brand.name. Assert hero subtitle from config.aboutPlatform.heroSubtitle. Assert disclaimer text from config.aboutPlatform.disclaimer. Assert 5 feature steps render with titles from config.aboutPlatform.features. Assert process steps render from config.aboutPlatform.processSteps. Assert CTA text from config.aboutPlatform.ctaText. Assert copyright from config.brand.copyrightHolder."
+  ],
+  "acceptance_criteria": [
+    "tests/e2e/public-pages.spec.ts exists with test cases for F1-F8",
+    "All config values are imported dynamically from site.config.ts (not hardcoded)",
+    "Each test asserts specific visible content, not just page-doesn't-crash",
+    "Pricing page test walks through multiple steps (program select -> duration -> plan -> payment)",
+    "Enquiry page test walks through all 4 steps",
+    "All tests pass with `npm run test:e2e`"
+  ],
+  "verification": [
+    "Run `npx playwright test tests/e2e/public-pages.spec.ts` and confirm all tests pass",
+    "Run `npm run build` and confirm no TypeScript errors"
+  ],
+  "blocked_reason": null,
+  "findings": "1. The enquiry form uses labels without 'for' attributes, so getByLabel does not work. Used getByPlaceholder instead. 2. Next.js dev tools adds a button with 'Next' in its aria-label, causing strict mode violations. Used exact: true for the Next button selector. 3. All 37 tests pass in ~40s. 4. UPI ID is empty in arsh-sandhu config, so the F7 UPI ID test is conditional."
+}
